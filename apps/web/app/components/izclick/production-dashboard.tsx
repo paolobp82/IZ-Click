@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { calculateProductionMetrics } from "@/lib/izclick/production-metrics";
-import type { ProductionState, ProductionWorkItem } from "@/lib/izclick/production-metrics";
+import { calculateProductionMetrics } from "@/app/lib/izclick/production-metrics";
+import type { ProductionState, ProductionWorkItem } from "@/app/lib/izclick/production-metrics";
 import { ProductionStatusPie } from "./production-status-pie";
 
 export type ProductionProducer = {
