@@ -40,6 +40,16 @@ export function ProductionDashboard({
     [issues, states, producerId, clientId, projectId]
   );
 
+  const producerSummary = useMemo(() => producers.map((producer) => ({
+    ...producer,
+    metrics: calculateProductionMetrics(issues, states, {
+      producerId: producer.id,
+      clientId: clientId || null,
+      projectId: projectId || null,
+    }),
+  })).filter((row) => row.metrics.total > 0).sort((a, b) => b.metrics.total - a.metrics.total),
+    [issues, states, producers, clientId, projectId]);
+
   const selectClass = "w-full rounded-md border border-subtle bg-surface-1 px-3 py-2 text-sm";
 
   return (
@@ -82,7 +92,27 @@ export function ProductionDashboard({
       {loading ? (
         <p role="status">Cargando cargas...</p>
       ) : (
-        <ProductionStatusPie metrics={metrics} title="Estados de las cargas" />
+        <>
+          <ProductionStatusPie metrics={metrics} title="Estados de las cargas" />
+          {!producerId && producerSummary.length > 0 && (
+            <section className="rounded-lg border border-subtle bg-surface-1 p-5" aria-label="Resumen por productor">
+              <h2 className="mb-3 text-base font-semibold">Cargas por productor</h2>
+              <p className="mb-3 text-xs text-custom-text-300">Una carga con varios responsables aparece en el total de cada uno. El total general cuenta cada carga una sola vez.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead><tr className="border-b border-subtle"><th className="py-2">Productor</th><th className="py-2 text-right">Cargas</th><th className="py-2">Por estado (cantidad y %)</th></tr></thead>
+                  <tbody>{producerSummary.map((row) => (
+                    <tr key={row.id} className="border-b border-subtle">
+                      <td className="py-2 pr-3">{row.name}</td>
+                      <td className="py-2 pr-3 text-right font-medium">{row.metrics.total}</td>
+                      <td className="py-2">{row.metrics.slices.map((slice) => `${slice.name}: ${slice.count} (${slice.percent}%)`).join(" · ")}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </section>
+          )}
+        </>
       )}
     </div>
   );
