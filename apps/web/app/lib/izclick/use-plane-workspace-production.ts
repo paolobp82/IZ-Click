@@ -4,7 +4,7 @@ import type { ProductionMember } from "@/app/lib/izclick/production-members";
 import { normalizeProductionMembers } from "@/app/lib/izclick/production-members";
 import { normalizePlaneCollection, normalizePlaneIssue, normalizePlaneState } from "@/app/lib/izclick/plane-production-adapter";
 import { collectPlanePages } from "@/app/lib/izclick/production-pagination";
-import { clientsFromPlaneLabels } from "@/app/lib/izclick/production-clients";
+import { clientsFromPlaneLabels, productionClientKey } from "@/app/lib/izclick/production-clients";
 import type { ProductionClient } from "@/app/lib/izclick/production-clients";
 
 type Project = { id: string; name: string };
@@ -59,12 +59,21 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
           ),
           json(`${base}/states/`, controller.signal),
         ]);
-        issues.push(...rawList.map((issue) => ({ ...issue, project_id: project.id })));
         states.push(...normalizePlaneCollection(rawStates, normalizePlaneState));
         const labels = await json(`${base}/issue-labels/`, controller.signal)
           .then(clientsFromPlaneLabels)
           .catch(() => [] as ProductionClient[]);
-        for (const client of labels) clientsById.set(client.id, client);
+        const clientByLabel = new Map<string, string>();
+        for (const client of labels) {
+          const key = productionClientKey(client.name);
+          clientByLabel.set(client.id, key);
+          if (!clientsById.has(key)) clientsById.set(key, { ...client, id: key });
+        }
+        issues.push(...rawList.map((issue) => ({
+          ...issue,
+          project_id: project.id,
+          client_id: issue.label_ids?.map((id) => clientByLabel.get(id)).find((id): id is string => Boolean(id)) ?? issue.client_id,
+        })));
       }
       if (!controller.signal.aborted) setData({ issues, states, members, clients: [...clientsById.values()].sort((a,b) => a.name.localeCompare(b.name, "es")), projects: list, loading: false, error: null });
     })().catch((err: unknown) => {
