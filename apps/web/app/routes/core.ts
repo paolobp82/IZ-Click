@@ -62,6 +62,9 @@ export const coreRoutes: RouteConfigEntry[] = [
         // Workspace Home
         route(":workspaceSlug", "./(all)/[workspaceSlug]/(projects)/page.tsx"),
 
+        // IZ-Click Production — workspace-wide overview
+        route(":workspaceSlug/produccion", "./(all)/[workspaceSlug]/(projects)/produccion/page.tsx"),
+
         // Active Cycles
         layout("./(all)/[workspaceSlug]/(projects)/active-cycles/layout.tsx", [
           route(":workspaceSlug/active-cycles", "./(all)/[workspaceSlug]/(projects)/active-cycles/page.tsx"),
