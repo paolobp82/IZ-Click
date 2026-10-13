@@ -23,6 +23,8 @@ jobs:
           node-version: '22'
       - name: Validate metrics engine
         run: node --experimental-strip-types --test apps/web/app/lib/izclick/*.test.ts
+      - name: Verify all test files discovered
+        run: find apps/web/app/lib/izclick -name '*.test.ts' -print
 
   web-build:
     runs-on: ubuntu-latest
