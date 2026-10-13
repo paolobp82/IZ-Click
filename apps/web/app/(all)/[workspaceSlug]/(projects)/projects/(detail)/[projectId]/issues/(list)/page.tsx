@@ -10,7 +10,7 @@ import { observer } from "mobx-react";
 import { useTranslation } from "@plane/i18n";
 // components
 import { PageHead } from "@/components/core/page-title";
-import { ProductionProjectPanel } from "@/components/izclick/production-project-panel";
+import { ProductionProjectPanel } from "@/app/components/izclick/production-project-panel";
 import { ProjectLayoutRoot } from "@/components/issues/issue-layouts/roots/project-layout-root";
 // hooks
 import { useProject } from "@/hooks/store/use-project";
