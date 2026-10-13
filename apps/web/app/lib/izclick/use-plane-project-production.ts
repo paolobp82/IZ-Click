@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import type { ProductionState, ProductionWorkItem } from "@/lib/izclick/production-metrics";
 import { normalizeProductionMembers } from "@/lib/izclick/production-members";
 import type { ProductionMember } from "@/lib/izclick/production-members";
+import { clientsFromPlaneLabels } from "@/lib/izclick/production-clients";
+import type { ProductionClient } from "@/lib/izclick/production-clients";
 import { normalizePlaneCollection, normalizePlaneIssue, normalizePlaneState } from "@/lib/izclick/plane-production-adapter";
 
 type Result = {
   issues: ProductionWorkItem[];
   states: ProductionState[];
   members: ProductionMember[];
+  clients: ProductionClient[];
   loading: boolean;
   error: string | null;
 };
@@ -67,13 +70,13 @@ async function fetchAllProjectIssues(base: string, projectId: string, signal: Ab
  */
 export function usePlaneProjectProduction(workspaceSlug: string, projectId: string): Result {
   const [result, setResult] = useState<Result>({
-    issues: [], states: [], members: [], loading: true, error: null,
+    issues: [], states: [], members: [], clients: [], loading: true, error: null,
   });
 
   useEffect(() => {
     const controller = new AbortController();
     const base = `/api/workspaces/${encodeURIComponent(workspaceSlug)}/projects/${encodeURIComponent(projectId)}`;
-    setResult({ issues: [], states: [], members: [], loading: true, error: null });
+    setResult({ issues: [], states: [], members: [], clients: [], loading: true, error: null });
 
     Promise.all([
       fetchAllProjectIssues(base, projectId, controller.signal),
@@ -83,14 +86,17 @@ export function usePlaneProjectProduction(workspaceSlug: string, projectId: stri
       fetchJson(`/api/workspaces/${encodeURIComponent(workspaceSlug)}/members/`, controller.signal)
         .then(normalizeProductionMembers)
         .catch(() => [] as ProductionMember[]),
+      fetchJson(`${base}/issue-labels/`, controller.signal)
+        .then(clientsFromPlaneLabels)
+        .catch(() => [] as ProductionClient[]),
     ])
-      .then(([issues, states, members]) => {
-        if (!controller.signal.aborted) setResult({ issues, states, members, loading: false, error: null });
+      .then(([issues, states, members, clients]) => {
+        if (!controller.signal.aborted) setResult({ issues, states, members, clients, loading: false, error: null });
       })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
           setResult({
-            issues: [], states: [], members: [], loading: false,
+            issues: [], states: [], members: [], clients: [], loading: false,
             error: error instanceof Error ? error.message : "No se pudieron obtener las cargas",
           });
         }
