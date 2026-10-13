@@ -1,15 +1,15 @@
 {
   "issue": {
-    "label": "{count, plural, one {Elemento de trabajo} other {Elementos de trabajo}}",
-    "all": "Todos los elementos de trabajo",
-    "edit": "Editar elemento de trabajo",
+    "label": "{count, plural, one {Tarea} other {Tareas}}",
+    "all": "Todas las tareas",
+    "edit": "Editar tarea",
     "title": {
-      "label": "Título del elemento de trabajo",
-      "required": "El título del elemento de trabajo es obligatorio."
+      "label": "Título de la tarea",
+      "required": "El título de la tarea es obligatorio."
     },
     "add": {
-      "press_enter": "Presiona 'Enter' para agregar otro elemento de trabajo",
-      "label": "Agregar elemento de trabajo",
+      "press_enter": "Presiona Enter para agregar otra tarea",
+      "label": "Agregar tarea",
       "cycle": {
         "failed": "No se pudo agregar el elemento de trabajo al ciclo. Por favor, inténtalo de nuevo.",
         "success": "{count, plural, one {Elemento de trabajo agregado} other {Elementos de trabajo agregados}} al ciclo correctamente.",
@@ -41,10 +41,10 @@
         "label": "Eliminar elemento de trabajo padre"
       }
     },
-    "new": "Nuevo elemento de trabajo",
+    "new": "Nueva tarea",
     "adding": "Agregando elemento de trabajo",
     "create": {
-      "success": "Elemento de trabajo creado correctamente"
+      "success": "Tarea creada correctamente"
     },
     "priority": {
       "urgent": "Urgente",
