@@ -8,6 +8,7 @@ on:
       - 'packages/i18n/src/locales/es/**'
       - 'packages/i18n/src/locales/en/**'
       - '.github/workflows/izclick-i18n.yml'
+      - 'scripts/izclick-check-es.mjs'
   workflow_dispatch:
 
 permissions:
@@ -23,6 +24,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check Spanish JSON key parity
+        run: node scripts/izclick-check-es.mjs
       - name: Enable pnpm
         run: corepack enable
       - name: Install dependencies
