@@ -1,0 +1,31 @@
+import { useMemo } from "react";
+import { ProductionDashboard } from "@/components/izclick/production-dashboard";
+import { usePlaneProjectProduction } from "@/lib/izclick/use-plane-project-production";
+
+type Props = { workspaceSlug: string; projectId: string; projectName?: string };
+
+export function ProductionProjectPanel({ workspaceSlug, projectId, projectName }: Props) {
+  const { issues, states, loading, error } = usePlaneProjectProduction(workspaceSlug, projectId);
+  const producers = useMemo(() => {
+    const ids = new Set(issues.flatMap((issue) => [...(issue.assignee_ids ?? [])]));
+    return [...ids].sort().map((id) => ({ id, name: id }));
+  }, [issues]);
+
+  if (error) {
+    return (
+      <div className="m-5 rounded-md border border-red-400 p-4" role="alert">
+        No se pudo calcular el control de cargas: {error}
+      </div>
+    );
+  }
+
+  return (
+    <ProductionDashboard
+      issues={issues}
+      states={states}
+      producers={producers}
+      projects={[{ id: projectId, name: projectName || "Proyecto actual" }]}
+      loading={loading}
+    />
+  );
+}
