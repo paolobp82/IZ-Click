@@ -13,7 +13,7 @@ type Props = {
   issues: readonly ProductionWorkItem[];
   states: readonly ProductionState[];
   producers: readonly ProductionProducer[];
-  clients?: readonly { id: string; name: string }[];
+  clients?: readonly { id: string; name: string; color?: string }[];
   projects?: readonly { id: string; name: string }[];
   loading?: boolean;
 };
@@ -73,6 +73,12 @@ export function ProductionDashboard({
           </select>
         </label>
       </div>
+      {clientId && (
+        <p className="flex items-center gap-2 text-sm" aria-live="polite">
+          <span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ backgroundColor: clients.find((client) => client.id === clientId)?.color || "#64748b" }} />
+          Cliente: <strong>{clients.find((client) => client.id === clientId)?.name || "No identificado"}</strong>
+        </p>
+      )}
       {loading ? (
         <p role="status">Cargando cargas...</p>
       ) : (
