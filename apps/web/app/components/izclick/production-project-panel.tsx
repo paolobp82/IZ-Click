@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { ProductionDashboard } from "@/components/izclick/production-dashboard";
-import { usePlaneProjectProduction } from "@/lib/izclick/use-plane-project-production";
+import { ProductionDashboard } from "@/app/components/izclick/production-dashboard";
+import { usePlaneProjectProduction } from "@/app/lib/izclick/use-plane-project-production";
 
 type Props = { workspaceSlug: string; projectId: string; projectName?: string };
 
