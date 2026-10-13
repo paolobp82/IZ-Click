@@ -17,9 +17,8 @@ export function normalizeProductionMembers(response: unknown): ProductionMember[
     const user = asRecord(record.member) ?? asRecord(record.user) ?? record;
     const id = nonempty(user.id) ?? nonempty(record.member_id) ?? nonempty(record.user_id);
     if (!id) continue;
-    const display = nonempty(user.display_name)
-      ?? [nonempty(user.first_name), nonempty(user.last_name)].filter(Boolean).join(" ")
-      ?? null;
+    const fullName = [nonempty(user.first_name), nonempty(user.last_name)].filter(Boolean).join(" ");
+    const display = nonempty(user.display_name) ?? nonempty(fullName);
     const name = display || nonempty(user.username) || `Usuario ${id.slice(0, 8)}`;
     unique.set(id, { id, name });
   }
