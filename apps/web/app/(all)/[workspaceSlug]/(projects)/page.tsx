@@ -5,6 +5,7 @@
  */
 
 import { observer } from "mobx-react";
+import { useParams } from "react-router";
 // components
 import { useTranslation } from "@plane/i18n";
 import { AppHeader } from "@/components/core/app-header";
@@ -17,6 +18,7 @@ import { useWorkspace } from "@/hooks/store/use-workspace";
 import { WorkspaceDashboardHeader } from "./header";
 
 function WorkspaceDashboardPage() {
+  const { workspaceSlug } = useParams();
   const { currentWorkspace } = useWorkspace();
   const { t } = useTranslation();
   // derived values
@@ -27,6 +29,11 @@ function WorkspaceDashboardPage() {
       <AppHeader header={<WorkspaceDashboardHeader />} />
       <ContentWrapper>
         <PageHead title={pageTitle} />
+        <div className="flex justify-end border-b border-subtle px-4 py-2">
+          <a href={`/${encodeURIComponent(workspaceSlug || "")}/produccion`} className="rounded-md border border-subtle px-3 py-1.5 text-sm">
+            Control global de Producción
+          </a>
+        </div>
         <WorkspaceHomeView />
       </ContentWrapper>
     </>
