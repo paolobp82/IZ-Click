@@ -5,11 +5,12 @@ import { usePlaneProjectProduction } from "@/lib/izclick/use-plane-project-produ
 type Props = { workspaceSlug: string; projectId: string; projectName?: string };
 
 export function ProductionProjectPanel({ workspaceSlug, projectId, projectName }: Props) {
-  const { issues, states, loading, error } = usePlaneProjectProduction(workspaceSlug, projectId);
+  const { issues, states, members, loading, error } = usePlaneProjectProduction(workspaceSlug, projectId);
   const producers = useMemo(() => {
     const ids = new Set(issues.flatMap((issue) => [...(issue.assignee_ids ?? [])]));
-    return [...ids].sort().map((id) => ({ id, name: id }));
-  }, [issues]);
+    const known = new Map(members.map((member) => [member.id, member.name]));
+    return [...ids].sort().map((id) => ({ id, name: known.get(id) || `Usuario ${id.slice(0, 8)}` }));
+  }, [issues, members]);
 
   if (error) {
     return (
