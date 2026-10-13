@@ -1,0 +1,33 @@
+name: IZ-Click Spanish translations validation
+
+on:
+  push:
+    branches:
+      - 'izclick/v1.4.2-custom'
+    paths:
+      - 'packages/i18n/src/locales/es/**'
+      - 'packages/i18n/src/locales/en/**'
+      - '.github/workflows/izclick-i18n.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-translations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify translation sync
+        run: pnpm --filter @plane/i18n run check:sync
+      - name: Verify translation types
+        run: pnpm --filter @plane/i18n run check:types
