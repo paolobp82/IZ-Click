@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: '22'
       - name: Validate metrics engine
-        run: node --experimental-strip-types --test apps/web/app/lib/izclick/production-metrics.test.ts
+        run: node --experimental-strip-types --test apps/web/app/lib/izclick/*.test.ts
 
   web-build:
     runs-on: ubuntu-latest
