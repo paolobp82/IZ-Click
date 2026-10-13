@@ -25,7 +25,7 @@ async function fetchJson(url: string, signal: AbortSignal): Promise<unknown> {
   return response.json();
 }
 
-async function fetchAllProjectIssues(base: string, signal: AbortSignal): Promise<ProductionWorkItem[]> {
+async function fetchAllProjectIssues(base: string, projectId: string, signal: AbortSignal): Promise<ProductionWorkItem[]> {
   const issues: ProductionWorkItem[] = [];
   const visited = new Set<string>();
   let cursor: string | null = null;
@@ -37,7 +37,10 @@ async function fetchAllProjectIssues(base: string, signal: AbortSignal): Promise
     url.searchParams.set("sub_issue", "true");
     if (cursor) url.searchParams.set("cursor", cursor);
     const payload = await fetchJson(url.toString(), signal);
-    issues.push(...normalizePlaneCollection(payload, normalizePlaneIssue));
+    issues.push(...normalizePlaneCollection(payload, normalizePlaneIssue).map((issue) => ({
+      ...issue,
+      project_id: issue.project_id || projectId,
+    })));
     if (Array.isArray(payload)) return issues;
 
     const data = payload as PlanePage;
@@ -73,7 +76,7 @@ export function usePlaneProjectProduction(workspaceSlug: string, projectId: stri
     setResult({ issues: [], states: [], members: [], loading: true, error: null });
 
     Promise.all([
-      fetchAllProjectIssues(base, controller.signal),
+      fetchAllProjectIssues(base, projectId, controller.signal),
       fetchJson(`${base}/states/`, controller.signal).then((value) =>
         normalizePlaneCollection(value, normalizePlaneState)
       ),
