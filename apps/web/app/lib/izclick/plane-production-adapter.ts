@@ -32,6 +32,7 @@ export function normalizePlaneIssue(item: ApiIssue): ProductionWorkItem | null {
     assignee_ids: idsOf(item.assignee_ids ?? item.assignees),
     project_id: idOf(item.project_id ?? item.project),
     client_id: idOf(item.client_id),
+    label_ids: idsOf(item.label_ids ?? item.labels),
     event_date: typeof item.event_date === "string" ? item.event_date : null,
   };
 }
