@@ -1,6 +1,14 @@
 name: IZ-Click Docker build validation
 
 on:
+  push:
+    branches:
+      - 'izclick/v1.4.2-custom'
+    paths:
+      - 'packages/i18n/src/locales/es/**'
+      - 'apps/web/**'
+      - 'apps/admin/**'
+      - '.github/workflows/izclick-docker-check.yml'
   workflow_dispatch:
 
 permissions:
