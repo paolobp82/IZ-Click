@@ -30,5 +30,7 @@
     "upgrade_plan": "Actualizar plan",
     "plane_pro": "Plane Pro",
     "business": "Business"
-  }
+  },
+  "new_work_item": "Nueva tarea",
+  "work_items": "Tareas"
 }
