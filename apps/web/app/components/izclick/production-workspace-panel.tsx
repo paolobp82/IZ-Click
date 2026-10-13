@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { ProductionDashboard } from "@/app/components/izclick/production-dashboard";
+import { ProductionCalendar } from "@/app/components/izclick/production-calendar";
 import { usePlaneWorkspaceProduction } from "@/app/lib/izclick/use-plane-workspace-production";
 
 type Props = { workspaceSlug: string };
@@ -13,5 +14,10 @@ export function ProductionWorkspacePanel({ workspaceSlug }: Props) {
       .sort((a, b) => a.name.localeCompare(b.name, "es"));
   }, [members, issues]);
   if (error) return <p role="alert" className="m-5 rounded-md border border-red-400 p-4">{error}</p>;
-  return <ProductionDashboard issues={issues} states={states} producers={producers} clients={clients} projects={projects} loading={loading} />;
+  return (
+    <>
+      <ProductionDashboard issues={issues} states={states} producers={producers} clients={clients} projects={projects} loading={loading} />
+      {!loading && <div className="px-5 pb-6"><ProductionCalendar issues={issues} projects={projects} workspaceSlug={workspaceSlug} /></div>}
+    </>
+  );
 }
