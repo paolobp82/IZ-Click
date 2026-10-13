@@ -3,6 +3,7 @@ import type { ProductionState, ProductionWorkItem } from "@/app/lib/izclick/prod
 import type { ProductionMember } from "@/app/lib/izclick/production-members";
 import { normalizeProductionMembers } from "@/app/lib/izclick/production-members";
 import { normalizePlaneCollection, normalizePlaneIssue, normalizePlaneState } from "@/app/lib/izclick/plane-production-adapter";
+import { collectPlanePages } from "@/app/lib/izclick/production-pagination";
 
 type Project = { id: string; name: string };
 type Result = { issues: ProductionWorkItem[]; states: ProductionState[]; members: ProductionMember[]; projects: Project[]; loading: boolean; error: string | null };
@@ -31,28 +32,30 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
     const ws = `/api/workspaces/${encodeURIComponent(workspaceSlug)}`;
 
     (async () => {
-      // Reject incomplete paginated responses until traversal support is validated against Plane.
-      const response = await json(`${ws}/projects/?per_page=100`, controller.signal);
-      const list = projectList(response);
-      if (list.length >= 100 || (response && typeof response === "object" && !Array.isArray(response) &&
-        ("next_cursor" in response || "next_page_results" in response) && (
-          (response as { next_cursor?: unknown }).next_cursor ||
-          (response as { next_page_results?: unknown }).next_page_results === true
-        ))) throw new Error("La lista de proyectos requiere paginación: no se muestran cifras parciales.");
+      const list = await collectPlanePages(
+        (cursor) => {
+          const params = new URLSearchParams({ per_page: "100" });
+          if (cursor) params.set("cursor", cursor);
+          return json(`${ws}/projects/?${params}`, controller.signal);
+        },
+        projectList
+      );
       const members = await json(`${ws}/members/`, controller.signal).then(normalizeProductionMembers).catch(() => [] as ProductionMember[]);
       const issues: ProductionWorkItem[] = [];
       const states: ProductionState[] = [];
       for (const project of list) {
         const base = `${ws}/projects/${encodeURIComponent(project.id)}`;
-        const [rawIssues, rawStates] = await Promise.all([
-          json(`${base}/issues/?per_page=100&sub_issue=true`, controller.signal),
+        const [rawList, rawStates] = await Promise.all([
+          collectPlanePages(
+            (cursor) => {
+              const params = new URLSearchParams({ per_page: "100", sub_issue: "true" });
+              if (cursor) params.set("cursor", cursor);
+              return json(`${base}/issues/?${params}`, controller.signal);
+            },
+            (payload) => normalizePlaneCollection(payload, normalizePlaneIssue)
+          ),
           json(`${base}/states/`, controller.signal),
         ]);
-        const rawList = normalizePlaneCollection(rawIssues, normalizePlaneIssue);
-        if (rawList.length >= 100 || (rawIssues && typeof rawIssues === "object" && !Array.isArray(rawIssues) && (
-          (rawIssues as { next_cursor?: unknown }).next_cursor ||
-          (rawIssues as { next_page_results?: unknown }).next_page_results === true
-        ))) throw new Error(`El proyecto ${project.name} requiere paginación; no se muestran cifras parciales.`);
         issues.push(...rawList.map((issue) => ({ ...issue, project_id: project.id })));
         states.push(...normalizePlaneCollection(rawStates, normalizePlaneState));
       }
