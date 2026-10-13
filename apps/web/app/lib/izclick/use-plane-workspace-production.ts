@@ -4,10 +4,12 @@ import type { ProductionMember } from "@/app/lib/izclick/production-members";
 import { normalizeProductionMembers } from "@/app/lib/izclick/production-members";
 import { normalizePlaneCollection, normalizePlaneIssue, normalizePlaneState } from "@/app/lib/izclick/plane-production-adapter";
 import { collectPlanePages } from "@/app/lib/izclick/production-pagination";
+import { clientsFromPlaneLabels } from "@/app/lib/izclick/production-clients";
+import type { ProductionClient } from "@/app/lib/izclick/production-clients";
 
 type Project = { id: string; name: string };
-type Result = { issues: ProductionWorkItem[]; states: ProductionState[]; members: ProductionMember[]; projects: Project[]; loading: boolean; error: string | null };
-const empty = (): Result => ({ issues: [], states: [], members: [], projects: [], loading: true, error: null });
+type Result = { issues: ProductionWorkItem[]; states: ProductionState[]; members: ProductionMember[]; clients: ProductionClient[]; projects: Project[]; loading: boolean; error: string | null };
+const empty = (): Result => ({ issues: [], states: [], members: [], clients: [], projects: [], loading: true, error: null });
 
 async function json(url: string, signal: AbortSignal): Promise<unknown> {
   const response = await fetch(url, { credentials: "same-origin", signal });
@@ -43,6 +45,7 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
       const members = await json(`${ws}/members/`, controller.signal).then(normalizeProductionMembers).catch(() => [] as ProductionMember[]);
       const issues: ProductionWorkItem[] = [];
       const states: ProductionState[] = [];
+      const clientsById = new Map<string, ProductionClient>();
       for (const project of list) {
         const base = `${ws}/projects/${encodeURIComponent(project.id)}`;
         const [rawList, rawStates] = await Promise.all([
@@ -58,8 +61,12 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
         ]);
         issues.push(...rawList.map((issue) => ({ ...issue, project_id: project.id })));
         states.push(...normalizePlaneCollection(rawStates, normalizePlaneState));
+        const labels = await json(`${base}/issue-labels/`, controller.signal)
+          .then(clientsFromPlaneLabels)
+          .catch(() => [] as ProductionClient[]);
+        for (const client of labels) clientsById.set(client.id, client);
       }
-      if (!controller.signal.aborted) setData({ issues, states, members, projects: list, loading: false, error: null });
+      if (!controller.signal.aborted) setData({ issues, states, members, clients: [...clientsById.values()].sort((a,b) => a.name.localeCompare(b.name, "es")), projects: list, loading: false, error: null });
     })().catch((err: unknown) => {
       if (!controller.signal.aborted) setData({ ...empty(), loading: false, error: err instanceof Error ? err.message : "Error consultando Plane" });
     });
