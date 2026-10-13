@@ -42,14 +42,14 @@
       "empty": {
         "project": "Tus proyectos recientes aparecerán aquí una vez que visites uno.",
         "page": "Tus páginas recientes aparecerán aquí una vez que visites una.",
-        "issue": "Tus elementos de trabajo recientes aparecerán aquí una vez que visites uno.",
+        "issue": "Tus tareas recientes aparecerán aquí una vez que visites uno.",
         "default": "Aún no tienes elementos recientes."
       },
       "filters": {
         "all": "Todos",
         "projects": "Proyectos",
         "pages": "Páginas",
-        "issues": "Elementos de trabajo"
+        "issues": "Tareas"
       }
     },
     "new_at_plane": {
