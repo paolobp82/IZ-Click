@@ -24,7 +24,7 @@ export function ProductionStatusPie({ metrics, title = "Distribución de cargas 
                   nameKey="name"
                   innerRadius={62}
                   outerRadius={100}
-                  label={({ index }) => { const slice = metrics.slices[index]; return slice ? `${slice.count} (${slice.percent}%)` : ""; }}
+                  label={({ index }) => { const slice = metrics.slices[typeof index === "number" ? index : -1]; return slice ? `${slice.count} (${slice.percent}%)` : ""; }}
                   labelLine={false}
                 >
                   {metrics.slices.map((slice) => (
@@ -33,8 +33,8 @@ export function ProductionStatusPie({ metrics, title = "Distribución de cargas 
                 </Pie>
                 <Tooltip
                   formatter={(_value, _name, props) => {
-                    const slice = props.payload as ProductionMetrics["slices"][number];
-                    return [`${slice.count} cargas (${slice.percent}% de ${metrics.total})`, slice.name];
+                    const slice = props.payload as ProductionMetrics["slices"][number] | undefined;
+                    return slice ? [`${slice.count} cargas (${slice.percent}% de ${metrics.total})`, slice.name] : ["Sin datos", "Estado"];
                   }}
                 />
               </PieChart>
