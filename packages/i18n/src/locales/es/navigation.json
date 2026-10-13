@@ -11,13 +11,13 @@
     "your_work": "Tu trabajo",
     "projects": "Proyectos",
     "pages": "Páginas",
-    "new_work_item": "Nuevo elemento de trabajo",
+    "new_work_item": "Nueva tarea",
     "home": "Inicio",
     "inbox": "Bandeja de entrada",
     "workspace": "Espacio de trabajo",
     "views": "Vistas",
     "analytics": "Análisis",
-    "work_items": "Elementos de trabajo",
+    "work_items": "Tareas",
     "cycles": "Ciclos",
     "modules": "Módulos",
     "intake": "Entrada",
@@ -30,7 +30,5 @@
     "upgrade_plan": "Actualizar plan",
     "plane_pro": "Plane Pro",
     "business": "Business"
-  },
-  "new_work_item": "Nueva tarea",
-  "work_items": "Tareas"
+  }
 }
