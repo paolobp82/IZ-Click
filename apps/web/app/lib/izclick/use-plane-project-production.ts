@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import type { ProductionState, ProductionWorkItem } from "@/lib/izclick/production-metrics";
-import { normalizeProductionMembers } from "@/lib/izclick/production-members";
-import type { ProductionMember } from "@/lib/izclick/production-members";
-import { clientsFromPlaneLabels } from "@/lib/izclick/production-clients";
-import type { ProductionClient } from "@/lib/izclick/production-clients";
-import { normalizePlaneCollection, normalizePlaneIssue, normalizePlaneState } from "@/lib/izclick/plane-production-adapter";
+import type { ProductionState, ProductionWorkItem } from "@/app/lib/izclick/production-metrics";
+import { normalizeProductionMembers } from "@/app/lib/izclick/production-members";
+import type { ProductionMember } from "@/app/lib/izclick/production-members";
+import { clientsFromPlaneLabels } from "@/app/lib/izclick/production-clients";
+import type { ProductionClient } from "@/app/lib/izclick/production-clients";
+import { normalizePlaneCollection, normalizePlaneIssue, normalizePlaneState } from "@/app/lib/izclick/plane-production-adapter";
 
 type Result = {
   issues: ProductionWorkItem[];
