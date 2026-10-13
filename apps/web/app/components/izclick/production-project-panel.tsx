@@ -5,7 +5,7 @@ import { usePlaneProjectProduction } from "@/lib/izclick/use-plane-project-produ
 type Props = { workspaceSlug: string; projectId: string; projectName?: string };
 
 export function ProductionProjectPanel({ workspaceSlug, projectId, projectName }: Props) {
-  const { issues, states, members, loading, error } = usePlaneProjectProduction(workspaceSlug, projectId);
+  const { issues, states, members, clients, loading, error } = usePlaneProjectProduction(workspaceSlug, projectId);
   const producers = useMemo(() => {
     const ids = new Set(issues.flatMap((issue) => [...(issue.assignee_ids ?? [])]));
     const known = new Map(members.map((member) => [member.id, member.name]));
@@ -25,6 +25,7 @@ export function ProductionProjectPanel({ workspaceSlug, projectId, projectName }
       issues={issues}
       states={states}
       producers={producers}
+      clients={clients}
       projects={[{ id: projectId, name: projectName || "Proyecto actual" }]}
       loading={loading}
     />
