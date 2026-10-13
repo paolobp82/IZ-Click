@@ -57,3 +57,13 @@ test("filtra por cliente", () => {
   assert.equal(result.total, 1);
   assert.equal(result.slices[0].name, "Aprobado");
 });
+
+
+test("filtra clientes mediante etiquetas nativas sin requerir una columna nueva", () => {
+  const result = calculateProductionMetrics([
+    { id: "1", state_id: "a", label_ids: ["cliente-ripley"] },
+    { id: "2", state_id: "p", label_ids: ["cliente-qroma"] },
+  ], states, { clientId: "cliente-ripley" });
+  assert.equal(result.total, 1);
+  assert.equal(result.slices[0].name, "Aprobado");
+});
