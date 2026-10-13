@@ -25,5 +25,5 @@ export function clientsFromPlaneLabels(payload: unknown): ProductionClient[] {
 
 /** Stable grouping key for labels referring to the same client in different Plane projects. */
 export function productionClientKey(name: string): string {
-  return `cliente:${name.trim().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("es").replace(/\\s+/g, " ")}`;
+  return `cliente:${name.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es").replace(/\s+/g, " ")}`;
 }
