@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { clientsFromPlaneLabels } from "./production-clients.ts";
+import { clientsFromPlaneLabels, productionClientKey } from "./production-clients.ts";
 
 test("solo incorpora etiquetas de cliente y conserva colores", () => {
   const clients = clientsFromPlaneLabels([
@@ -20,4 +20,10 @@ test("rechaza respuesta de API incorrecta", () => {
 
 test("evita códigos CSS inválidos", () => {
   assert.equal(clientsFromPlaneLabels([{ id: "1", name: "Cliente: Test", color: "url(javascript:)" }])[0].color, "#64748b");
+});
+
+
+test("agrupa cliente con etiquetas diferentes y acentos", () => {
+  assert.equal(productionClientKey("  Ripley "), productionClientKey("RIPLEY"));
+  assert.equal(productionClientKey("San José"), productionClientKey("san jose"));
 });
