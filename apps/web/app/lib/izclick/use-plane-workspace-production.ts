@@ -31,8 +31,7 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
     const ws = `/api/workspaces/${encodeURIComponent(workspaceSlug)}`;
 
     (async () => {
-      const projects = projectList(await json(`${ws}/projects/`, controller.signal));
-      // Do not silently truncate totals: the first version only accepts non-paginated project lists.
+      // Reject incomplete paginated responses until traversal support is validated against Plane.
       const response = await json(`${ws}/projects/?per_page=100`, controller.signal);
       const list = projectList(response);
       if (list.length >= 100 || (response && typeof response === "object" && !Array.isArray(response) &&
@@ -40,8 +39,6 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
           (response as { next_cursor?: unknown }).next_cursor ||
           (response as { next_page_results?: unknown }).next_page_results === true
         ))) throw new Error("La lista de proyectos requiere paginación: no se muestran cifras parciales.");
-      // Prefer a single verified project listing, rather than mixing two snapshots.
-      void projects;
       const members = await json(`${ws}/members/`, controller.signal).then(normalizeProductionMembers).catch(() => [] as ProductionMember[]);
       const issues: ProductionWorkItem[] = [];
       const states: ProductionState[] = [];
