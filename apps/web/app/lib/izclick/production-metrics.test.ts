@@ -67,3 +67,11 @@ test("filtra clientes mediante etiquetas nativas sin requerir una columna nueva"
   assert.equal(result.total, 1);
   assert.equal(result.slices[0].name, "Aprobado");
 });
+
+
+test("carga compartida: cada productor la ve, pero el global no la duplica", () => {
+  const issues = [{ id: "compartida", state_id: "a", assignee_ids: ["u1", "u2"] }];
+  assert.equal(calculateProductionMetrics(issues, states).total, 1);
+  assert.equal(calculateProductionMetrics(issues, states, { producerId: "u1" }).total, 1);
+  assert.equal(calculateProductionMetrics(issues, states, { producerId: "u2" }).total, 1);
+});
