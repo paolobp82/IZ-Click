@@ -1,5 +1,5 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import type { ProductionMetrics } from "@/app/lib/izclick/production-metrics";
+import type { ProductionMetrics } from "@/lib/izclick/production-metrics";
 
 type Props = { metrics: ProductionMetrics; title?: string };
 
@@ -24,7 +24,7 @@ export function ProductionStatusPie({ metrics, title = "Distribución de cargas 
                   nameKey="name"
                   innerRadius={62}
                   outerRadius={100}
-                  label={({ payload }) => `${payload.percent}%`}
+                  label={({ index }) => `${metrics.slices[index]?.percent ?? 0}%`}
                   labelLine={false}
                 >
                   {metrics.slices.map((slice) => (
