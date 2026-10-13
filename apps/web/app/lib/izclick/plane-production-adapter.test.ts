@@ -10,7 +10,7 @@ test("normaliza issue Plane: estado, responsable, proyecto y subtarea", () => {
   assert.deepEqual(item, {
     id: "i1", parent_id: "parent1", state_id: "s1",
     assignee_ids: ["u1", "u2"], project_id: "p1",
-    client_id: null, label_ids: [], event_date: null,
+    client_id: null, label_ids: [], event_date: null, target_date: null, name: null, priority: null,
   });
 });
 
