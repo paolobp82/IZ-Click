@@ -34,6 +34,9 @@ export function normalizePlaneIssue(item: ApiIssue): ProductionWorkItem | null {
     client_id: idOf(item.client_id),
     label_ids: idsOf(item.label_ids ?? item.labels),
     event_date: typeof item.event_date === "string" ? item.event_date : null,
+    target_date: typeof item.target_date === "string" ? item.target_date : null,
+    name: typeof item.name === "string" ? item.name : null,
+    priority: typeof item.priority === "string" ? item.priority : null,
   };
 }
 
