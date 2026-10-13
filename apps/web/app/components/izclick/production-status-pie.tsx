@@ -1,5 +1,5 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import type { ProductionMetrics } from "@/lib/izclick/production-metrics";
+import type { ProductionMetrics } from "@/app/lib/izclick/production-metrics";
 
 type Props = { metrics: ProductionMetrics; title?: string };
 
