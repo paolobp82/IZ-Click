@@ -12,6 +12,9 @@ export type ProductionWorkItem = {
   client_id?: string | null;
   label_ids?: readonly string[] | null;
   event_date?: string | null;
+  target_date?: string | null;
+  name?: string | null;
+  priority?: string | null;
 };
 
 export type ProductionState = {
