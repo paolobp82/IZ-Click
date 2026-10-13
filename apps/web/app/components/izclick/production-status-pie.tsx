@@ -24,7 +24,7 @@ export function ProductionStatusPie({ metrics, title = "Distribución de cargas 
                   nameKey="name"
                   innerRadius={62}
                   outerRadius={100}
-                  label={({ index }) => `${metrics.slices[index]?.percent ?? 0}%`}
+                  label={({ index }) => { const slice = metrics.slices[index]; return slice ? `${slice.count} (${slice.percent}%)` : ""; }}
                   labelLine={false}
                 >
                   {metrics.slices.map((slice) => (
