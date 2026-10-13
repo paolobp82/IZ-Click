@@ -13,6 +13,7 @@ type PlanePage = {
   results?: unknown[];
   next_cursor?: string | null;
   next_page_results?: boolean;
+  next?: string | null;
 };
 
 async function fetchJson(url: string, signal: AbortSignal): Promise<unknown> {
@@ -37,10 +38,10 @@ async function fetchAllProjectIssues(base: string, signal: AbortSignal): Promise
     if (Array.isArray(payload)) return issues;
 
     const data = payload as PlanePage;
-    const hasNext = data.next_page_results === true || Boolean(data.next_cursor);
+    const hasNext = data.next_page_results === true || Boolean(data.next_cursor) || Boolean(data.next);
     if (!hasNext) {
       // A full page without pagination metadata could be incomplete.
-      if (Array.isArray(data.results) && data.results.length === 100 && !data.next_cursor) {
+      if (data.next_page_results !== false && Array.isArray(data.results) && data.results.length === 100 && !data.next_cursor && !data.next) {
         throw new Error("La API no informó la paginación; no es seguro calcular los totales.");
       }
       return issues;
