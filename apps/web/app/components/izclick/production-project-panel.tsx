@@ -31,7 +31,7 @@ export function ProductionProjectPanel({ workspaceSlug, projectId, projectName }
       projects={[{ id: projectId, name: projectName || "Proyecto actual" }]}
       loading={loading}
     />
-    {!loading && <div className="px-5 pb-6"><ProductionLoadDirectory issues={issues} states={states} projects={[{ id: projectId, name: projectName || "Proyecto actual" }]} workspaceSlug={workspaceSlug} /></div>}
+    {!loading && <div className="px-5 pb-6"><ProductionLoadDirectory issues={issues} states={states} projects={[{ id: projectId, name: projectName || "Proyecto actual" }]} clients={clients} workspaceSlug={workspaceSlug} /></div>}
     </>
   );
 }
