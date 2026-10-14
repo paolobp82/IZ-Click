@@ -30,7 +30,7 @@ export function ProductionSigLinkEditor({ workspaceSlug, projectId, issueId, onC
         if (!active) return;
         if (!Array.isArray(response)) throw new Error("La API de enlaces devolvió un formato inesperado");
         const candidate = (response as PlaneExternalLink[]).find(
-          (item) => typeof item.title === "string" && item.title.startsWith(SIG_LINK_PREFIX)
+          (item) => sigProjectAssociation(item) !== null
         ) ?? null;
         const existing = candidate ? sigProjectAssociation(candidate) : null;
         setLink(candidate);
