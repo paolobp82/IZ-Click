@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IssueService } from "@/services/issue";
+import { fetchProjectProductionMetadata } from "./production-project-metadata";
 import { validCalendarDate } from "@/app/lib/izclick/production-schedule";
 import { sigLinkPayload, sigProjectAssociation } from "@/app/lib/izclick/production-sig";
 import type { PlaneExternalLink } from "@/app/lib/izclick/production-sig";
@@ -52,22 +53,22 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     setEditingSig(false);
     setError("");
     setLoading(true);
-    // The cancellation guard prevents stale completion from changing UI state.
-    service.fetchIssueLinks(workspaceSlug, projectId, issueId)
-      .then((response) => {
+    // Two shared project requests replace one request per visible row.
+    fetchProjectProductionMetadata(workspaceSlug, projectId)
+      .then(({ dates, sigLinks }) => {
         if (!active) return;
-        if (!Array.isArray(response)) throw new Error("No se pudieron leer los campos de la carga.");
-        const links = response as PlaneExternalLink[];
-        const current = dateOf(links);
+        const current = dates[issueId] ?? "";
+        const match = sigLinks[issueId] ?? null;
         setDate(current);
         setDraft(current);
-        const match = links.map(sigProjectAssociation).find((link) => link !== null);
-        setSig(match ? { code: match.code, url: match.url } : null);
+        setSig(match);
+        setSigCodeDraft(match?.code ?? "");
+        setSigUrlDraft(match?.url ?? "");
       })
       .catch(() => { if (active) setError("No se pudieron consultar los campos."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [service, workspaceSlug, projectId, issueId]);
+  }, [workspaceSlug, projectId, issueId]);
 
   const saveDate = async () => {
     if (!canEdit || busy || loading) return;
