@@ -42,10 +42,11 @@ export function mergeEventDateLabelIds(
 }
 
 export function parseIssueLabelIds(issue: unknown): string[] {
-  if (!issue || typeof issue !== "object" || !("labels" in issue)) {
+  if (!issue || typeof issue !== "object" || (!("label_ids" in issue) && !("labels" in issue))) {
     throw new Error("Plane no devolvió las etiquetas de la carga: no se guardará para evitar pérdidas.");
   }
-  const raw = (issue as { labels: unknown }).labels;
+  const payload = issue as { label_ids?: unknown; labels?: unknown };
+  const raw = payload.label_ids ?? payload.labels;
   if (!Array.isArray(raw)) throw new Error("Formato de etiquetas inesperado");
   const ids = raw.map((value) => {
     if (typeof value === "string") return value;
