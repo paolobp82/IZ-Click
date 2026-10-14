@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calculateProductionMetrics, matchesProductionFilter } from "./production-metrics.ts";
+import { calculateProductionMetrics, calculateProductionOutcomes, matchesProductionFilter } from "./production-metrics.ts";
 
 const states = [
   { id: "a", name: "Aprobado", color: "#008000" },
@@ -105,4 +105,18 @@ test("unifica estados equivalentes de proyectos diferentes en el pie global", ()
   assert.equal(result.slices.length, 2);
   assert.equal(result.slices.find((slice) => slice.name === "En Producción")?.count, 2);
   assert.equal(result.slices.reduce((total, slice) => total + slice.percent, 0), 100);
+});
+
+
+test("clasifica aprobación, rechazo y seguimiento de estados de varios proyectos", () => {
+  const states = [
+    { id: "p1-approved", name: "Aprobado por cliente" },
+    { id: "p2-approved", name: "APROBADO POR CLIENTE" },
+    { id: "p1-rejected", name: "Rechazado" },
+    { id: "p1-follow", name: "En seguimiento" },
+    { id: "p1-custom", name: "Armando PPTO en ERP" },
+  ];
+  const issues = states.map((state) => ({ id: state.id, state_id: state.id }));
+  const outcomes = calculateProductionOutcomes(calculateProductionMetrics(issues, states));
+  assert.deepEqual(outcomes, { approved: 2, rejected: 1, followUp: 1 });
 });
