@@ -176,12 +176,12 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
     isArchived: !!issue?.archived_at,
   });
   return (
-    <div className={cn("flex items-stretch border-b border-subtle", { "min-w-[1400px]": isProjectList })}>
+    <div className={cn("flex items-stretch border-b border-subtle", { "w-[1444px] min-w-[1444px]": isProjectList })}>
     <ControlLink
       id={`issue-${issue.id}`}
       href={workItemLink}
       onClick={() => isProjectList ? router.push(workItemLink) : handleIssuePeekOverview(issue)}
-      className="min-w-0 flex-1 cursor-pointer"
+      className={isProjectList ? "w-[964px] min-w-[964px] shrink-0 cursor-pointer" : "min-w-0 flex-1 cursor-pointer"}
       disabled={!!issue?.tempId || issue?.is_draft}
     >
       <Row
@@ -198,6 +198,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
             "lg:flex-row lg:items-center": !isSidebarCollapsed,
           }
         )}
+        style={isProjectList ? { width: 964, minWidth: 964, paddingLeft: 0, paddingRight: 0, gap: 0, justifyContent: "flex-start" } : undefined}
         onDragStart={() => {
           if (!isDraggingAllowed) {
             setToast({
@@ -210,7 +211,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
           }
         }}
       >
-        <div className="flex min-w-0 flex-1 gap-2 truncate">
+        <div className={isProjectList ? "flex w-[420px] min-w-0 shrink-0 gap-2 overflow-hidden" : "flex min-w-0 flex-1 gap-2 truncate"}>
           <div className="flex flex-grow items-center gap-0.5 truncate">
             <div className="flex items-center gap-1" style={isSubIssue ? { marginLeft } : {}}>
               {/* select checkbox */}
@@ -302,7 +303,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
             </div>
           )}
         </div>
-        <div className="flex flex-shrink-0 items-center justify-end gap-2">
+        <div className={isProjectList ? "flex w-[544px] shrink-0 items-center justify-start gap-0" : "flex flex-shrink-0 items-center justify-end gap-2"}>
           {!issue?.tempId ? (
             <>
               {isProjectList ? (
