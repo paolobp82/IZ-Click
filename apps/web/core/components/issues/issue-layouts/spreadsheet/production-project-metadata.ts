@@ -1,16 +1,19 @@
 import { API_BASE_URL } from "@plane/constants";
 import { normalizeEventDateMap } from "@/app/lib/izclick/production-event-date-map";
 import { normalizeSigLinkMap } from "@/app/lib/izclick/production-sig-map";
+import { clientsFromPlaneLabels } from "@/app/lib/izclick/production-clients";
+import type { ProductionClient } from "@/app/lib/izclick/production-clients";
 
 export type ProjectProductionMetadata = {
   dates: Record<string, string>;
   sigLinks: Record<string, { code: string; url: string }>;
+  clients: ProductionClient[];
 };
 
 const pending = new Map<string, Promise<ProjectProductionMetadata>>();
 
 /**
- * Share two project-scoped API calls across all visible spreadsheet rows.
+ * Share project-scoped API calls across all visible spreadsheet rows.
  * Cache in-flight requests only; subsequent mounts fetch current values.
  * Editing a cell uses the native per-issue endpoint and refreshes its saved value.
  */
@@ -28,9 +31,11 @@ export function fetchProjectProductionMetadata(workspaceSlug: string, projectId:
   const promise: Promise<ProjectProductionMetadata> = Promise.all([
     read("production-event-dates"),
     read("production-sig-links"),
-  ]).then(([dates, links]) => ({
+    read("issue-labels"),
+  ]).then(([dates, links, labels]) => ({
     dates: normalizeEventDateMap(dates),
     sigLinks: normalizeSigLinkMap(links),
+    clients: clientsFromPlaneLabels(labels),
   })).finally(() => {
     if (pending.get(key) === promise) pending.delete(key);
   });
