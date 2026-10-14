@@ -46,6 +46,7 @@ import {
 import { IssueBlocksList } from "./blocks-list";
 import { HeaderGroupByCard } from "./headers/group-by-card";
 import type { TRenderQuickActions } from "./list-view-types";
+import { ListColumnControls } from "./list-column-controls";
 
 interface Props {
   groupIssueIds: string[] | undefined;
@@ -289,15 +290,8 @@ export const ListGroup = observer(function ListGroup(props: Props) {
       {shouldExpand && (
         <div className="relative">
           {isProjectList && (
-            <div className="sticky top-9 z-[2] flex min-h-9 w-[1444px] min-w-[1444px] items-center border-b border-subtle bg-layer-1 text-xs font-medium text-tertiary" aria-label="Columnas de cargas">
-              <span className="w-[420px] shrink-0 px-3">Carga</span>
-              <span className="w-36 shrink-0 border-l border-subtle px-2">Estado</span>
-              <span className="w-28 shrink-0 border-l border-subtle px-2">Prioridad</span>
-              <span className="w-36 shrink-0 border-l border-subtle px-2">Responsable</span>
-              <span className="w-36 shrink-0 border-l border-subtle px-2">Vencimiento</span>
-              <span className="w-40 shrink-0 border-l border-subtle px-3">Cliente</span>
-              <span className="w-40 shrink-0 border-l border-subtle px-2">Fecha del evento</span>
-              <span className="w-40 shrink-0 border-l border-subtle px-2">Código SIG</span>
+            <div className="sticky top-9 z-[2] flex min-h-9 w-max min-w-max items-center border-b border-subtle bg-layer-1 text-xs font-medium text-tertiary" aria-label="Columnas de cargas">
+              <ListColumnControls />
             </div>
           )}
           <GroupDragOverlay
