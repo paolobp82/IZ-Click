@@ -7,6 +7,7 @@ export type ScheduledLoad = {
   date: string;
   source: "event_date" | "target_date";
   priority: string;
+  client_id: string | null;
 };
 const isoDate = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 export function validCalendarDate(value: unknown): value is string {
@@ -33,6 +34,7 @@ export function scheduledProductionLoads(issues: readonly ProductionWorkItem[]):
       date,
       source: validCalendarDate(issue.event_date) ? "event_date" : "target_date",
       priority: issue.priority || "none",
+      client_id: issue.client_id || null,
     });
   }
   return result.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name, "es"));
