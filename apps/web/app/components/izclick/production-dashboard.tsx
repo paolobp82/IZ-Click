@@ -133,7 +133,7 @@ export function ProductionDashboard({
               { label: "Aprobadas", value: outcomeTotals.approved },
               { label: "Rechazadas", value: outcomeTotals.rejected },
               { label: "En seguimiento", value: outcomeTotals.followUp },
-              { label: "Sin responsable", value: producerId ? 0 : unassigned },
+              ...(!producerId ? [{ label: "Sin responsable", value: unassigned }] : []),
             ].map((indicator) => (
               <div key={indicator.label} className="rounded-lg border border-subtle bg-surface-1 p-4">
                 <p className="text-xs text-custom-text-300">{indicator.label}</p>
