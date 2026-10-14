@@ -31,6 +31,7 @@ import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useProject } from "@/hooks/store/use-project";
 import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 import { usePlatformOS } from "@/hooks/use-platform-os";
+import { useAppRouter } from "@/hooks/use-app-router";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { calculateIdentifierWidth } from "../utils";
 import type { TRenderQuickActions } from "./list-view-types";
@@ -110,6 +111,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
   const isDraggingAllowed = canDrag && canEditIssueProperties;
 
   const { isMobile } = usePlatformOS();
+  const router = useAppRouter();
   const storeType = useIssueStoreType();
   const isProjectList = storeType === EIssuesStoreType.PROJECT && !isEpic;
 
@@ -178,6 +180,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
     <ControlLink
       id={`issue-${issue.id}`}
       href={workItemLink}
+      onClick={() => router.push(workItemLink)}
       className="min-w-0 flex-1 cursor-pointer"
       disabled={!!issue?.tempId || issue?.is_draft}
     >
