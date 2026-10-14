@@ -25,7 +25,7 @@ export function fetchProjectProductionMetadata(workspaceSlug: string, projectId:
     if (!response.ok) throw new Error(`Error HTTP ${response.status} consultando ${endpoint}`);
     return response.json();
   };
-  const promise = Promise.all([
+  const promise: Promise<ProjectProductionMetadata> = Promise.all([
     read("production-event-dates"),
     read("production-sig-links"),
   ]).then(([dates, links]) => ({
