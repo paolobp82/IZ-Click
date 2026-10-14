@@ -40,6 +40,7 @@ import { IssueParentSelectRoot } from "@/components/issues/parent-select-root";
 import { SidebarPropertyListItem } from "@/components/common/layout/sidebar/property-list-item";
 import { IssueCycleSelect } from "./cycle-select";
 import { IssueLabel } from "./label";
+import { ProductionNativeProperties } from "./production-native-properties";
 import { IssueModuleSelect } from "./module-select";
 import type { TIssueOperations } from "./root";
 
@@ -249,6 +250,7 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
               />
             </SidebarPropertyListItem>
           </div>
+          <ProductionNativeProperties workspaceSlug={workspaceSlug} projectId={projectId} issueId={issueId} isEditable={isEditable} />
         </div>
       </div>
     </>
