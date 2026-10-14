@@ -156,7 +156,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
   // Use next_work_item_sequence from backend (static value from project endpoint)
   const maxSequenceId = currentProjectNextSequenceId ?? 1;
   const keyMinWidth = displayProperties?.key
-    ? calculateIdentifierWidth(projectIdentifier?.length ?? 0, maxSequenceId)
+    ? calculateIdentifierWidth(0, maxSequenceId)
     : 0;
 
   const workItemLink = generateWorkItemLink({

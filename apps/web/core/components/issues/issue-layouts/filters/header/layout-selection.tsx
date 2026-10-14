@@ -32,15 +32,17 @@ export function LayoutSelection(props: Props) {
   };
 
   return (
-    <div className="flex items-center gap-1 rounded-md bg-layer-3 p-1">
+    <nav aria-label="Vistas de cargas" className="flex max-w-full items-center gap-1 overflow-x-auto rounded-md bg-layer-3 p-1">
       {ISSUE_LAYOUTS.filter((l) => layouts.includes(l.key)).map((layout) => (
         <Tooltip key={layout.key} tooltipContent={t(layout.i18n_title)} isMobile={isMobile}>
           <button
             type="button"
+            aria-pressed={selectedLayout === layout.key}
+            aria-label={t(layout.i18n_title)}
             className={cn(
-              "group grid h-5.5 w-7 place-items-center overflow-hidden rounded-sm transition-all hover:bg-layer-transparent-hover",
+              "group inline-flex h-7 shrink-0 items-center gap-1.5 rounded-sm px-2 text-xs transition-colors hover:bg-layer-transparent-hover",
               {
-                "bg-layer-transparent-active hover:bg-layer-transparent-active": selectedLayout === layout.key,
+                "bg-layer-transparent-active font-semibold text-primary": selectedLayout === layout.key,
               }
             )}
             onClick={() => handleOnChange(layout.key)}
@@ -51,9 +53,10 @@ export function LayoutSelection(props: Props) {
               strokeWidth={2}
               className={`size-3.5 ${selectedLayout == layout.key ? "text-primary" : "text-secondary"}`}
             />
+            <span>{t(layout.i18n_title)}</span>
           </button>
         </Tooltip>
       ))}
-    </div>
+    </nav>
   );
 }
