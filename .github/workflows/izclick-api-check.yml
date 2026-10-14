@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'izclick/produccion-v1'
+      - 'izclick/nativo-clickup-v2-20261014'
     paths:
       - 'apps/api/**'
       - '.github/workflows/izclick-api-check.yml'
