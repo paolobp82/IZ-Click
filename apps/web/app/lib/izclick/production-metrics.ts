@@ -42,6 +42,14 @@ export type ProductionMetrics = {
   slices: ProductionSlice[];
 };
 
+/** Shared predicates for dashboard, directory and calendar; excludes no subtasks by itself. */
+export function matchesProductionFilter(issue: ProductionWorkItem, filter: ProductionFilter): boolean {
+  if (filter.producerId && !issue.assignee_ids?.includes(filter.producerId)) return false;
+  if (filter.projectId && issue.project_id !== filter.projectId) return false;
+  if (filter.clientId && issue.client_id !== filter.clientId && !issue.label_ids?.includes(filter.clientId)) return false;
+  return true;
+}
+
 /** Largest-remainder rounding so percentages always total 100 when total > 0. */
 export function calculateProductionMetrics(
   issues: readonly ProductionWorkItem[],
@@ -56,9 +64,7 @@ export function calculateProductionMetrics(
   for (const issue of issues) {
     if (!issue?.id || seen.has(issue.id) || issue.parent_id) continue;
     seen.add(issue.id);
-    if (filter.producerId && !issue.assignee_ids?.includes(filter.producerId)) continue;
-    if (filter.projectId && issue.project_id !== filter.projectId) continue;
-    if (filter.clientId && issue.client_id !== filter.clientId && !issue.label_ids?.includes(filter.clientId)) continue;
+    if (!matchesProductionFilter(issue, filter)) continue;
     total += 1;
     const stateId = issue.state_id && stateLookup.has(issue.state_id) ? issue.state_id : "__unknown__";
     counts.set(stateId, (counts.get(stateId) ?? 0) + 1);
