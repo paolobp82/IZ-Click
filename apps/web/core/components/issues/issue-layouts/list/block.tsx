@@ -23,6 +23,7 @@ import { cn, generateWorkItemLink } from "@plane/utils";
 import { MultipleSelectEntityAction } from "@/components/core/multiple-select";
 import { IssueProperties } from "@/components/issues/issue-layouts/properties";
 import { IssueIdentifier } from "@/components/issues/issue-detail/issue-identifier";
+import { ProductionMetadataCells } from "@/components/issues/issue-layouts/spreadsheet/production-metadata-cells";
 // hooks
 import { useAppTheme } from "@/hooks/store/use-app-theme";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
@@ -169,10 +170,11 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
     isArchived: !!issue?.archived_at,
   });
   return (
+    <div className="flex min-w-[1050px] items-stretch border-b border-subtle">
     <ControlLink
       id={`issue-${issue.id}`}
       href={workItemLink}
-      className="w-full cursor-pointer"
+      className="min-w-0 flex-1 cursor-pointer"
       disabled={!!issue?.tempId || issue?.is_draft}
     >
       <Row
@@ -330,5 +332,22 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
         </div>
       </Row>
     </ControlLink>
+    {!isEpic && workspaceSlug && projectId && issue.project_id && (
+      <div className="flex shrink-0 items-stretch" onClick={(event) => event.stopPropagation()}>
+        <ProductionMetadataCells
+          asDiv
+          workspaceSlug={workspaceSlug}
+          projectId={issue.project_id}
+          issueId={issue.id}
+          canEdit={canEditIssueProperties}
+          labelIds={issue.label_ids ?? []}
+          onUpdateLabels={async (ids) => {
+            if (!updateIssue) throw new Error("Edición no disponible");
+            await updateIssue(issue.project_id, issue.id, { label_ids: ids });
+          }}
+        />
+      </div>
+    )}
+    </div>
   );
 });
