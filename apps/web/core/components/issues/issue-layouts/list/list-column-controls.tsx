@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 
 export const LIST_COLUMNS = [
   { id: "state", name: "Estado", width: 144 },
@@ -12,7 +13,8 @@ export const LIST_COLUMNS = [
 
 type ColumnId = (typeof LIST_COLUMNS)[number]["id"];
 type Preferences = Record<ColumnId, { width: number; visible: boolean }>;
-const storageKey = "izclick-project-list-columns-v1";
+const storageKey = (projectId: string) => `izclick-project-list-columns-v2:${projectId}`;
+const updateEvent = "izclick-list-columns-updated";
 const defaults = (): Preferences =>
   Object.fromEntries(LIST_COLUMNS.map((col) => [col.id, { width: col.width, visible: true }])) as Preferences;
 
@@ -35,12 +37,15 @@ function apply(prefs: Preferences) {
 }
 
 export function ListColumnControls() {
+  const { projectId } = useParams();
+  const scope = String(projectId ?? "default");
   const [prefs, setPrefs] = useState<Preferences>(defaults);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    const load = () => {
     try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) || "{}") as Partial<Preferences>;
+      const saved = JSON.parse(localStorage.getItem(storageKey(scope)) || "{}") as Partial<Preferences>;
       const next = defaults();
       for (const col of LIST_COLUMNS) {
         const setting = saved[col.id];
@@ -55,12 +60,20 @@ export function ListColumnControls() {
     } catch {
       apply(defaults());
     }
-  }, []);
+    };
+    load();
+    const sync = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === scope) load();
+    };
+    window.addEventListener(updateEvent, sync);
+    return () => window.removeEventListener(updateEvent, sync);
+  }, [scope]);
 
   const commit = (next: Preferences) => {
     setPrefs(next);
     apply(next);
-    localStorage.setItem(storageKey, JSON.stringify(next));
+    localStorage.setItem(storageKey(scope), JSON.stringify(next));
+    window.dispatchEvent(new CustomEvent(updateEvent, { detail: scope }));
   };
 
   const toggle = (id: ColumnId) => {
