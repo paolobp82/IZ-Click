@@ -3,8 +3,6 @@
 No native states or issues are deleted or reassigned. Only workspace admins
 can write. Writes across projects are atomic and bindings preserve identity.
 """
-import re
-
 from django.db import IntegrityError, transaction
 from rest_framework import status
 from rest_framework.response import Response
@@ -17,49 +15,7 @@ from plane.db.models import (
     Project, State, Workspace,
 )
 
-GROUPS = {"backlog", "unstarted", "started", "completed", "cancelled"}
-COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
-
-
-def serialize_status(entry):
-    return {
-        "id": str(entry.id),
-        "name": entry.name,
-        "color": entry.color,
-        "group": entry.group,
-        "sequence": entry.sequence,
-        "is_active": entry.is_active,
-        "project_count": entry.project_bindings.count(),
-    }
-
-
-def validate_fields(data, partial=False):
-    if not isinstance(data, dict):
-        return None, "Payload inválido."
-    values = {}
-    if not partial or "name" in data:
-        name = data.get("name")
-        if not isinstance(name, str) or not (1 <= len(name.strip()) <= 120):
-            return None, "Ingresa un nombre válido de hasta 120 caracteres."
-        values["name"] = name.strip()
-    if not partial or "color" in data:
-        color = data.get("color", "#64748b")
-        if not isinstance(color, str) or not COLOR.fullmatch(color):
-            return None, "El color debe tener formato #RRGGBB."
-        values["color"] = color.lower()
-    if not partial or "group" in data:
-        group = data.get("group", "unstarted")
-        if group not in GROUPS:
-            return None, "Grupo operativo no válido."
-        values["group"] = group
-    if not partial or "sequence" in data:
-        sequence = data.get("sequence", 1000)
-        if isinstance(sequence, bool) or not isinstance(sequence, int) or not (0 <= sequence <= 1000000):
-            return None, "Orden de estado fuera de rango."
-        values["sequence"] = sequence
-    if not values:
-        return None, "No hay cambios que guardar."
-    return values, None
+from plane.utils.izclick_workflow import validate_status_fields
 
 
 class WorkspaceProductionStatusesEndpoint(BaseAPIView):
@@ -74,7 +30,7 @@ class WorkspaceProductionStatusesEndpoint(BaseAPIView):
 
     @allow_permission([ROLE.ADMIN], level="WORKSPACE")
     def post(self, request, slug):
-        fields, error = validate_fields(request.data)
+        fields, error = validate_status_fields(request.data)
         if error:
             return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
         try:
@@ -114,7 +70,7 @@ class WorkspaceProductionStatusDetailEndpoint(BaseAPIView):
 
     @allow_permission([ROLE.ADMIN], level="WORKSPACE")
     def patch(self, request, slug, status_id):
-        fields, error = validate_fields(request.data, partial=True)
+        fields, error = validate_status_fields(request.data, partial=True)
         if error:
             return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
         try:
