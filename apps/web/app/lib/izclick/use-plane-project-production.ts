@@ -71,7 +71,7 @@ export function usePlaneProjectProduction(workspaceSlug: string, projectId: stri
         .then(normalizeSigLinkMap),
       fetchJson(`${base}/issue-labels/`, controller.signal)
         .then((payload) => normalizePlaneCollection(payload, (item): PlaneLabelSummary | null =>
-          typeof item.id === "string" && typeof item.name === "string" ? { id: item.id, name: item.name } : null
+          typeof item.id === "string" && typeof item.name === "string" ? { id: item.id, name: item.name, color: typeof item.color === "string" ? item.color : undefined } : null
         )),
     ])
       .then(([issues, states, members, eventDates, sigLinks, allLabels]) => {
