@@ -1185,6 +1185,9 @@ class IssueBulkUpdateDateEndpoint(BaseAPIView):
 
 
 
+from plane.utils.izclick_production import valid_event_date, valid_sig_code_url
+
+
 class ProductionSigLinksEndpoint(BaseAPIView):
     """Read SIG project link references for permitted IZ-Click project issues."""
 
@@ -1215,11 +1218,12 @@ class ProductionSigLinksEndpoint(BaseAPIView):
             issue_id = str(link["issue_id"])
             if issue_id in associations:
                 continue
-            metadata = link["metadata"] or {}
+            metadata = link["metadata"] if isinstance(link["metadata"], dict) else {}
             stored_code = metadata.get("izclick_sig_code") if metadata.get("izclick_kind") == "sig-project" else None
-            code = stored_code if isinstance(stored_code, str) else link["title"].removeprefix("SIG Izango 360 | ")
+            title = link["title"] if isinstance(link["title"], str) else ""
+            code = stored_code if isinstance(stored_code, str) else title.removeprefix("SIG Izango 360 | ")
             code = code.strip()
-            if not code or len(code) > 60:
+            if not valid_sig_code_url(code, link["url"]):
                 continue
             associations[issue_id] = {"code": code, "url": link["url"]}
         return Response(associations, status=status.HTTP_200_OK)
@@ -1253,23 +1257,15 @@ class ProductionEventDatesEndpoint(BaseAPIView):
         if guest_restricted:
             links = links.filter(issue__created_by=request.user)
 
-        from datetime import date
-
         dates = {}
         for link in links.values("issue_id", "metadata"):
             issue_id = str(link["issue_id"])
             if issue_id in dates:
                 continue
-            metadata = link["metadata"] or {}
-            raw_date = metadata.get("izclick_event_date")
-            if not isinstance(raw_date, str):
-                continue
-            try:
-                if date.fromisoformat(raw_date).isoformat() != raw_date:
-                    continue
-            except ValueError:
-                continue
-            dates[issue_id] = raw_date
+            metadata = link["metadata"] if isinstance(link["metadata"], dict) else {}
+            parsed_date = valid_event_date(metadata.get("izclick_event_date"))
+            if parsed_date:
+                dates[issue_id] = parsed_date
 
         return Response(dates, status=status.HTTP_200_OK)
 
