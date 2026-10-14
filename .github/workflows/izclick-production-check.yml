@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - 'izclick/v1.4.2-custom'
+      - 'izclick/flujo-nativo-sin-duplicados-20261014'
   push:
     branches:
       - 'izclick/produccion-v1'
