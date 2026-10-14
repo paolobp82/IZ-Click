@@ -3,6 +3,8 @@ import type { ProductionState, ProductionWorkItem } from "@/app/lib/izclick/prod
 import { normalizeProductionMembers } from "@/app/lib/izclick/production-members";
 import type { ProductionMember } from "@/app/lib/izclick/production-members";
 import { clientsFromPlaneLabels } from "@/app/lib/izclick/production-clients";
+import { eventDateFromLabels } from "@/app/lib/izclick/production-event-date";
+import type { PlaneLabelSummary } from "@/app/lib/izclick/production-event-date";
 import type { ProductionClient } from "@/app/lib/izclick/production-clients";
 import { normalizePlaneCollection, normalizePlaneIssue, normalizePlaneState } from "@/app/lib/izclick/plane-production-adapter";
 
@@ -87,13 +89,16 @@ export function usePlaneProjectProduction(workspaceSlug: string, projectId: stri
         .then(normalizeProductionMembers)
         .catch(() => [] as ProductionMember[]),
       fetchJson(`${base}/issue-labels/`, controller.signal)
-        .then(clientsFromPlaneLabels)
-        .catch(() => [] as ProductionClient[]),
+        .then((payload) => normalizePlaneCollection(payload, (item): PlaneLabelSummary | null =>
+          typeof item.id === "string" && typeof item.name === "string" ? { id: item.id, name: item.name } : null
+        )),
     ])
-      .then(([issues, states, members, clients]) => {
+      .then(([issues, states, members, allLabels]) => {
+        const clients = clientsFromPlaneLabels(allLabels);
         const clientLabels = new Set(clients.map((client) => client.id));
         const normalizedIssues = issues.map((issue) => ({
           ...issue,
+          event_date: eventDateFromLabels(allLabels, issue.label_ids ?? []),
           client_id: issue.label_ids?.find((id) => clientLabels.has(id)) ?? issue.client_id,
         }));
         if (!controller.signal.aborted) setResult({ issues: normalizedIssues, states, members, clients, loading: false, error: null });
