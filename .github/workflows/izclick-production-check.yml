@@ -12,6 +12,10 @@ on:
       - '.github/workflows/izclick-production-check.yml'
   workflow_dispatch:
 
+concurrency:
+  group: izclick-production-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
