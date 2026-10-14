@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ProductionWorkItem } from "@/app/lib/izclick/production-metrics";
 import { scheduledProductionLoads } from "@/app/lib/izclick/production-schedule";
+import { ProductionMonthGrid } from "@/app/components/izclick/production-month-grid";
 
 type Props = {
   issues: readonly ProductionWorkItem[];
@@ -11,6 +12,7 @@ type Props = {
 
 /** Cross-project month agenda based on dates actually present in Plane. */
 export function ProductionCalendar({ issues, projects, clients = [], workspaceSlug }: Props) {
+  const [mode, setMode] = useState<"month" | "agenda">("month");
   const [monthStart, setMonthStart] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -37,14 +39,24 @@ export function ProductionCalendar({ issues, projects, clients = [], workspaceSl
             Las fechas previstas corresponden al vencimiento de Plane; no sustituyen la fecha específica del evento.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded border border-subtle p-0.5">
+            <button type="button" aria-pressed={mode === "month"} onClick={() => setMode("month")}
+              className={`rounded px-2 py-1 text-xs ${mode === "month" ? "font-semibold underline" : ""}`}>Mes</button>
+            <button type="button" aria-pressed={mode === "agenda"} onClick={() => setMode("agenda")}
+              className={`rounded px-2 py-1 text-xs ${mode === "agenda" ? "font-semibold underline" : ""}`}>Agenda</button>
+          </div>
           <button type="button" onClick={() => changeMonth(-1)} aria-label="Mes anterior" className="rounded border border-subtle px-2 py-1">←</button>
           <span className="min-w-32 text-center text-sm capitalize" aria-live="polite">{monthTitle}</span>
           <button type="button" onClick={() => changeMonth(1)} aria-label="Mes siguiente" className="rounded border border-subtle px-2 py-1">→</button>
         </div>
       </div>
       <p className="mb-3 text-sm">{shown.length} {shown.length === 1 ? "carga programada" : "cargas programadas"} este mes</p>
-      {grouped.length === 0 ? (
+      {mode === "month" ? (
+        <ProductionMonthGrid year={monthStart.getFullYear()} month={monthStart.getMonth() + 1}
+          items={shown} workspaceSlug={workspaceSlug} projectNames={projectNames} clients={clientById}
+          onShowAgenda={() => setMode("agenda")} />
+      ) : grouped.length === 0 ? (
         <p className="py-4 text-sm text-custom-text-300">No hay cargas con fecha registrada para este mes.</p>
       ) : (
         <div className="flex flex-col gap-3">
