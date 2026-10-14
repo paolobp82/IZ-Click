@@ -1183,6 +1183,56 @@ class IssueBulkUpdateDateEndpoint(BaseAPIView):
         return Response({"message": "Issues updated successfully"}, status=status.HTTP_200_OK)
 
 
+
+class ProductionEventDatesEndpoint(BaseAPIView):
+    """Read IZ-Click event dates stored as metadata on native Plane issue links.
+
+    Only project members can read this endpoint; guests without full issue
+    visibility are restricted to their own work items.
+    """
+
+    @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
+    def get(self, request, slug, project_id):
+        project = Project.objects.get(id=project_id, workspace__slug=slug)
+        links = IssueLink.objects.filter(
+            workspace__slug=slug,
+            project_id=project_id,
+            deleted_at__isnull=True,
+            metadata__izclick_kind="event-date",
+            issue__deleted_at__isnull=True,
+        ).order_by("-created_at")
+
+        guest_restricted = ProjectMember.objects.filter(
+            workspace__slug=slug,
+            project_id=project_id,
+            member=request.user,
+            role=ROLE.GUEST.value,
+            is_active=True,
+        ).exists() and not project.guest_view_all_features
+        if guest_restricted:
+            links = links.filter(issue__created_by=request.user)
+
+        from datetime import date
+
+        dates = {}
+        for link in links.values("issue_id", "metadata"):
+            issue_id = str(link["issue_id"])
+            if issue_id in dates:
+                continue
+            metadata = link["metadata"] or {}
+            raw_date = metadata.get("izclick_event_date")
+            if not isinstance(raw_date, str):
+                continue
+            try:
+                if date.fromisoformat(raw_date).isoformat() != raw_date:
+                    continue
+            except ValueError:
+                continue
+            dates[issue_id] = raw_date
+
+        return Response(dates, status=status.HTTP_200_OK)
+
+
 class IssueMetaEndpoint(BaseAPIView):
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
     def get(self, request, slug, project_id, issue_id):
