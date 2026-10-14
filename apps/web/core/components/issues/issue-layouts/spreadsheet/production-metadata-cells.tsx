@@ -58,6 +58,8 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     setSig(null);
     setClients([]);
     setEditing(false);
+    setEditingClient(false);
+    setClientError("");
     setEditingSig(false);
     setError("");
     setLoadError(false);
