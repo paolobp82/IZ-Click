@@ -1,0 +1,47 @@
+name: IZ-Click publish Production candidate (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Escribir PUBLICAR_IMAGENES para crear versiones inmutables, sin desplegar'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-candidate:
+    if: github.ref == 'refs/heads/izclick/produccion-v1' && github.event.inputs.confirm == 'PUBLICAR_IMAGENES'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: web
+            dockerfile: apps/web/Dockerfile.web
+            context: .
+          - app: api
+            dockerfile: apps/api/Dockerfile.api
+            context: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish immutable image, no deployment
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/izclick-${{ matrix.app }}:production-v1-${{ github.sha }}
+          provenance: false
