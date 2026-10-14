@@ -167,7 +167,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
 
   return (
     <>
-      <Cell className="h-11 min-w-40 border-r border-subtle px-3 text-13">
+      <Cell className="h-11 w-40 min-w-0 shrink-0 overflow-hidden border-r border-subtle px-3 text-13">
         {editingClient ? (
           <div className="flex flex-col gap-1 py-1">
             <select aria-label="Seleccionar cliente" value={client?.id ?? ""} disabled={clientBusy}
@@ -185,14 +185,14 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
             onClick={() => { setEditingClient(true); setClientError(""); }}
             title="Seleccionar cliente de esta carga"
             className="inline-flex max-w-44 items-center gap-1.5 truncate rounded px-2 py-1 text-left disabled:cursor-default"
-            style={client ? { border: `1px solid ${client.color}` } : undefined}>
+            style={client ? { border: `1px solid ${client.color}`, backgroundColor: `${client.color}18` } : undefined}>
             {client && <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: client.color }} />}
             <span className="truncate">{client?.name ?? (loading ? "…" : "Sin cliente")}</span>
           </button>
         )}
       </Cell>
-      <Cell className="h-11 min-w-40 border-r border-subtle px-2 text-13">
+      <Cell className="h-11 w-40 min-w-0 shrink-0 overflow-hidden border-r border-subtle px-2 text-13">
         {editing ? (
           <div className="flex flex-wrap items-center gap-1">
             <input type="date" aria-label="Fecha del evento" value={draft} disabled={busy}
