@@ -5,6 +5,7 @@ import type { ProductionMember } from "@/app/lib/izclick/production-members";
 import { normalizeProductionMembers } from "@/app/lib/izclick/production-members";
 import { normalizePlaneCollection, normalizePlaneIssue, normalizePlaneState } from "@/app/lib/izclick/plane-production-adapter";
 import { collectPlanePages } from "@/app/lib/izclick/production-pagination";
+import { mapWithConcurrency } from "@/app/lib/izclick/production-concurrency";
 import { clientsFromPlaneLabels, productionClientKey } from "@/app/lib/izclick/production-clients";
 import { eventDateFromLabels } from "@/app/lib/izclick/production-event-date";
 import { normalizeEventDateMap } from "@/app/lib/izclick/production-event-date-map";
@@ -55,9 +56,9 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
       const issues: ProductionWorkItem[] = [];
       const states: ProductionState[] = [];
       const clientsById = new Map<string, ProductionClient>();
-      for (const project of list) {
+      const projectData = await mapWithConcurrency(list, 4, async (project) => {
         const base = `${ws}/projects/${encodeURIComponent(project.id)}`;
-        const [rawList, rawStates] = await Promise.all([
+        const [rawList, rawStates, eventDates, sigLinks, allLabelsResponse] = await Promise.all([
           collectPlanePages(
             (cursor) => {
               const params = new URLSearchParams({ per_page: "100", sub_issue: "true" });
@@ -67,17 +68,21 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
             (payload) => normalizePlaneCollection(payload, normalizePlaneIssue)
           ),
           json(`${base}/states/`, controller.signal),
-        ]);
-        states.push(...normalizePlaneCollection(rawStates, normalizePlaneState));
-        const [eventDates, sigLinks] = await Promise.all([
           json(`${base}/production-event-dates/`, controller.signal).then(normalizeEventDateMap),
           json(`${base}/production-sig-links/`, controller.signal).then(normalizeSigLinkMap),
+          json(`${base}/issue-labels/`, controller.signal),
         ]);
-        const allLabelsResponse = await json(`${base}/issue-labels/`, controller.signal);
         const allLabels = normalizePlaneCollection(allLabelsResponse, (item): PlaneLabelSummary | null =>
           typeof item.id === "string" && typeof item.name === "string"
             ? { id: item.id, name: item.name } : null
         );
+        return {
+          project, rawList, eventDates, sigLinks, allLabels,
+          projectStates: normalizePlaneCollection(rawStates, normalizePlaneState),
+        };
+      });
+      for (const { project, rawList, eventDates, sigLinks, allLabels, projectStates } of projectData) {
+        states.push(...projectStates);
         const labels = clientsFromPlaneLabels(allLabels);
         const clientByLabel = new Map<string, string>();
         for (const client of labels) {
