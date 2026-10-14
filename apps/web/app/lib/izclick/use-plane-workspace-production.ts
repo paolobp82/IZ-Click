@@ -25,6 +25,9 @@ async function json(url: string, signal: AbortSignal): Promise<unknown> {
 function projectList(payload: unknown): Project[] {
   return normalizePlaneCollection(payload, (item) => {
     if (typeof item.id !== "string" || typeof item.name !== "string") return null;
+    // Workspace project listings can also include public projects not joined by this user.
+    // Only read projects with an active member role; Plane enforces final API authorization.
+    if (item.member_role === null || item.member_role === undefined) return null;
     return { id: item.id, name: item.name };
   });
 }
