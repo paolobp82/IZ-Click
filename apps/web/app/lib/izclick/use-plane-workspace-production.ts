@@ -74,7 +74,7 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
         ]);
         const allLabels = normalizePlaneCollection(allLabelsResponse, (item): PlaneLabelSummary | null =>
           typeof item.id === "string" && typeof item.name === "string"
-            ? { id: item.id, name: item.name } : null
+            ? { id: item.id, name: item.name, color: typeof item.color === "string" ? item.color : undefined } : null
         );
         return {
           project, rawList, eventDates, sigLinks, allLabels,
