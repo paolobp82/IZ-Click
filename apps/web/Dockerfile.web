@@ -76,6 +76,10 @@ ENV VITE_WEB_BASE_URL=$VITE_WEB_BASE_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV TURBO_TELEMETRY_DISABLED=1
 
+# Run the TypeScript check in CI on demand. Release builds keep their existing behavior.
+ARG IZCLICK_VALIDATE_TYPES=false
+RUN if [ "$IZCLICK_VALIDATE_TYPES" = "true" ]; then pnpm --filter web check:types; fi
+
 RUN pnpm turbo run build --filter=web
 
 # *****************************************************************************
