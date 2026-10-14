@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { defaultProductionColumns, parseProductionColumns, PRODUCTION_COLUMNS } from "@/app/lib/izclick/production-columns";
+import type { ProductionColumnId } from "@/app/lib/izclick/production-columns";
 import type { ProductionState, ProductionWorkItem } from "@/app/lib/izclick/production-metrics";
 import { ProductionSigLinkEditor } from "./production-sig-link-editor";
 import { ProductionEventDateEditor } from "./production-event-date-editor";
@@ -20,6 +22,24 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [eventSelected, setEventSelected] = useState<string | null>(null);
+  const [columns, setColumns] = useState(defaultProductionColumns);
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const storageKey = `izclick:production:columns:${workspaceSlug}`;
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      setColumns(saved ? parseProductionColumns(JSON.parse(saved)) : defaultProductionColumns());
+    } catch {
+      setColumns(defaultProductionColumns());
+    }
+  }, [storageKey]);
+
+  const changeColumn = (id: ProductionColumnId, enabled: boolean) => {
+    const updated = { ...columns, [id]: enabled };
+    setColumns(updated);
+    try { window.localStorage.setItem(storageKey, JSON.stringify(updated)); } catch { /* Storage unavailable: per-session only */ }
+  };
   const stateNames = useMemo(() => new Map(states.map((s) => [s.id, s.name])), [states]);
   const projectNames = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects]);
   const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
@@ -46,16 +66,32 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
           <h2 className="text-base font-semibold">Directorio de cargas</h2>
           <p className="text-sm text-custom-text-300">{filtered.length} cargas; sin duplicar subtareas</p>
         </div>
-        <input aria-label="Buscar cargas" placeholder="Buscar carga, proyecto o estado…" value={query}
-          onChange={(e) => { setQuery(e.target.value); setPage(0); setSelected(null); setEventSelected(null); }}
-          className="w-full max-w-xs rounded border border-subtle bg-surface-1 px-3 py-2 text-sm" />
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" aria-expanded={showColumnPicker} onClick={() => setShowColumnPicker((value) => !value)}
+            className="rounded border border-subtle px-3 py-2 text-sm">Columnas</button>
+          <input aria-label="Buscar cargas" placeholder="Buscar carga, proyecto o estado…" value={query}
+            onChange={(e) => { setQuery(e.target.value); setPage(0); setSelected(null); setEventSelected(null); }}
+            className="w-full max-w-xs rounded border border-subtle bg-surface-1 px-3 py-2 text-sm" />
+        </div>
       </div>
+      {showColumnPicker && (
+        <fieldset className="mb-4 flex flex-wrap gap-3 rounded border border-subtle p-3">
+          <legend className="px-1 text-sm font-medium">Mostrar columnas</legend>
+          {PRODUCTION_COLUMNS.map((column) => (
+            <label key={column.id} className="flex items-center gap-1.5 text-sm">
+              <input type="checkbox" checked={columns[column.id]}
+                onChange={(e) => changeColumn(column.id, e.target.checked)} />
+              {column.label}
+            </label>
+          ))}
+        </fieldset>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead><tr className="border-b border-subtle">
-            <th className="py-2 pr-3">Carga</th><th className="py-2 pr-3">Proyecto</th>
-            <th className="py-2 pr-3">Cliente</th><th className="py-2 pr-3">Estado</th><th className="py-2 pr-3">Prioridad</th>
-            <th className="py-2 pr-3">Fecha prevista</th><th className="py-2 pr-3">Fecha del evento</th><th className="py-2">SIG</th>
+            <th className="py-2 pr-3">Carga</th>{columns.project && <th className="py-2 pr-3">Proyecto</th>}
+            {columns.client && <th className="py-2 pr-3">Cliente</th>}{columns.state && <th className="py-2 pr-3">Estado</th>}{columns.priority && <th className="py-2 pr-3">Prioridad</th>}
+            {columns.targetDate && <th className="py-2 pr-3">Fecha prevista</th>}{columns.eventDate && <th className="py-2 pr-3">Fecha del evento</th>}{columns.sig && <th className="py-2">SIG</th>}
           </tr></thead>
           <tbody>
             {visible.map((issue) => (
@@ -77,27 +113,27 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
                     </div>
                   )}
                 </td>
-                <td className="py-2 pr-3">{projectNames.get(issue.project_id!) || "Proyecto"}</td>
-                <td className="py-2 pr-3">
+                {columns.project && <td className="py-2 pr-3">{projectNames.get(issue.project_id!) || "Proyecto"}</td>}
+                {columns.client && <td className="py-2 pr-3">
                   {clientById.get(issue.client_id || "") ? (
                     <span className="inline-flex items-center gap-1">
                       <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: clientById.get(issue.client_id!)?.color }} />
                       {clientById.get(issue.client_id!)?.name}
                     </span>
                   ) : "—"}
-                </td>
-                <td className="py-2 pr-3">{stateNames.get(issue.state_id || "") || "Sin estado"}</td>
-                <td className="py-2 pr-3">{priorityNames[issue.priority || "none"] || issue.priority}</td>
-                <td className="py-2 pr-3">{issue.target_date || "—"}</td>
-                <td className="py-2 pr-3">
+                </td>}
+                {columns.state && <td className="py-2 pr-3">{stateNames.get(issue.state_id || "") || "Sin estado"}</td>}
+                {columns.priority && <td className="py-2 pr-3">{priorityNames[issue.priority || "none"] || issue.priority}</td>}
+                {columns.targetDate && <td className="py-2 pr-3">{issue.target_date || "—"}</td>}
+                {columns.eventDate && <td className="py-2 pr-3">
                   <div className="flex items-center gap-2 whitespace-nowrap">
                     {issue.event_date || "—"}
                     <button type="button" aria-expanded={eventSelected === issue.id}
                       onClick={() => setEventSelected((id) => id === issue.id ? null : issue.id)}
                       className="rounded border border-subtle px-2 py-1 text-xs">Editar</button>
                   </div>
-                </td>
-                <td className="py-2">
+                </td>}
+                {columns.sig && <td className="py-2">
                   <div className="flex flex-wrap items-center gap-2">
                     {issue.sig_code && issue.sig_url && (
                       <a href={issue.sig_url} target="_blank" rel="noopener noreferrer"
@@ -110,7 +146,7 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
                       {selected === issue.id ? "Cerrar" : issue.sig_code ? "Editar SIG" : "Vincular SIG"}
                     </button>
                   </div>
-                </td>
+                </td>}
               </tr>
             ))}
           </tbody>
