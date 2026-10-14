@@ -167,7 +167,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
 
   return (
     <>
-      <Cell className="h-11 w-40 min-w-0 shrink-0 overflow-hidden border-r border-subtle px-3 text-13">
+      <Cell className="h-11 w-40 min-w-0 shrink-0 overflow-hidden border-r border-subtle px-3 text-13" style={{ display: "var(--izclick-show-client, flex)", width: "var(--izclick-col-client, 160px)" }}>
         {editingClient ? (
           <div className="flex flex-col gap-1 py-1">
             <select aria-label="Seleccionar cliente" value={client?.id ?? ""} disabled={clientBusy}
@@ -192,7 +192,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
           </button>
         )}
       </Cell>
-      <Cell className="h-11 w-40 min-w-0 shrink-0 overflow-hidden border-r border-subtle px-2 text-13">
+      <Cell className="h-11 w-40 min-w-0 shrink-0 overflow-hidden border-r border-subtle px-2 text-13" style={{ display: "var(--izclick-show-event, flex)", width: "var(--izclick-col-event, 160px)" }}>
         {editing ? (
           <div className="flex flex-wrap items-center gap-1">
             <input type="date" aria-label="Fecha del evento" value={draft} disabled={busy}
