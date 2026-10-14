@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { IssueService } from "@/services/issue";
 import { SIG_LINK_PREFIX, sigLinkPayload, sigProjectAssociation } from "@/app/lib/izclick/production-sig";
 import type { PlaneExternalLink } from "@/app/lib/izclick/production-sig";
@@ -41,7 +42,7 @@ export function ProductionSigLinkEditor({ workspaceSlug, projectId, issueId, onC
     return () => { active = false; };
   }, [service, workspaceSlug, projectId, issueId]);
 
-  const save = async (event: React.FormEvent) => {
+  const save = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
     setSaved(false);
@@ -88,7 +89,7 @@ export function ProductionSigLinkEditor({ workspaceSlug, projectId, issueId, onC
               {saving ? "Guardando…" : link ? "Actualizar vínculo SIG" : "Guardar vínculo SIG"}
             </button>
             {sigProjectAssociation(link ?? { id: "", title: "", url: "" }) && (
-              <a href={url} target="_blank" rel="noopener noreferrer" className="self-center text-sm underline">
+              <a href={sigProjectAssociation(link ?? { id: "", title: "", url: "" })?.url} target="_blank" rel="noopener noreferrer" className="self-center text-sm underline">
                 Abrir proyecto SIG ↗
               </a>
             )}
