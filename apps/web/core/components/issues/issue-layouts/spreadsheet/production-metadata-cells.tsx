@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IssueService } from "@/services/issue";
 import { validCalendarDate } from "@/app/lib/izclick/production-schedule";
-import { sigProjectAssociation } from "@/app/lib/izclick/production-sig";
+import { sigLinkPayload, sigProjectAssociation } from "@/app/lib/izclick/production-sig";
 import type { PlaneExternalLink } from "@/app/lib/izclick/production-sig";
 
 type Props = {
@@ -27,6 +27,9 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
   const [loading, setLoading] = useState(true);
   const [sig, setSig] = useState<{ code: string; url: string } | null>(null);
   const [error, setError] = useState("");
+  const [editingSig, setEditingSig] = useState(false);
+  const [sigCodeDraft, setSigCodeDraft] = useState("");
+  const [sigUrlDraft, setSigUrlDraft] = useState("");
 
   const refresh = useCallback(async () => {
     const response = await service.fetchIssueLinks(workspaceSlug, projectId, issueId);
@@ -37,6 +40,8 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     setDraft(current);
     const match = links.map(sigProjectAssociation).find((link) => link !== null);
     setSig(match ? { code: match.code, url: match.url } : null);
+    setSigCodeDraft(match?.code ?? "");
+    setSigUrlDraft(match?.url ?? "");
   }, [service, workspaceSlug, projectId, issueId]);
 
   useEffect(() => {
@@ -45,6 +50,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     setDraft("");
     setSig(null);
     setEditing(false);
+    setEditingSig(false);
     setError("");
     setLoading(true);
     // The cancellation guard prevents stale completion from changing UI state.
@@ -94,6 +100,34 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     } finally { setBusy(false); }
   };
 
+  const saveSig = async () => {
+    if (!canEdit || busy || loading) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await service.fetchIssueLinks(workspaceSlug, projectId, issueId);
+      if (!Array.isArray(response)) throw new Error("No se pudieron comprobar los enlaces SIG.");
+      const links = response as PlaneExternalLink[];
+      const existing = links.map(sigProjectAssociation).find((link) => link !== null);
+      if ((existing?.code ?? "") !== (sig?.code ?? "") || (existing?.url ?? "") !== (sig?.url ?? "")) {
+        throw new Error("Otro usuario cambió el vínculo SIG. Actualiza la carga antes de editar.");
+      }
+      const normalizedCode = sigCodeDraft.trim();
+      const normalizedUrl = sigUrlDraft.trim();
+      if (!normalizedCode && !normalizedUrl) {
+        if (existing) await service.deleteIssueLink(workspaceSlug, projectId, issueId, existing.id);
+      } else {
+        const payload = sigLinkPayload(normalizedCode, normalizedUrl);
+        if (existing) await service.updateIssueLink(workspaceSlug, projectId, issueId, existing.id, payload);
+        else await service.createIssueLink(workspaceSlug, projectId, issueId, payload);
+      }
+      await refresh();
+      setEditingSig(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo guardar el vínculo SIG.");
+    } finally { setBusy(false); }
+  };
+
   return (
     <>
       <td className="h-11 min-w-40 border-r border-subtle px-2 text-13">
@@ -114,13 +148,33 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
           </button>
         )}
       </td>
-      <td className="h-11 min-w-40 border-r border-subtle px-3 text-13">
-        {sig ? (
-          <a href={sig.url} target="_blank" rel="noopener noreferrer" className="underline"
-            title="Abrir proyecto asociado en SIG">{sig.code} ↗</a>
+      <td className="h-11 min-w-40 border-r border-subtle px-2 text-13">
+        {editingSig ? (
+          <div className="flex min-w-56 flex-col gap-1 py-1">
+            <input aria-label="Código SIG" maxLength={60} value={sigCodeDraft} disabled={busy}
+              onChange={(event) => setSigCodeDraft(event.target.value)}
+              placeholder="IZ-26968" className="rounded border border-subtle bg-surface-1 px-2 py-1 text-xs" />
+            <input aria-label="Enlace del proyecto SIG" type="url" value={sigUrlDraft} disabled={busy}
+              onChange={(event) => setSigUrlDraft(event.target.value)}
+              placeholder="https://izango-erp.vercel.app/proyectos/..."
+              className="rounded border border-subtle bg-surface-1 px-2 py-1 text-xs" />
+            <div className="flex gap-2">
+              <button type="button" disabled={busy} onClick={() => void saveSig()} className="underline">Guardar</button>
+              <button type="button" disabled={busy} onClick={() => {
+                setSigCodeDraft(sig?.code ?? ""); setSigUrlDraft(sig?.url ?? ""); setEditingSig(false); setError("");
+              }} className="underline">Cancelar</button>
+            </div>
+            {error && <span role="alert" className="whitespace-normal text-xs text-red-500">{error}</span>}
+          </div>
         ) : (
-          <button type="button" disabled={!canEdit} className="w-full text-left hover:underline" onClick={openDetails}
-            title="Vincular SIG en la ficha de carga">{loading ? "…" : "—"}</button>
+          <div className="flex items-center gap-2">
+            {sig ? <a href={sig.url} target="_blank" rel="noopener noreferrer" className="underline"
+              title="Abrir proyecto asociado en SIG">{sig.code} ↗</a> : <span>{loading ? "…" : "—"}</span>}
+            {canEdit && <button type="button" disabled={loading} className="text-xs underline"
+              onClick={() => { setSigCodeDraft(sig?.code ?? ""); setSigUrlDraft(sig?.url ?? ""); setEditingSig(true); setError(""); }}>
+              Editar
+            </button>}
+          </div>
         )}
       </td>
     </>
