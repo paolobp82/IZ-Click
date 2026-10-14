@@ -4,6 +4,11 @@
 
 from django.urls import path
 
+from plane.app.views.workspace.izclick_production_status import (
+    WorkspaceProductionStatusesEndpoint,
+    WorkspaceProductionStatusDetailEndpoint,
+)
+
 
 from plane.app.views import (
     UserWorkspaceInvitationsViewSet,
@@ -40,6 +45,16 @@ from plane.app.views import (
 
 
 urlpatterns = [
+    path(
+        "workspaces/<str:slug>/izclick-production-statuses/",
+        WorkspaceProductionStatusesEndpoint.as_view(),
+        name="izclick-production-statuses",
+    ),
+    path(
+        "workspaces/<str:slug>/izclick-production-statuses/<uuid:status_id>/",
+        WorkspaceProductionStatusDetailEndpoint.as_view(),
+        name="izclick-production-status-detail",
+    ),
     path(
         "workspace-slug-check/",
         WorkSpaceAvailabilityCheckEndpoint.as_view(),
