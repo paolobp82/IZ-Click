@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ProductionState, ProductionWorkItem } from "@/app/lib/izclick/production-metrics";
 import { ProductionSigLinkEditor } from "./production-sig-link-editor";
+import { ProductionEventDateEditor } from "./production-event-date-editor";
 
 type Props = {
   issues: readonly ProductionWorkItem[];
@@ -18,6 +19,7 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  const [eventSelected, setEventSelected] = useState<string | null>(null);
   const stateNames = useMemo(() => new Map(states.map((s) => [s.id, s.name])), [states]);
   const projectNames = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects]);
   const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
@@ -45,7 +47,7 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
           <p className="text-sm text-custom-text-300">{filtered.length} cargas; sin duplicar subtareas</p>
         </div>
         <input aria-label="Buscar cargas" placeholder="Buscar carga, proyecto o estado…" value={query}
-          onChange={(e) => { setQuery(e.target.value); setPage(0); setSelected(null); }}
+          onChange={(e) => { setQuery(e.target.value); setPage(0); setSelected(null); setEventSelected(null); }}
           className="w-full max-w-xs rounded border border-subtle bg-surface-1 px-3 py-2 text-sm" />
       </div>
       <div className="overflow-x-auto">
@@ -53,7 +55,7 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
           <thead><tr className="border-b border-subtle">
             <th className="py-2 pr-3">Carga</th><th className="py-2 pr-3">Proyecto</th>
             <th className="py-2 pr-3">Cliente</th><th className="py-2 pr-3">Estado</th><th className="py-2 pr-3">Prioridad</th>
-            <th className="py-2 pr-3">Fecha prevista</th><th className="py-2">SIG</th>
+            <th className="py-2 pr-3">Fecha prevista</th><th className="py-2 pr-3">Fecha del evento</th><th className="py-2">SIG</th>
           </tr></thead>
           <tbody>
             {visible.map((issue) => (
@@ -62,6 +64,12 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
                   <a className="underline" href={`/${encodeURIComponent(workspaceSlug)}/projects/${encodeURIComponent(issue.project_id!)}/issues/${encodeURIComponent(issue.id)}`}>
                     {issue.name || "Carga sin nombre"}
                   </a>
+                  {eventSelected === issue.id && (
+                    <div className="mt-3 min-w-64">
+                      <ProductionEventDateEditor workspaceSlug={workspaceSlug} projectId={issue.project_id!}
+                        issueId={issue.id} onClose={() => setEventSelected(null)} />
+                    </div>
+                  )}
                   {selected === issue.id && (
                     <div className="mt-3 min-w-64">
                       <ProductionSigLinkEditor workspaceSlug={workspaceSlug} projectId={issue.project_id!}
@@ -81,6 +89,14 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
                 <td className="py-2 pr-3">{stateNames.get(issue.state_id || "") || "Sin estado"}</td>
                 <td className="py-2 pr-3">{priorityNames[issue.priority || "none"] || issue.priority}</td>
                 <td className="py-2 pr-3">{issue.target_date || "—"}</td>
+                <td className="py-2 pr-3">
+                  <div className="flex items-center gap-2 whitespace-nowrap">
+                    {issue.event_date || "—"}
+                    <button type="button" aria-expanded={eventSelected === issue.id}
+                      onClick={() => setEventSelected((id) => id === issue.id ? null : issue.id)}
+                      className="rounded border border-subtle px-2 py-1 text-xs">Editar</button>
+                  </div>
+                </td>
                 <td className="py-2">
                   <button type="button" aria-expanded={selected === issue.id} onClick={() => setSelected((id) => id === issue.id ? null : issue.id)}
                     className="rounded border border-subtle px-2 py-1 text-xs">
@@ -94,10 +110,10 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
       </div>
       {filtered.length === 0 && <p className="py-5 text-center text-sm">No hay cargas que coincidan con la búsqueda.</p>}
       {pages > 1 && <div className="mt-3 flex items-center justify-end gap-3 text-sm">
-        <button type="button" disabled={current === 0} onClick={() => { setPage((p) => p - 1); setSelected(null); }}
+        <button type="button" disabled={current === 0} onClick={() => { setPage((p) => p - 1); setSelected(null); setEventSelected(null); }}
           className="rounded border border-subtle px-2 py-1 disabled:opacity-50">Anterior</button>
         <span>Página {current + 1} de {pages}</span>
-        <button type="button" disabled={current >= pages - 1} onClick={() => { setPage((p) => p + 1); setSelected(null); }}
+        <button type="button" disabled={current >= pages - 1} onClick={() => { setPage((p) => p + 1); setSelected(null); setEventSelected(null); }}
           className="rounded border border-subtle px-2 py-1 disabled:opacity-50">Siguiente</button>
       </div>}
     </section>
