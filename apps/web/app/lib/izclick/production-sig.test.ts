@@ -22,3 +22,11 @@ test("rechaza URL ajena, javascript y enlaces que no son el proyecto", () => {
 test("no reconoce ni modifica enlaces Plane ajenos a SIG", () => {
   assert.equal(sigProjectAssociation({ id: "link2", title: "Brochure", url: project }), null);
 });
+
+
+test("recupera código SIG desde metadata aunque el crawler cambie el título", () => {
+  const payload = sigLinkPayload("IZ-26968", project);
+  const saved = sigProjectAssociation({ id: "link1", ...payload, title: "IZ-Click - Página de inicio" });
+  assert.equal(saved?.code, "IZ-26968");
+  assert.equal(saved?.url, project);
+});
