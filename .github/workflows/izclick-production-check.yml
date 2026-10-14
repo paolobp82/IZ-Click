@@ -10,6 +10,7 @@ on:
       - 'izclick/ajustes-ux-es-20261014'
       - 'izclick/nativo-clickup-v2-20261014'
       - 'izclick/flujo-nativo-sin-duplicados-20261014'
+      - 'izclick/clickup-native-list-detail-20261014'
     paths:
       - 'apps/web/**'
       - 'docs/izclick/**'
