@@ -76,6 +76,16 @@ export const SpreadsheetHeader = observer(function SpreadsheetHeader(props: Prop
           </div>
         </th>
 
+        {!isEpic && projectId && (
+          <>
+            <th className="h-11 min-w-40 border-r border-subtle bg-layer-1 px-3 text-left text-13 font-medium">
+              Fecha del evento
+            </th>
+            <th className="h-11 min-w-40 border-r border-subtle bg-layer-1 px-3 text-left text-13 font-medium">
+              Código SIG
+            </th>
+          </>
+        )}
         {spreadsheetColumnsList.map((property) => (
           <SpreadsheetHeaderColumn
             key={property}
