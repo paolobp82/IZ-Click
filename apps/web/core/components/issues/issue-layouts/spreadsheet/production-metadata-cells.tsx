@@ -10,6 +10,7 @@ type Props = {
   projectId: string;
   issueId: string;
   canEdit: boolean;
+  labelIds: string[];
 };
 const EVENT_KIND = "event-date";
 const dateOf = (links: PlaneExternalLink[]): string => {
@@ -18,13 +19,14 @@ const dateOf = (links: PlaneExternalLink[]): string => {
 };
 
 /** Inline editor on the native spreadsheet; reads and writes Plane IssueLink records. */
-export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit }: Props) {
+export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit, labelIds }: Props) {
   const service = useMemo(() => new IssueService(), []);
   const [date, setDate] = useState("");
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState<{ id: string; name: string; color: string }[]>([]);
   const [sig, setSig] = useState<{ code: string; url: string } | null>(null);
   const [error, setError] = useState("");
   const [editingSig, setEditingSig] = useState(false);
@@ -49,18 +51,20 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     setDate("");
     setDraft("");
     setSig(null);
+    setClients([]);
     setEditing(false);
     setEditingSig(false);
     setError("");
     setLoading(true);
     // Two shared project requests replace one request per visible row.
     fetchProjectProductionMetadata(workspaceSlug, projectId)
-      .then(({ dates, sigLinks }) => {
+      .then(({ dates, sigLinks, clients: projectClients }) => {
         if (!active) return;
         const current = dates[issueId] ?? "";
         const match = sigLinks[issueId] ?? null;
         setDate(current);
         setDraft(current);
+        setClients(projectClients);
         setSig(match);
         setSigCodeDraft(match?.code ?? "");
         setSigUrlDraft(match?.url ?? "");
@@ -128,8 +132,20 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     } finally { setBusy(false); }
   };
 
+  const client = clients.find((candidate) => labelIds.includes(candidate.id));
+
   return (
     <>
+      <td className="h-11 min-w-40 border-r border-subtle px-3 text-13">
+        {client ? (
+          <span className="inline-flex max-w-44 items-center gap-1.5 truncate rounded px-2 py-1"
+            style={{ border: `1px solid ${client.color}` }} title={client.name}>
+            <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: client.color }} />
+            <span className="truncate">{client.name}</span>
+          </span>
+        ) : <span className="text-secondary">{loading ? "…" : "—"}</span>}
+      </td>
       <td className="h-11 min-w-40 border-r border-subtle px-2 text-13">
         {editing ? (
           <div className="flex flex-wrap items-center gap-1">
