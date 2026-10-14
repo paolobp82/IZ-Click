@@ -9,7 +9,6 @@ type Props = {
   projectId: string;
   issueId: string;
   canEdit: boolean;
-  openDetails: () => void;
 };
 const EVENT_KIND = "event-date";
 const dateOf = (links: PlaneExternalLink[]): string => {
@@ -18,7 +17,7 @@ const dateOf = (links: PlaneExternalLink[]): string => {
 };
 
 /** Inline editor on the native spreadsheet; reads and writes Plane IssueLink records. */
-export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit, openDetails }: Props) {
+export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit }: Props) {
   const service = useMemo(() => new IssueService(), []);
   const [date, setDate] = useState("");
   const [draft, setDraft] = useState("");
