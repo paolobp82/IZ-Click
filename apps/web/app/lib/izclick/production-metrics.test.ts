@@ -88,3 +88,21 @@ test("los filtros de calendario y directorio coinciden con los del gráfico", ()
   assert.equal(matchesProductionFilter(issue, { ...criteria, projectId: "p2" }), false);
   assert.equal(calculateProductionMetrics([issue], states, { ...criteria, projectId: "p2" }).total, 0);
 });
+
+
+test("unifica estados equivalentes de proyectos diferentes en el pie global", () => {
+  const projectStates = [
+    { id: "state-p1", name: "En Producción", color: "#123456" },
+    { id: "state-p2", name: "en produccion", color: "#abcdef" },
+    { id: "state-p3", name: "Aprobado", color: "#008000" },
+  ];
+  const result = calculateProductionMetrics([
+    { id: "issue-p1", state_id: "state-p1", project_id: "p1" },
+    { id: "issue-p2", state_id: "state-p2", project_id: "p2" },
+    { id: "issue-p3", state_id: "state-p3", project_id: "p3" },
+  ], projectStates);
+  assert.equal(result.total, 3);
+  assert.equal(result.slices.length, 2);
+  assert.equal(result.slices.find((slice) => slice.name === "En Producción")?.count, 2);
+  assert.equal(result.slices.reduce((total, slice) => total + slice.percent, 0), 100);
+});
