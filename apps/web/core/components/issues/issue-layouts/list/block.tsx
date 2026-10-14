@@ -176,12 +176,13 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
     isArchived: !!issue?.archived_at,
   });
   return (
-    <div className={cn("flex items-stretch border-b border-subtle", { "w-[1444px] min-w-[1444px]": isProjectList })}>
+    <div className={cn("flex items-stretch border-b border-subtle", { "w-max min-w-max": isProjectList })}>
     <ControlLink
       id={`issue-${issue.id}`}
       href={workItemLink}
       onClick={() => isProjectList ? router.push(workItemLink) : handleIssuePeekOverview(issue)}
-      className={isProjectList ? "w-[964px] min-w-[964px] shrink-0 cursor-pointer" : "min-w-0 flex-1 cursor-pointer"}
+      className={isProjectList ? "shrink-0 cursor-pointer" : "min-w-0 flex-1 cursor-pointer"}
+      style={isProjectList ? { width: "var(--izclick-link-width, 964px)", minWidth: "var(--izclick-link-width, 964px)" } : undefined}
       disabled={!!issue?.tempId || issue?.is_draft}
     >
       <Row
@@ -198,7 +199,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
             "lg:flex-row lg:items-center": !isSidebarCollapsed,
           }
         )}
-        style={isProjectList ? { width: 964, minWidth: 964, paddingLeft: 0, paddingRight: 0, gap: 0, justifyContent: "flex-start" } : undefined}
+        style={isProjectList ? { width: "var(--izclick-link-width, 964px)", minWidth: "var(--izclick-link-width, 964px)", paddingLeft: 0, paddingRight: 0, gap: 0, justifyContent: "flex-start" } : undefined}
         onDragStart={() => {
           if (!isDraggingAllowed) {
             setToast({
@@ -303,7 +304,8 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
             </div>
           )}
         </div>
-        <div className={isProjectList ? "flex w-[544px] shrink-0 items-center justify-start gap-0" : "flex flex-shrink-0 items-center justify-end gap-2"}>
+        <div className={isProjectList ? "flex shrink-0 items-center justify-start gap-0" : "flex flex-shrink-0 items-center justify-end gap-2"}
+          style={isProjectList ? { width: "var(--izclick-properties-width, 544px)" } : undefined}>
           {!issue?.tempId ? (
             <>
               {isProjectList ? (
@@ -345,7 +347,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
       </Row>
     </ControlLink>
     {isProjectList && workspaceSlug && projectId && issue.project_id && (
-      <div className="flex shrink-0 items-stretch" onClick={(event) => event.stopPropagation()}>
+      <div className="flex shrink-0 items-stretch" style={{ width: "var(--izclick-metadata-width, 480px)" }} onClick={(event) => event.stopPropagation()}>
         <ProductionMetadataCells
           asDiv
           workspaceSlug={workspaceSlug}
