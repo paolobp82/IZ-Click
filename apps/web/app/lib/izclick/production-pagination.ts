@@ -22,7 +22,11 @@ export async function collectPlanePages<T>(
     const next = typeof payload.next_cursor === "string" && payload.next_cursor
       ? payload.next_cursor
       : typeof payload.next === "string" && payload.next ? payload.next : null;
-    const more = payload.next_page_results === true || Boolean(next);
+    // Plane always returns next_cursor (even on its final page).
+    // next_page_results is authoritative when provided.
+    const more = typeof payload.next_page_results === "boolean"
+      ? payload.next_page_results
+      : Boolean(next);
     if (!more) return out;
     if (!next || cursors.has(next)) throw new Error("Paginación inconsistente de Plane");
     cursors.add(next);
