@@ -391,6 +391,7 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
           workspaceSlug={workspaceSlug.toString()}
           projectId={issueDetail.project_id}
           issueId={issueDetail.id}
+          canEdit={!disableUserActions}
           openDetails={() => handleIssuePeekOverview(issueDetail)}
         />
       )}
