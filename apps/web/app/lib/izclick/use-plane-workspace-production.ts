@@ -5,6 +5,8 @@ import { normalizeProductionMembers } from "@/app/lib/izclick/production-members
 import { normalizePlaneCollection, normalizePlaneIssue, normalizePlaneState } from "@/app/lib/izclick/plane-production-adapter";
 import { collectPlanePages } from "@/app/lib/izclick/production-pagination";
 import { clientsFromPlaneLabels, productionClientKey } from "@/app/lib/izclick/production-clients";
+import { eventDateFromLabels } from "@/app/lib/izclick/production-event-date";
+import type { PlaneLabelSummary } from "@/app/lib/izclick/production-event-date";
 import type { ProductionClient } from "@/app/lib/izclick/production-clients";
 
 type Project = { id: string; name: string };
@@ -60,9 +62,12 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
           json(`${base}/states/`, controller.signal),
         ]);
         states.push(...normalizePlaneCollection(rawStates, normalizePlaneState));
-        const labels = await json(`${base}/issue-labels/`, controller.signal)
-          .then(clientsFromPlaneLabels)
-          .catch(() => [] as ProductionClient[]);
+        const allLabelsResponse = await json(`${base}/issue-labels/`, controller.signal);
+        const allLabels = normalizePlaneCollection(allLabelsResponse, (item): PlaneLabelSummary | null =>
+          typeof item.id === "string" && typeof item.name === "string"
+            ? { id: item.id, name: item.name } : null
+        );
+        const labels = clientsFromPlaneLabels(allLabels);
         const clientByLabel = new Map<string, string>();
         for (const client of labels) {
           const key = productionClientKey(client.name);
@@ -72,6 +77,7 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
         issues.push(...rawList.map((issue) => ({
           ...issue,
           project_id: project.id,
+          event_date: eventDateFromLabels(allLabels, issue.label_ids ?? []),
           client_id: issue.label_ids?.map((id) => clientByLabel.get(id)).find((id): id is string => Boolean(id)) ?? issue.client_id,
         })));
       }
