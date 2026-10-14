@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "rootDirs": [".", "./.react-router/types"],
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./core/*"],
       "@/app/*": ["./app/*"],
