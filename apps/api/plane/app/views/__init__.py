@@ -126,6 +126,7 @@ from .issue.base import (
     IssueBulkUpdateDateEndpoint,
     IssueMetaEndpoint,
     ProductionEventDatesEndpoint,
+    ProductionSigLinksEndpoint,
     IssueDetailIdentifierEndpoint,
 )
 
