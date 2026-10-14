@@ -180,7 +180,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
     <ControlLink
       id={`issue-${issue.id}`}
       href={workItemLink}
-      onClick={() => router.push(workItemLink)}
+      onClick={() => isProjectList ? router.push(workItemLink) : handleIssuePeekOverview(issue)}
       className="min-w-0 flex-1 cursor-pointer"
       disabled={!!issue?.tempId || issue?.is_draft}
     >
