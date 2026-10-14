@@ -57,8 +57,23 @@ export function ProductionNativeProperties({ workspaceSlug, projectId, issueId, 
     return () => { alive = false; };
   }, [workspaceSlug, projectId, issueId, service]);
 
+  const originalSig = readSig(links);
+  const hasChanges = !loading && (
+    date !== readEventDate(links) ||
+    code.trim() !== originalSig.code ||
+    url.trim() !== originalSig.url
+  );
+  const discardChanges = () => {
+    const original = readSig(links);
+    setDate(readEventDate(links));
+    setCode(original.code);
+    setUrl(original.url);
+    setError("");
+    setMessage("");
+  };
+
   const save = async () => {
-    if (!isEditable || loading || saving) return;
+    if (!isEditable || loading || saving || !hasChanges) return;
     setError("");
     setMessage("");
     if (date && !validCalendarDate(date)) { setError("Fecha del evento inválida."); return; }
@@ -141,13 +156,22 @@ export function ProductionNativeProperties({ workspaceSlug, projectId, issueId, 
               className="h-8 w-full rounded border border-subtle bg-surface-1 px-2 text-xs" />
           </label>
           {url && <a className="block truncate text-xs underline" href={url} target="_blank" rel="noopener noreferrer">Abrir SIG ↗</a>}
+          {hasChanges && <p role="status" className="text-xs text-custom-text-300">Cambios sin guardar</p>}
           {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
           {message && <p role="status" className="text-xs text-green-500">{message}</p>}
           {isEditable && (
-            <button type="button" disabled={saving} onClick={() => void save()}
-              className="rounded border border-subtle px-3 py-1.5 text-xs disabled:opacity-50">
-              {saving ? "Guardando…" : "Guardar campos"}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" disabled={saving || !hasChanges} onClick={() => void save()}
+                className="rounded border border-subtle px-3 py-1.5 text-xs disabled:opacity-50">
+                {saving ? "Guardando…" : "Guardar cambios"}
+              </button>
+              {hasChanges && (
+                <button type="button" disabled={saving} onClick={discardChanges}
+                  className="rounded px-3 py-1.5 text-xs text-custom-text-300 hover:bg-layer-2 disabled:opacity-50">
+                  Descartar
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
