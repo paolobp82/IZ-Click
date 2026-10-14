@@ -33,6 +33,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
   const [clients, setClients] = useState<{ id: string; name: string; color: string }[]>([]);
   const [sig, setSig] = useState<{ code: string; url: string } | null>(null);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState(false);
   const [editingSig, setEditingSig] = useState(false);
   const [sigCodeDraft, setSigCodeDraft] = useState("");
   const [sigUrlDraft, setSigUrlDraft] = useState("");
@@ -59,6 +60,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     setEditing(false);
     setEditingSig(false);
     setError("");
+    setLoadError(false);
     setLoading(true);
     // Two shared project requests replace one request per visible row.
     fetchProjectProductionMetadata(workspaceSlug, projectId)
@@ -73,7 +75,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
         setSigCodeDraft(match?.code ?? "");
         setSigUrlDraft(match?.url ?? "");
       })
-      .catch(() => { if (active) setError("No se pudieron consultar los campos."); })
+      .catch(() => { if (active) setLoadError(true); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [workspaceSlug, projectId, issueId]);
@@ -199,7 +201,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
           <button type="button" disabled={!canEdit || loading} onClick={() => { setDraft(date); setEditing(true); setError(""); }}
             title={canEdit ? "Editar fecha del evento en esta celda" : "Sin permiso de edición"}
             className="w-full text-left hover:underline disabled:cursor-default">
-            {loading ? "…" : error ? "No disponible" : date || "—"}
+            {loading ? "…" : loadError ? "No disponible" : date || "—"}
           </button>
         )}
       </td>
