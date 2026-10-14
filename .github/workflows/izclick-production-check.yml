@@ -8,6 +8,7 @@ on:
     branches:
       - 'izclick/produccion-v1'
       - 'izclick/ajustes-ux-es-20261014'
+      - 'izclick/nativo-clickup-v2-20261014'
     paths:
       - 'apps/web/**'
       - 'packages/i18n/**'
