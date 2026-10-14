@@ -35,6 +35,7 @@ import { usePlatformOS } from "@/hooks/use-platform-os";
 import type { TRenderQuickActions } from "../list/list-view-types";
 import { isIssueNew } from "../utils";
 import { IssueColumn } from "./issue-column";
+import { ProductionMetadataCells } from "./production-metadata-cells";
 
 interface Props {
   displayProperties: IIssueDisplayProperties;
@@ -384,6 +385,15 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
           </Row>
         </ControlLink>
       </td>
+      {/* Production metadata is read from the same Plane IssueLink records as the native detail. */}
+      {!isEpic && workspaceSlug && issueDetail.project_id && (
+        <ProductionMetadataCells
+          workspaceSlug={workspaceSlug.toString()}
+          projectId={issueDetail.project_id}
+          issueId={issueDetail.id}
+          openDetails={() => handleIssuePeekOverview(issueDetail)}
+        />
+      )}
       {/* Rest of the columns */}
       {spreadsheetColumnsList.map((property) => (
         <IssueColumn
