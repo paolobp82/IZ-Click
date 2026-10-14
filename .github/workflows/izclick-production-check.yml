@@ -12,6 +12,7 @@ on:
     paths:
       - 'apps/web/**'
       - 'packages/i18n/**'
+      - 'apps/api/plane/db/**'
       - 'apps/api/plane/app/views/**'
       - 'apps/api/plane/app/urls/**'
       - '.github/workflows/izclick-production-check.yml'
@@ -49,6 +50,11 @@ jobs:
           python3 -m py_compile apps/api/plane/app/views/__init__.py
           python3 -m py_compile apps/api/plane/app/urls/issue.py
           python3 -m py_compile apps/api/plane/utils/izclick_production.py
+          python3 -m py_compile apps/api/plane/db/models/izclick_production_status.py
+          python3 -m py_compile apps/api/plane/db/migrations/0123_izclick_production_workspace_statuses.py
+          python3 -m py_compile apps/api/plane/app/views/workspace/izclick_production_status.py
+          python3 -m py_compile apps/api/plane/app/views/project/base.py
+          python3 -m py_compile apps/api/plane/app/urls/workspace.py
       - name: Execute API metadata contract tests
         run: python3 -m unittest discover -s apps/api/izclick_contract_tests -p 'test_*.py' -v
 
