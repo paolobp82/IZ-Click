@@ -291,7 +291,7 @@ export const ListGroup = observer(function ListGroup(props: Props) {
           {group_by === "state" && !isEpic && (
             <div className="sticky top-9 z-[2] hidden min-h-9 items-center border-b border-subtle bg-layer-1 px-3 text-xs font-medium text-tertiary lg:flex">
               <span className="min-w-0 flex-1">Carga</span>
-              <span className="shrink-0 pr-8 text-right">Estado · Prioridad · Responsable · Fechas · Acciones</span>
+              <span className="shrink-0 pr-5 text-right">Propiedades · Cliente · Fecha del evento · Código SIG</span>
             </div>
           )}
           <GroupDragOverlay
