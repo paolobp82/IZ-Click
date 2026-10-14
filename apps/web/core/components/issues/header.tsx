@@ -25,6 +25,7 @@ import { Breadcrumbs, Header } from "@plane/ui";
 // components
 import { BreadcrumbLink } from "@/components/common/breadcrumb-link";
 import { CountChip } from "@/components/common/count-chip";
+import { ProductionStatusesMenu } from "./header/production-statuses-menu";
 // constants
 import { HeaderFilters } from "@/components/issues/filters";
 // helpers
@@ -110,6 +111,7 @@ export const IssuesHeader = observer(function IssuesHeader() {
         )}
       </Header.LeftItem>
       <Header.RightItem>
+        <ProductionStatusesMenu />
         <div className="hidden gap-2 md:flex">
           <HeaderFilters
             projectId={projectId}
