@@ -20,6 +20,7 @@ export function ProductionEventDateEditor({ workspaceSlug, projectId, issueId, o
   const [date, setDate] = useState("");
   const [originalDate, setOriginalDate] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
+  const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +28,7 @@ export function ProductionEventDateEditor({ workspaceSlug, projectId, issueId, o
   useEffect(() => {
     let active = true;
     setBusy(true);
+    setReady(false);
     setError(null);
     setSaved(false);
     Promise.all([
@@ -41,6 +43,7 @@ export function ProductionEventDateEditor({ workspaceSlug, projectId, issueId, o
       setLabels(projectLabels);
       setDate(existingDate ?? "");
       setOriginalDate(existingDate);
+      setReady(true);
     }).catch((err: unknown) => {
       if (active) setError(err instanceof Error ? err.message : "Error al consultar fecha del evento");
     }).finally(() => { if (active) setBusy(false); });
@@ -109,7 +112,7 @@ export function ProductionEventDateEditor({ workspaceSlug, projectId, issueId, o
           {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
           {saved && <p role="status" className="text-sm">Fecha guardada. Actualiza la vista para reflejarla en el calendario.</p>}
           <div className="flex flex-wrap gap-2">
-            <button type="submit" disabled={busy || saving || Boolean(error && !saved && labels.length === 0)}
+            <button type="submit" disabled={busy || saving || !ready}
               className="rounded border border-subtle px-3 py-1.5 text-sm disabled:opacity-50">
               {saving ? "Guardando…" : "Guardar fecha"}
             </button>
