@@ -22,7 +22,7 @@ import type {
   IIssueDisplayProperties,
   TIssueKanbanFilters,
 } from "@plane/types";
-import { EIssueLayoutTypes } from "@plane/types";
+import { EIssueLayoutTypes, EIssuesStoreType } from "@plane/types";
 import { Row } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
@@ -31,7 +31,7 @@ import { useWorkFlowFDragNDrop } from "@/components/workflow";
 // hooks
 import { useProjectState } from "@/hooks/store/use-project-state";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
-import { useIssuesStore } from "@/hooks/use-issue-layout-store";
+import { useIssueStoreType, useIssuesStore } from "@/hooks/use-issue-layout-store";
 import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 // local imports
 import { GroupDragOverlay } from "../group-drag-overlay";
@@ -106,6 +106,7 @@ export const ListGroup = observer(function ListGroup(props: Props) {
   const groupRef = useRef<HTMLDivElement | null>(null);
   const { t } = useTranslation();
   const projectState = useProjectState();
+  const isProjectList = useIssueStoreType() === EIssuesStoreType.PROJECT && !isEpic;
 
   const {
     issues: { getGroupIssueCount, getPaginationData, getIssueLoader },
@@ -287,13 +288,13 @@ export const ListGroup = observer(function ListGroup(props: Props) {
       </Row>
       {shouldExpand && (
         <div className="relative">
-          {/* Align the project List columns with the native inline Production editors, without introducing another view. */}
-          {!isEpic && (
-            <div
-              className="sticky top-9 z-[2] flex min-h-9 min-w-[1050px] items-center border-b border-subtle bg-layer-1 text-xs font-medium text-tertiary"
-              aria-label="Columnas de cargas"
-            >
-              <span className="min-w-0 flex-1 px-3">Carga · Estado · Prioridad · Responsable · Fechas</span>
+          {isProjectList && (
+            <div className="sticky top-9 z-[2] flex min-h-9 min-w-[1400px] items-center border-b border-subtle bg-layer-1 text-xs font-medium text-tertiary" aria-label="Columnas de cargas">
+              <span className="min-w-0 flex-1 px-3">Carga</span>
+              <span className="w-36 shrink-0 border-l border-subtle px-2">Estado</span>
+              <span className="w-28 shrink-0 border-l border-subtle px-2">Prioridad</span>
+              <span className="w-36 shrink-0 border-l border-subtle px-2">Responsable</span>
+              <span className="w-36 shrink-0 border-l border-subtle px-2">Vencimiento</span>
               <span className="w-40 shrink-0 border-l border-subtle px-3">Cliente</span>
               <span className="w-40 shrink-0 border-l border-subtle px-2">Fecha del evento</span>
               <span className="w-40 shrink-0 border-l border-subtle px-2">Código SIG</span>
