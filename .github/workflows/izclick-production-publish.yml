@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Escribir PUBLICAR_IMAGENES para crear versiones inmutables, sin desplegar'
+        description: 'Escribir PUBLICAR_IMAGENES para publicar web y API del mismo commit, sin desplegar'
         required: true
         type: string
 
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   publish-candidate:
-    if: github.ref == 'refs/heads/izclick/produccion-v1' && github.event.inputs.confirm == 'PUBLICAR_IMAGENES'
+    if: github.ref == 'refs/heads/izclick/flujo-nativo-sin-duplicados-20261014' && github.event.inputs.confirm == 'PUBLICAR_IMAGENES'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
