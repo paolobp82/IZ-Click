@@ -12,6 +12,8 @@ export type ProductionWorkItem = {
   client_id?: string | null;
   label_ids?: readonly string[] | null;
   event_date?: string | null;
+  sig_code?: string | null;
+  sig_url?: string | null;
   target_date?: string | null;
   name?: string | null;
   priority?: string | null;
