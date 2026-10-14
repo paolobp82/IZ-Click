@@ -5,17 +5,19 @@ import { scheduledProductionLoads } from "@/app/lib/izclick/production-schedule"
 type Props = {
   issues: readonly ProductionWorkItem[];
   projects: readonly { id: string; name: string }[];
+  clients?: readonly { id: string; name: string; color: string }[];
   workspaceSlug: string;
 };
 
 /** Cross-project month agenda based on dates actually present in Plane. */
-export function ProductionCalendar({ issues, projects, workspaceSlug }: Props) {
+export function ProductionCalendar({ issues, projects, clients = [], workspaceSlug }: Props) {
   const [monthStart, setMonthStart] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
   });
   const items = useMemo(() => scheduledProductionLoads(issues), [issues]);
   const projectNames = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects]);
+  const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const month = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, "0")}`;
   const shown = useMemo(() => items.filter((item) => item.date.startsWith(month)), [items, month]);
   const grouped = useMemo(() => {
@@ -58,6 +60,12 @@ export function ProductionCalendar({ issues, projects, workspaceSlug }: Props) {
                       </a>
                       <p className="text-xs text-custom-text-300">
                         {projectNames.get(item.project_id) ?? "Proyecto"} · {item.source === "event_date" ? "Fecha del evento" : "Fecha prevista (Plane)"}
+                        {item.client_id && clientById.get(item.client_id) && (
+                          <span className="ml-2 inline-flex items-center gap-1">
+                            <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: clientById.get(item.client_id)?.color }} />
+                            {clientById.get(item.client_id)?.name}
+                          </span>
+                        )}
                       </p>
                     </div>
                     {item.priority !== "none" && <span className="text-xs">{item.priority}</span>}
