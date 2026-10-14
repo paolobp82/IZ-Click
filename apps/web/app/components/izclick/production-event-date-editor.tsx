@@ -18,6 +18,7 @@ export function ProductionEventDateEditor({ workspaceSlug, projectId, issueId, o
   const labelService = useMemo(() => new IssueLabelService(), []);
   const [labels, setLabels] = useState<PlaneLabelSummary[]>([]);
   const [date, setDate] = useState("");
+  const [originalDate, setOriginalDate] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -39,6 +40,7 @@ export function ProductionEventDateEditor({ workspaceSlug, projectId, issueId, o
       const existingDate = eventDateFromLabels(projectLabels, current);
       setLabels(projectLabels);
       setDate(existingDate ?? "");
+      setOriginalDate(existingDate);
     }).catch((err: unknown) => {
       if (active) setError(err instanceof Error ? err.message : "Error al consultar fecha del evento");
     }).finally(() => { if (active) setBusy(false); });
@@ -61,8 +63,7 @@ export function ProductionEventDateEditor({ workspaceSlug, projectId, issueId, o
       if (!Array.isArray(freshLabels)) throw new Error("No se pudieron verificar las etiquetas actuales");
       const projectLabels: PlaneLabelSummary[] = freshLabels;
       const currentDate = eventDateFromLabels(projectLabels, currentIds);
-      const initialDate = eventDateFromLabels(labels, currentIds);
-      if (initialDate !== currentDate) throw new Error("Otro usuario cambió la fecha del evento. Cierra y vuelve a abrir el editor.");
+      if (originalDate !== currentDate) throw new Error("Otro usuario cambió la fecha del evento. Cierra y vuelve a abrir el editor.");
 
       let nextLabelId: string | null = null;
       if (date) {
@@ -84,6 +85,7 @@ export function ProductionEventDateEditor({ workspaceSlug, projectId, issueId, o
       await issueService.patchIssue(workspaceSlug, projectId, issueId, { labels: desired });
       setLabels([...projectLabels, ...(nextLabelId && !projectLabels.some((label) => label.id === nextLabelId)
         ? [{ id: nextLabelId, name: eventDateLabelName(date), color: EVENT_LABEL_COLOR }] : [])]);
+      setOriginalDate(date || null);
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Plane no pudo guardar la fecha");
@@ -101,13 +103,13 @@ export function ProductionEventDateEditor({ workspaceSlug, projectId, issueId, o
         <form onSubmit={save} className="flex flex-col gap-3">
           <label className="flex flex-col gap-1 text-sm">
             Fecha del evento
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            <input type="date" value={date} onChange={(e) => { setDate(e.target.value); setError(null); setSaved(false); }}
               className="rounded border border-subtle bg-surface-1 px-2 py-1.5" />
           </label>
           {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
           {saved && <p role="status" className="text-sm">Fecha guardada. Actualiza la vista para reflejarla en el calendario.</p>}
           <div className="flex flex-wrap gap-2">
-            <button type="submit" disabled={busy || saving || Boolean(error && !saved)}
+            <button type="submit" disabled={busy || saving || Boolean(error && !saved && labels.length === 0)}
               className="rounded border border-subtle px-3 py-1.5 text-sm disabled:opacity-50">
               {saving ? "Guardando…" : "Guardar fecha"}
             </button>
