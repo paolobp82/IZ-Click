@@ -15,7 +15,7 @@ import { ChevronRightIcon } from "@plane/propel/icons";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TIssue, IIssueDisplayProperties, TIssueMap } from "@plane/types";
-import { EIssueServiceType } from "@plane/types";
+import { EIssueServiceType, EIssuesStoreType } from "@plane/types";
 // ui
 import { Spinner, ControlLink, Row } from "@plane/ui";
 import { cn, generateWorkItemLink } from "@plane/utils";
@@ -24,12 +24,14 @@ import { MultipleSelectEntityAction } from "@/components/core/multiple-select";
 import { IssueProperties } from "@/components/issues/issue-layouts/properties";
 import { IssueIdentifier } from "@/components/issues/issue-detail/issue-identifier";
 import { ProductionMetadataCells } from "@/components/issues/issue-layouts/spreadsheet/production-metadata-cells";
+import { ProductionListPropertyColumns } from "./production-property-columns";
 // hooks
 import { useAppTheme } from "@/hooks/store/use-app-theme";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useProject } from "@/hooks/store/use-project";
 import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 import { usePlatformOS } from "@/hooks/use-platform-os";
+import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { calculateIdentifierWidth } from "../utils";
 import type { TRenderQuickActions } from "./list-view-types";
 
@@ -108,6 +110,8 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
   const isDraggingAllowed = canDrag && canEditIssueProperties;
 
   const { isMobile } = usePlatformOS();
+  const storeType = useIssueStoreType();
+  const isProjectList = storeType === EIssuesStoreType.PROJECT && !isEpic;
 
   useEffect(() => {
     const element = issueRef.current;
@@ -170,7 +174,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
     isArchived: !!issue?.archived_at,
   });
   return (
-    <div className="flex min-w-[1050px] items-stretch border-b border-subtle">
+    <div className={cn("flex items-stretch border-b border-subtle", { "min-w-[1400px]": isProjectList })}>
     <ControlLink
       id={`issue-${issue.id}`}
       href={workItemLink}
@@ -298,6 +302,9 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
         <div className="flex flex-shrink-0 items-center justify-end gap-2">
           {!issue?.tempId ? (
             <>
+              {isProjectList ? (
+                <ProductionListPropertyColumns issue={issue} canEdit={canEditIssueProperties} updateIssue={updateIssue} />
+              ) : (
               <IssueProperties
                 className={`relative flex flex-wrap ${isSidebarCollapsed ? "md:flex-shrink-0 md:flex-grow" : "lg:flex-shrink-0 lg:flex-grow"} items-center gap-2 whitespace-nowrap`}
                 issue={issue}
@@ -307,6 +314,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
                 activeLayout="List"
                 isEpic={isEpic}
               />
+              )}
               {/* oxlint-disable-next-line jsx_a11y/click-events-have-key-events oxlint-disable-next-line jsx_a11y/no-static-element-interactions */}
               <div
                 className={cn("hidden", {
@@ -332,7 +340,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
         </div>
       </Row>
     </ControlLink>
-    {!isEpic && workspaceSlug && projectId && issue.project_id && (
+    {isProjectList && workspaceSlug && projectId && issue.project_id && (
       <div className="flex shrink-0 items-stretch" onClick={(event) => event.stopPropagation()}>
         <ProductionMetadataCells
           asDiv
