@@ -287,11 +287,16 @@ export const ListGroup = observer(function ListGroup(props: Props) {
       </Row>
       {shouldExpand && (
         <div className="relative">
-          {/* Native list rows share these property slots; only actual editable Plane controls are shown. */}
-          {group_by === "state" && !isEpic && (
-            <div className="sticky top-9 z-[2] hidden min-h-9 items-center border-b border-subtle bg-layer-1 px-3 text-xs font-medium text-tertiary lg:flex">
-              <span className="min-w-0 flex-1">Carga</span>
-              <span className="shrink-0 pr-5 text-right">Propiedades · Cliente · Fecha del evento · Código SIG</span>
+          {/* Align the project List columns with the native inline Production editors, without introducing another view. */}
+          {!isEpic && (
+            <div
+              className="sticky top-9 z-[2] flex min-h-9 min-w-[1050px] items-center border-b border-subtle bg-layer-1 text-xs font-medium text-tertiary"
+              aria-label="Columnas de cargas"
+            >
+              <span className="min-w-0 flex-1 px-3">Carga · Estado · Prioridad · Responsable · Fechas</span>
+              <span className="w-40 shrink-0 border-l border-subtle px-3">Cliente</span>
+              <span className="w-40 shrink-0 border-l border-subtle px-2">Fecha del evento</span>
+              <span className="w-40 shrink-0 border-l border-subtle px-2">Código SIG</span>
             </div>
           )}
           <GroupDragOverlay
