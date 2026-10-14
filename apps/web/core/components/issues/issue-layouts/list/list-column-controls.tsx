@@ -44,7 +44,7 @@ export function ListColumnControls() {
 
   useEffect(() => {
     const load = () => {
-    try {
+      try {
       const saved = JSON.parse(localStorage.getItem(storageKey(scope)) || "{}") as Partial<Preferences>;
       const next = defaults();
       for (const col of LIST_COLUMNS) {
@@ -57,9 +57,9 @@ export function ListColumnControls() {
       }
       setPrefs(next);
       apply(next);
-    } catch {
-      apply(defaults());
-    }
+      } catch {
+        apply(defaults());
+      }
     };
     load();
     const sync = (event: Event) => {
@@ -125,7 +125,7 @@ export function ListColumnControls() {
           />
         </span>
       ))}
-      <div className="relative shrink-0 px-2">
+      <div className="absolute right-2 top-1 z-20">
         <button type="button" aria-label="Agregar o quitar columnas" className="rounded border border-subtle px-2 py-1 hover:bg-layer-1-hover"
           onClick={() => setOpen((value) => !value)}>+ Columnas</button>
         {open && (
