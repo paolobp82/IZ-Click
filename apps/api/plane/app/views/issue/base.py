@@ -1195,8 +1195,9 @@ class ProductionSigLinksEndpoint(BaseAPIView):
             workspace__slug=slug,
             project_id=project_id,
             deleted_at__isnull=True,
-            title__startswith="SIG Izango 360 | ",
             issue__deleted_at__isnull=True,
+        ).filter(
+            Q(metadata__izclick_kind="sig-project") | Q(title__startswith="SIG Izango 360 | ")
         ).order_by("-created_at")
 
         guest_restricted = ProjectMember.objects.filter(
@@ -1210,11 +1211,14 @@ class ProductionSigLinksEndpoint(BaseAPIView):
             links = links.filter(issue__created_by=request.user)
 
         associations = {}
-        for link in links.values("issue_id", "title", "url"):
+        for link in links.values("issue_id", "title", "url", "metadata"):
             issue_id = str(link["issue_id"])
             if issue_id in associations:
                 continue
-            code = link["title"].removeprefix("SIG Izango 360 | ").strip()
+            metadata = link["metadata"] or {}
+            stored_code = metadata.get("izclick_sig_code") if metadata.get("izclick_kind") == "sig-project" else None
+            code = stored_code if isinstance(stored_code, str) else link["title"].removeprefix("SIG Izango 360 | ")
+            code = code.strip()
             if not code or len(code) > 60:
                 continue
             associations[issue_id] = {"code": code, "url": link["url"]}
