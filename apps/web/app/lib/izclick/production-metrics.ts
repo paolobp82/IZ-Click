@@ -59,6 +59,7 @@ export function calculateProductionMetrics(
   const seen = new Set<string>();
   const counts = new Map<string, number>();
   const stateLookup = new Map(states.map((state) => [state.id, state]));
+  const statesByName = new Map<string, ProductionState>();
   let total = 0;
 
   for (const issue of issues) {
@@ -66,14 +67,18 @@ export function calculateProductionMetrics(
     seen.add(issue.id);
     if (!matchesProductionFilter(issue, filter)) continue;
     total += 1;
-    const stateId = issue.state_id && stateLookup.has(issue.state_id) ? issue.state_id : "__unknown__";
-    counts.set(stateId, (counts.get(stateId) ?? 0) + 1);
+    const state = issue.state_id ? stateLookup.get(issue.state_id) : undefined;
+    const groupId = state
+      ? `state:${state.name.trim().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("es").replace(/\\s+/g, " ")}`
+      : "__unknown__";
+    if (state && !statesByName.has(groupId)) statesByName.set(groupId, state);
+    counts.set(groupId, (counts.get(groupId) ?? 0) + 1);
   }
 
   if (total === 0) return { total: 0, slices: [] };
 
   const rows = [...counts.entries()].map(([id, count], index) => {
-    const state = stateLookup.get(id);
+    const state = statesByName.get(id);
     const exact = (count * 100) / total;
     return {
       id,
