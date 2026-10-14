@@ -11,6 +11,7 @@ import { StateDropdown } from "@/components/dropdowns/state/dropdown";
 import { PriorityDropdown } from "@/components/dropdowns/priority";
 import { MemberDropdown } from "@/components/dropdowns/member/dropdown";
 import { DateDropdown } from "@/components/dropdowns/date";
+import { useProjectState } from "@/hooks/store/use-project-state";
 
 type Props = {
   issue: TIssue;
@@ -25,6 +26,9 @@ const stopLinkNavigation = (event: React.SyntheticEvent) => {
 
 export function ProductionListPropertyColumns({ issue, canEdit, updateIssue }: Props) {
   const disabled = !canEdit || !updateIssue;
+  const { getStateById } = useProjectState();
+  const state = issue.state_id ? getStateById(issue.state_id) : undefined;
+  const stateColor = state?.color && /^#[0-9a-fA-F]{6}$/.test(state.color) ? state.color : undefined;
   const save = async (data: Partial<TIssue>) => {
     if (!canEdit || !updateIssue) return;
     await updateIssue(issue.project_id, issue.id, data);
@@ -33,6 +37,8 @@ export function ProductionListPropertyColumns({ issue, canEdit, updateIssue }: P
   return (
     <div className="flex shrink-0 items-stretch text-xs" onClick={stopLinkNavigation} onFocus={(event) => event.stopPropagation()}>
       <div className="flex min-h-11 min-w-0 shrink-0 items-center overflow-hidden border-l border-subtle px-2" style={{ display: "var(--izclick-show-state, flex)", width: "var(--izclick-col-state, 144px)" }}>
+        <div className="flex min-w-0 max-w-full items-center gap-1.5 rounded px-1 py-0.5" style={stateColor ? { backgroundColor: `${stateColor}18` } : undefined}>
+          {stateColor && <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: stateColor }} />}
         <StateDropdown
           projectId={issue.project_id ?? undefined}
           value={issue.state_id}
@@ -42,6 +48,7 @@ export function ProductionListPropertyColumns({ issue, canEdit, updateIssue }: P
           buttonContainerClassName="w-full min-w-0"
           buttonClassName="w-full truncate text-left"
         />
+        </div>
       </div>
       <div className="flex min-h-11 min-w-0 shrink-0 items-center overflow-hidden border-l border-subtle px-2" style={{ display: "var(--izclick-show-priority, flex)", width: "var(--izclick-col-priority, 112px)" }}>
         <PriorityDropdown
