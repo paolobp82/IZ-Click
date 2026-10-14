@@ -1,6 +1,6 @@
 # IZ-Click Producción V1 — avance técnico al 13/10/2026
 
-**Avance global estimado: 65% · Pendiente: 35%.**
+**Avance global estimado: 70% · Pendiente: 30%.**
 
 Este valor es una estimación de entregables y esfuerzo del alcance inicial, NO certificación de funcionamiento en producción. La aplicación operativa en el VPS sigue usando las imágenes anteriores.
 
@@ -9,11 +9,11 @@ Este valor es una estimación de entregables y esfuerzo del alcance inicial, NO 
 | Estados personalizados Producción | Motor y UI de estados nativos de Plane existentes; gráfico consolida por nombre | Definir/configurar estados exactos en los proyectos piloto |
 | Fecha del evento + prioridad | Fecha del evento independiente persistida con metadatos de IssueLink y endpoint por proyecto; prioridad nativa | Validar persistencia de metadatos con productor y lectura del endpoint autenticado |
 | Subtareas | Soporte nativo de Plane y exclusión de subtareas del dashboard | Prueba de alta, edición y visualización con productores |
-| Calendario consolidado | Vista de agenda mensual con links y fecha de evento prioritaria | Validación con casos reales y calendario de múltiples proyectos |
+| Calendario consolidado | Cuadrícula mensual + agenda con navegación, enlaces y fecha de evento prioritaria | Validación con casos reales y calendario de múltiples proyectos |
 | Gráfico pie y porcentajes | Cálculo, redondeo a 100%, subtareas excluidas, productores y estados homónimos unificados | Contrastar totales reales con Plane |
 | Enlace a SIG | Editor y vínculo usando IssueLink nativo, código preservado en metadata y lectura consolidada por proyecto | Prueba de guardado y enlace real con permisos de productores |
 | Vistas múltiples | Lista y calendario custom; Plane tiene tablero y vistas existentes | Comprobar rutas/alcance de vistas en CE |
-| Columnas personalizadas/código SIG | Directorio custom con columnas y editor SIG | Columnas dinámicas y validación del código mostrado en lista con datos reales |
+| Columnas personalizadas/código SIG | Directorio custom con columnas configurables por navegador, código SIG y editor SIG | Validación de columnas y código SIG con datos reales |
 | Clientes por color | Etiquetas `Cliente: Nombre`, filtros, color, agregación entre proyectos | Preparar etiquetas y validar con clientes reales |
 | Vista global de cargas | Dashboard workspace, proyecto/productor/cliente, paginación | Verificar permisos de cada usuario y tiempos de respuesta |
 | Ficha editable | Edición de fecha del evento y vínculo SIG en directorio; ficha nativa Plane | Flujo end-to-end de edición y estados |
@@ -25,7 +25,7 @@ Este valor es una estimación de entregables y esfuerzo del alcance inicial, NO 
 - La compilación Vite/Docker NO sustituye las pruebas autenticadas reales de Plane ni la comprobación de tipos completa.
 
 ## Método de estimación
-65% es la estimación integral para este corte; el código y las vistas están considerablemente adelantados, pero estados específicos, pruebas reales de API, control de permisos, aceptación de usuarios y despliegue controlado siguen pendientes. No modificar la cifra automáticamente por commits.
+70% es la estimación integral para este corte; el código y las vistas están considerablemente adelantados, pero estados específicos, pruebas reales de API, control de permisos, aceptación de usuarios y despliegue controlado siguen pendientes. No modificar la cifra automáticamente por commits.
 
 ## Siguiente ruta crítica
 1. CI verde en el commit final (tests + Docker web).
@@ -45,3 +45,14 @@ El porcentaje registrado es una estimación de desarrollo y no significa que la 
 Se agregó `GET /api/workspaces/:slug/projects/:projectId/production-sig-links/`, con comprobación de permisos de proyecto y restricciones de invitados. La vista global e individual reciben el código y URL de SIG por proyecto, y el directorio muestra el código enlazado sin consultas por cada tarea. El código se guarda también como `IssueLink.metadata.izclick_sig_code` porque el rastreador de Plane puede reemplazar el título del enlace. La URL se valida en frontend antes de mostrarla.
 
 **Validación pendiente:** Docker web con TypeScript estricto y validación Python del último commit, prueba de escritura autorizada en la instancia piloto, y construcción/publicación controlada de la imagen API.
+
+## Tercer corte de desarrollo — calendario y personalización visual
+- Cuadrícula mensual de lunes a domingo con las cargas de cada fecha, señalización de cliente y enlace a tarea.
+- Alternancia Mes/Agenda; la agenda muestra todas las tareas en días con alta densidad.
+- Selector de columnas: Proyecto, Cliente, Estado, Prioridad, Fecha prevista, Fecha del evento y Código SIG. La columna Carga permanece fija.
+- Preferencias de columnas guardadas localmente en el navegador por workspace; no se escriben en la base de datos de Plane.
+- API endurecida para ignorar metadatos malformados y restringir URLs SIG a proyectos del SIG Izango 360.
+- Lecturas globales concurrentes, con límite de cuatro proyectos y sin publicar KPIs parciales.
+- Publicador manual de imágenes web/API preparado, NO ejecutado.
+
+**Validación:** las compilaciones previas de web/API y los contratos Python pasaron. La versión con calendario mensual/selector de columnas requiere confirmar el resultado del nuevo CI. Sigue sin despliegue ni prueba end-to-end con usuarios.
