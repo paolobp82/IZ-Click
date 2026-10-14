@@ -1,4 +1,5 @@
 name: IZ-Click preview web image
+# Immutable preview builds only; no server deployment.
 on:
   push:
     branches:
