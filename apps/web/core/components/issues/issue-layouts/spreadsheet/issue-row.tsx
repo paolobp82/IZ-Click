@@ -386,7 +386,7 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
         </ControlLink>
       </td>
       {/* Production metadata is read from the same Plane IssueLink records as the native detail. */}
-      {!isEpic && workspaceSlug && issueDetail.project_id && (
+      {!isEpic && projectId && workspaceSlug && issueDetail.project_id && (
         <ProductionMetadataCells
           workspaceSlug={workspaceSlug.toString()}
           projectId={issueDetail.project_id}
