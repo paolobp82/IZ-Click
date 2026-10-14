@@ -131,7 +131,7 @@ export function ProductionDashboard({
               </div>
             ))}
           </section>
-          <ProductionStatusPie metrics={metrics} title="Estados de las cargas" />
+          <ProductionStatusPie metrics={metrics} title={producerId ? `Estados de ${producers.find((user) => user.id === producerId)?.name ?? "productor"}` : "Estados de las cargas"} />
           {!producerId && producerSummary.length > 0 && (
             <section className="rounded-lg border border-subtle bg-surface-1 p-5" aria-label="Resumen por productor">
               <h2 className="mb-3 text-base font-semibold">Cargas por productor</h2>
@@ -141,7 +141,13 @@ export function ProductionDashboard({
                   <thead><tr className="border-b border-subtle"><th className="py-2">Productor</th><th className="py-2 text-right">Cargas</th><th className="py-2">Por estado (cantidad y %)</th></tr></thead>
                   <tbody>{producerSummary.map((row) => (
                     <tr key={row.id} className="border-b border-subtle">
-                      <td className="py-2 pr-3">{row.name}</td>
+                      <td className="py-2 pr-3">
+                        <button type="button" className="text-left font-medium underline-offset-2 hover:underline focus-visible:underline"
+                          title={`Ver gráfico de estados de ${row.name}`}
+                          onClick={() => setProducerId(row.id)}>
+                          {row.name}
+                        </button>
+                      </td>
                       <td className="py-2 pr-3 text-right font-medium">{row.metrics.total}</td>
                       <td className="py-2">{row.metrics.slices.map((slice) => `${slice.name}: ${slice.count} (${slice.percent}%)`).join(" · ")}</td>
                     </tr>
