@@ -69,7 +69,7 @@ export function calculateProductionMetrics(
     total += 1;
     const state = issue.state_id ? stateLookup.get(issue.state_id) : undefined;
     const groupId = state
-      ? `state:${state.name.trim().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("es").replace(/\\s+/g, " ")}`
+      ? `state:${state.name.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es").replace(/\s+/g, " ")}`
       : "__unknown__";
     if (state && !statesByName.has(groupId)) statesByName.set(groupId, state);
     counts.set(groupId, (counts.get(groupId) ?? 0) + 1);
