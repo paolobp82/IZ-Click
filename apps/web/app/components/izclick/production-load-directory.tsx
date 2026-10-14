@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { defaultProductionColumns, parseProductionColumns, PRODUCTION_COLUMNS } from "@/app/lib/izclick/production-columns";
 import type { ProductionColumnId } from "@/app/lib/izclick/production-columns";
 import type { ProductionState, ProductionWorkItem } from "@/app/lib/izclick/production-metrics";
-import { ProductionSigLinkEditor } from "./production-sig-link-editor";
-import { ProductionEventDateEditor } from "./production-event-date-editor";
 
 type Props = {
   issues: readonly ProductionWorkItem[];
@@ -21,8 +19,6 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"estados" | "tabla">("estados");
   const [page, setPage] = useState(0);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [eventSelected, setEventSelected] = useState<string | null>(null);
   const [columns, setColumns] = useState(defaultProductionColumns);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const storageKey = `izclick:production:columns:${workspaceSlug}`;
@@ -81,7 +77,7 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
     <section className="rounded-lg border border-subtle bg-surface-1 p-5" aria-label="Directorio de cargas de Producción">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold">Directorio de cargas</h2>
+          <h2 className="text-base font-semibold">Cargas de todos los proyectos</h2>
           <p className="text-sm text-custom-text-300">{filtered.length} cargas; sin duplicar subtareas</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -94,7 +90,7 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
           <button type="button" aria-expanded={showColumnPicker} onClick={() => setShowColumnPicker((value) => !value)}
             className="rounded border border-subtle px-3 py-2 text-sm">Columnas</button>
           <input aria-label="Buscar cargas" placeholder="Buscar carga, proyecto o estado…" value={query}
-            onChange={(e) => { setQuery(e.target.value); setPage(0); setSelected(null); setEventSelected(null); }}
+            onChange={(e) => { setQuery(e.target.value); setPage(0); }}
             className="w-full max-w-xs rounded border border-subtle bg-surface-1 px-3 py-2 text-sm" />
         </div>
       </div>
@@ -156,18 +152,6 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
                   <a className="underline" href={issueHref(issue)}>
                     {issue.name || "Carga sin nombre"}
                   </a>
-                  {eventSelected === issue.id && (
-                    <div className="mt-3 min-w-64">
-                      <ProductionEventDateEditor workspaceSlug={workspaceSlug} projectId={issue.project_id!}
-                        issueId={issue.id} onClose={() => setEventSelected(null)} />
-                    </div>
-                  )}
-                  {selected === issue.id && (
-                    <div className="mt-3 min-w-64">
-                      <ProductionSigLinkEditor workspaceSlug={workspaceSlug} projectId={issue.project_id!}
-                        issueId={issue.id} onClose={() => setSelected(null)} />
-                    </div>
-                  )}
                 </td>
                 {columns.project && <td className="py-2 pr-3">{projectNames.get(issue.project_id!) || "Proyecto"}</td>}
                 {columns.client && <td className="py-2 pr-3">
@@ -181,27 +165,16 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
                 {columns.state && <td className="py-2 pr-3">{stateNames.get(issue.state_id || "") || "Sin estado"}</td>}
                 {columns.priority && <td className="py-2 pr-3">{priorityNames[issue.priority || "none"] || issue.priority}</td>}
                 {columns.targetDate && <td className="py-2 pr-3">{issue.target_date || "—"}</td>}
-                {columns.eventDate && <td className="py-2 pr-3">
-                  <div className="flex items-center gap-2 whitespace-nowrap">
-                    {issue.event_date || "—"}
-                    <button type="button" aria-expanded={eventSelected === issue.id}
-                      onClick={() => setEventSelected((id) => id === issue.id ? null : issue.id)}
-                      className="rounded border border-subtle px-2 py-1 text-xs">Editar</button>
-                  </div>
-                </td>}
+                {columns.eventDate && <td className="py-2 pr-3">{issue.event_date || "—"}</td>}
                 {columns.sig && <td className="py-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {issue.sig_code && issue.sig_url && (
-                      <a href={issue.sig_url} target="_blank" rel="noopener noreferrer"
-                        className="text-sm font-medium underline" title="Abrir proyecto SIG">
-                        {issue.sig_code} ↗
-                      </a>
-                    )}
-                    <button type="button" aria-expanded={selected === issue.id} onClick={() => setSelected((id) => id === issue.id ? null : issue.id)}
-                      className="rounded border border-subtle px-2 py-1 text-xs">
-                      {selected === issue.id ? "Cerrar" : issue.sig_code ? "Editar SIG" : "Vincular SIG"}
-                    </button>
-                  </div>
+                  {issue.sig_code && issue.sig_url ? (
+                    <a href={issue.sig_url} target="_blank" rel="noopener noreferrer"
+                      className="text-sm font-medium underline" title="Abrir proyecto SIG">
+                      {issue.sig_code} ↗
+                    </a>
+                  ) : "—"}
+                  <a href={issueHref(issue)} className="ml-2 text-xs underline"
+                    title="Editar SIG y fecha desde la carga nativa">Abrir carga</a>
                 </td>}
               </tr>
             ))}
@@ -210,10 +183,10 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
       </div>}
       {view === "tabla" && filtered.length === 0 && <p className="py-5 text-center text-sm">No hay cargas que coincidan con la búsqueda.</p>}
       {view === "tabla" && pages > 1 && <div className="mt-3 flex items-center justify-end gap-3 text-sm">
-        <button type="button" disabled={current === 0} onClick={() => { setPage((p) => p - 1); setSelected(null); setEventSelected(null); }}
+        <button type="button" disabled={current === 0} onClick={() => { setPage((p) => p - 1);  }}
           className="rounded border border-subtle px-2 py-1 disabled:opacity-50">Anterior</button>
         <span>Página {current + 1} de {pages}</span>
-        <button type="button" disabled={current >= pages - 1} onClick={() => { setPage((p) => p + 1); setSelected(null); setEventSelected(null); }}
+        <button type="button" disabled={current >= pages - 1} onClick={() => { setPage((p) => p + 1);  }}
           className="rounded border border-subtle px-2 py-1 disabled:opacity-50">Siguiente</button>
       </div>}
     </section>
