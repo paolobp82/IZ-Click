@@ -392,7 +392,6 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
           projectId={issueDetail.project_id}
           issueId={issueDetail.id}
           canEdit={!disableUserActions}
-          openDetails={() => handleIssuePeekOverview(issueDetail)}
         />
       )}
       {/* Rest of the columns */}
