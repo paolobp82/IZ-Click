@@ -4,7 +4,7 @@ Estado: **PENDIENTE DE EJECUCIÓN**. Este documento registra el protocolo; no co
 
 ## Versión de referencia
 - Rama de desarrollo: `izclick/flujo-nativo-sin-duplicados-20261014`
-- CI previo: [GitHub Actions #38619544853](https://github.com/paolobp82/IZ-Click/actions/runs/38619544853) — 3 jobs aprobados para el commit `99e72cd225b33b3a1a0c8163c2259cac44449ee9`.
+- CI verificado: [GitHub Actions #38621101553](https://github.com/paolobp82/IZ-Click/actions/runs/38621101553) — 3 jobs aprobados para el commit `a0f904ffeb1e40e467616a6d6d0eeca028ed4b33`.
 - Cualquier nuevo commit requiere repetir CI sobre **el nuevo HEAD** antes de aprobar el despliegue.
 
 ## Matriz de aceptación (completar con evidencia)
@@ -38,12 +38,19 @@ Estado: **PENDIENTE DE EJECUCIÓN**. Este documento registra el protocolo; no co
 6. **Despliegue controlado**: ventana autorizada, smoke test de login, lista, edición, estados, SIG, panel y permisos, más comprobación de logs.
 7. **Rollback**: si falla un flujo bloqueante, revertir a la imagen anterior y restaurar datos únicamente si una migración lo exige y existe un plan probado; verificar integridad tras reversión.
 
+## Limitaciones verificadas al 14/10/2026
+
+- Los checks automáticos prueban compilación, métricas y contratos, **no** sustituyen las pruebas A01–A14 en navegador.
+- No hay evidencia de sesión autenticada de prueba para la aplicación ni evidencia registrada de restauración de respaldo.
+- No corresponde aprobar ni activar el pipeline de publicación hasta disponer de esas dos verificaciones.
+- La prueba funcional debe hacerse en entorno aislado, con al menos un productor y un perfil sin permisos de edición; guardar screenshots o trazas sin datos sensibles.
+
 ## Registro de salida
 
 - Fecha/hora: PENDIENTE
 - Entorno evaluado: PENDIENTE
 - Commit exacto aprobado: PENDIENTE
-- CI: PENDIENTE
+- CI: APROBADO para `a0f904ff`; debe repetirse para el commit exacto finalmente liberado
 - Evidencia QA A01–A14: PENDIENTE
 - Backup y prueba de restauración: PENDIENTE
 - Aprobación responsable: PENDIENTE
