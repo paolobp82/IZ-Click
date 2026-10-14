@@ -81,7 +81,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
   }, [workspaceSlug, projectId, issueId]);
 
   const saveDate = async () => {
-    if (!canEdit || busy || loading) return;
+    if (!canEdit || busy || loading || loadError) return;
     if (draft && !validCalendarDate(draft)) { setError("Fecha inválida."); return; }
     if (draft === date) { setEditing(false); return; }
     setBusy(true);
@@ -112,7 +112,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
   };
 
   const saveSig = async () => {
-    if (!canEdit || busy || loading) return;
+    if (!canEdit || busy || loading || loadError) return;
     setBusy(true);
     setError("");
     try {
@@ -142,7 +142,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
 
   const client = clients.find((candidate) => labelIds.includes(candidate.id));
   const changeClient = async (clientId: string) => {
-    if (!canEdit || clientBusy) return;
+    if (!canEdit || clientBusy || loading || loadError) return;
     setClientBusy(true);
     setClientError("");
     try {
@@ -176,7 +176,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
             {clientError && <span role="alert" className="whitespace-normal text-xs text-red-500">{clientError}</span>}
           </div>
         ) : (
-          <button type="button" disabled={!canEdit || loading}
+          <button type="button" disabled={!canEdit || loading || loadError}
             onClick={() => { setEditingClient(true); setClientError(""); }}
             title="Seleccionar cliente de esta carga"
             className="inline-flex max-w-44 items-center gap-1.5 truncate rounded px-2 py-1 text-left disabled:cursor-default"
@@ -198,7 +198,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
             {error && <span role="alert" className="w-full whitespace-normal text-xs text-red-500">{error}</span>}
           </div>
         ) : (
-          <button type="button" disabled={!canEdit || loading} onClick={() => { setDraft(date); setEditing(true); setError(""); }}
+          <button type="button" disabled={!canEdit || loading || loadError} onClick={() => { setDraft(date); setEditing(true); setError(""); }}
             title={canEdit ? "Editar fecha del evento en esta celda" : "Sin permiso de edición"}
             className="w-full text-left hover:underline disabled:cursor-default">
             {loading ? "…" : loadError ? "No disponible" : date || "—"}
@@ -227,7 +227,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
           <div className="flex items-center gap-2">
             {sig ? <a href={sig.url} target="_blank" rel="noopener noreferrer" className="underline"
               title="Abrir proyecto asociado en SIG">{sig.code} ↗</a> : <span>{loading ? "…" : "—"}</span>}
-            {canEdit && <button type="button" disabled={loading} className="text-xs underline"
+            {canEdit && <button type="button" disabled={loading || loadError} className="text-xs underline"
               onClick={() => { setSigCodeDraft(sig?.code ?? ""); setSigUrlDraft(sig?.url ?? ""); setEditingSig(true); setError(""); }}>
               Editar
             </button>}
