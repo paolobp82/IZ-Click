@@ -72,6 +72,18 @@ export function ProductionDashboard({
     return { approved, rejected, followUp };
   }, [metrics]);
 
+  // A load without assignees belongs to no producer; surface it explicitly.
+  const unassigned = useMemo(() => {
+    const ids = new Set<string>();
+    for (const issue of issues) {
+      if (!issue.id || issue.parent_id || issue.assignee_ids?.length || ids.has(issue.id)) continue;
+      if (projectId && issue.project_id !== projectId) continue;
+      if (clientId && issue.client_id !== clientId && !issue.label_ids?.includes(clientId)) continue;
+      ids.add(issue.id);
+    }
+    return ids.size;
+  }, [issues, projectId, clientId]);
+
   const selectClass = "w-full rounded-md border border-subtle bg-surface-1 px-3 py-2 text-sm";
 
   return (
@@ -115,12 +127,13 @@ export function ProductionDashboard({
         <p role="status">Cargando cargas...</p>
       ) : (
         <>
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores de cargas">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Indicadores de cargas">
             {[
               { label: "Total de cargas", value: metrics.total },
               { label: "Aprobadas", value: outcomeTotals.approved },
               { label: "Rechazadas", value: outcomeTotals.rejected },
               { label: "En seguimiento", value: outcomeTotals.followUp },
+              { label: "Sin responsable", value: producerId ? 0 : unassigned },
             ].map((indicator) => (
               <div key={indicator.label} className="rounded-lg border border-subtle bg-surface-1 p-4">
                 <p className="text-xs text-custom-text-300">{indicator.label}</p>
