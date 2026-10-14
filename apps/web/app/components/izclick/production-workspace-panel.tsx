@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { ProductionDashboard } from "@/app/components/izclick/production-dashboard";
+import { ProductionLoadDirectory } from "@/app/components/izclick/production-load-directory";
 import { ProductionCalendar } from "@/app/components/izclick/production-calendar";
 import { usePlaneWorkspaceProduction } from "@/app/lib/izclick/use-plane-workspace-production";
 
@@ -17,7 +18,10 @@ export function ProductionWorkspacePanel({ workspaceSlug }: Props) {
   return (
     <>
       <ProductionDashboard issues={issues} states={states} producers={producers} clients={clients} projects={projects} loading={loading} />
-      {!loading && <div className="px-5 pb-6"><ProductionCalendar issues={issues} projects={projects} workspaceSlug={workspaceSlug} /></div>}
+      {!loading && <div className="flex flex-col gap-5 px-5 pb-6">
+        <ProductionCalendar issues={issues} projects={projects} workspaceSlug={workspaceSlug} />
+        <ProductionLoadDirectory issues={issues} states={states} projects={projects} workspaceSlug={workspaceSlug} />
+      </div>}
     </>
   );
 }
