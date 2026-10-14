@@ -36,6 +36,8 @@ from plane.db.models import (
     ProjectUserProperty,
     State,
     DEFAULT_STATES,
+    IzClickProductionStatus,
+    IzClickProductionStatusBinding,
     Workspace,
     WorkspaceMember,
 )
@@ -293,6 +295,24 @@ class ProjectViewSet(BaseViewSet):
                     for state in DEFAULT_STATES
                 ]
             )
+
+            # A newly-created project inherits the workspace Production catalogue.
+            # Keep Plane's default states and all old IDs intact. Never overwrite
+            # any existing State with a conflicting name.
+            for template in IzClickProductionStatus.objects.filter(workspace=workspace, is_active=True):
+                if State.objects.filter(project=serializer.instance, name__iexact=template.name).exists():
+                    continue
+                native = State.objects.create(
+                    workspace=workspace,
+                    project=serializer.instance,
+                    name=template.name,
+                    color=template.color,
+                    group=template.group,
+                    created_by=request.user,
+                )
+                IzClickProductionStatusBinding.objects.create(
+                    status=template, project=serializer.instance, plane_state=native
+                )
 
             project = self.get_queryset().filter(pk=serializer.data["id"]).first()
 
