@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IssueService } from "@/services/issue";
+import { useLabel } from "@/hooks/store/use-label";
 import { fetchProjectProductionMetadata, invalidateProjectProductionMetadata } from "./production-project-metadata";
 import { validCalendarDate } from "@/app/lib/izclick/production-schedule";
 import { sigLinkPayload, sigProjectAssociation } from "@/app/lib/izclick/production-sig";
@@ -23,6 +24,9 @@ const dateOf = (links: PlaneExternalLink[]): string => {
 /** Inline editor on the native spreadsheet; reads and writes Plane IssueLink records. */
 export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit, labelIds, onUpdateLabels, asDiv = false }: Props) {
   const service = useMemo(() => new IssueService(), []);
+  const { createLabel } = useLabel();
+  const [newClient, setNewClient] = useState("");
+  const [newClientColor, setNewClientColor] = useState("#3b82f6");
   const [date, setDate] = useState("");
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
@@ -144,6 +148,28 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
   };
 
   const client = clients.find((candidate) => labelIds.includes(candidate.id));
+  const createClient = async () => {
+    const name = newClient.trim();
+    if (!canEdit || !name || clientBusy) return;
+    if (clients.some((item) => item.name.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"))) {
+      setClientError("El cliente ya existe. Selecciónalo de la lista."); return;
+    }
+    setClientBusy(true);
+    setClientError("");
+    try {
+      const created = await createLabel(workspaceSlug, projectId, { name: `Cliente: ${name}`, color: newClientColor });
+      if (!created?.id) throw new Error("No se pudo crear el cliente.");
+      const clientIds = new Set(clients.map((item) => item.id));
+      const untouched = [...new Set(labelIds)].filter((id) => !clientIds.has(id));
+      await onUpdateLabels([...untouched, created.id]);
+      setClients((prev) => [...prev, { id: created.id, name, color: newClientColor }].sort((a, b) => a.name.localeCompare(b.name, "es")));
+      invalidateProjectProductionMetadata(workspaceSlug, projectId);
+      setNewClient("");
+      setEditingClient(false);
+    } catch {
+      setClientError("No se pudo crear o asignar el cliente. Comprueba los permisos.");
+    } finally { setClientBusy(false); }
+  };
   const changeClient = async (clientId: string) => {
     if (!canEdit || clientBusy || loading || loadError) return;
     setClientBusy(true);
@@ -176,6 +202,14 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
               <option value="">Sin cliente</option>
               {clients.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
+            <div className="flex items-center gap-1">
+              <input aria-label="Nombre del nuevo cliente" value={newClient} onChange={(event) => setNewClient(event.target.value)}
+                placeholder="Nuevo cliente" maxLength={80} className="w-28 min-w-0 rounded border border-subtle bg-surface-1 px-1 py-1 text-xs" />
+              <input aria-label="Color del nuevo cliente" type="color" value={newClientColor}
+                onChange={(event) => setNewClientColor(event.target.value)} className="size-6 shrink-0 cursor-pointer" />
+              <button type="button" disabled={clientBusy || !newClient.trim()} onClick={() => void createClient()}
+                className="whitespace-nowrap rounded border border-subtle px-1 py-1 text-xs">+ Crear</button>
+            </div>
             <button type="button" disabled={clientBusy} className="text-left text-xs underline"
               onClick={() => { setEditingClient(false); setClientError(""); }}>Cancelar</button>
             {clientError && <span role="alert" className="whitespace-normal text-xs text-red-500">{clientError}</span>}
