@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { calculateProductionMetrics } from "@/app/lib/izclick/production-metrics";
+import { calculateProductionMetrics, calculateProductionOutcomes } from "@/app/lib/izclick/production-metrics";
 import type { ProductionFilter, ProductionState, ProductionWorkItem } from "@/app/lib/izclick/production-metrics";
 import { ProductionStatusPie } from "./production-status-pie";
 
@@ -60,17 +60,7 @@ export function ProductionDashboard({
   })).filter((row) => row.metrics.total > 0).sort((a, b) => b.metrics.total - a.metrics.total),
     [issues, states, producers, clientId, projectId]);
 
-  // Aggregate by the actual state catalogue. Unknown or customized states remain
-  // in the pie chart and are not falsely classified as approved or rejected.
-  const outcomeTotals = useMemo(() => {
-    const approved = metrics.slices.filter((slice) => /^aprobado(?:\s+por\s+cliente)?$/i.test(slice.name.trim()))
-      .reduce((total, slice) => total + slice.count, 0);
-    const rejected = metrics.slices.filter((slice) => /^rechazad[oa](?:\s+por\s+cliente)?$/i.test(slice.name.trim()))
-      .reduce((total, slice) => total + slice.count, 0);
-    const followUp = metrics.slices.filter((slice) => /^en\s+seguimiento$/i.test(slice.name.trim()))
-      .reduce((total, slice) => total + slice.count, 0);
-    return { approved, rejected, followUp };
-  }, [metrics]);
+  const outcomeTotals = useMemo(() => calculateProductionOutcomes(metrics), [metrics]);
 
   // A load without assignees belongs to no producer; surface it explicitly.
   const unassigned = useMemo(() => {
