@@ -84,19 +84,30 @@ export function ListColumnControls() {
   const resize = (id: ColumnId, startX: number) => {
     const initial = prefs[id].width;
     let updated = prefs;
+    let moved = false;
     const move = (event: PointerEvent) => {
+      moved = true;
       updated = { ...updated, [id]: { ...updated[id], width: Math.max(96, Math.min(500, initial + event.clientX - startX)) } };
       apply(updated);
     };
     const end = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", cancel);
       document.body.style.cursor = "";
-      commit(updated);
+      if (moved) commit(updated);
+    };
+    const cancel = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", cancel);
+      document.body.style.cursor = "";
+      apply(prefs);
     };
     document.body.style.cursor = "col-resize";
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end, { once: true });
+    window.addEventListener("pointercancel", cancel, { once: true });
   };
 
   return (
