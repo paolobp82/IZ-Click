@@ -7,8 +7,10 @@ on:
   push:
     branches:
       - 'izclick/produccion-v1'
+      - 'izclick/ajustes-ux-es-20261014'
     paths:
       - 'apps/web/**'
+      - 'packages/i18n/**'
       - 'apps/api/plane/app/views/**'
       - 'apps/api/plane/app/urls/**'
       - '.github/workflows/izclick-production-check.yml'

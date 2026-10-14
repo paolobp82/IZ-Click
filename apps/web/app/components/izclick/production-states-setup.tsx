@@ -65,7 +65,7 @@ export function ProductionStatesSetup({ workspaceSlug, projectId }: Props) {
     <section className="rounded-lg border border-subtle bg-surface-1 p-4" aria-label="Estados de Producción">
       <h2 className="mb-1 text-base font-semibold">Estados operativos de Producción</h2>
       <p className="mb-3 text-sm text-custom-text-300">
-        Configuración opcional por proyecto. Agrega solamente estados faltantes; no elimina estados, cambia flujos ni reasigna tareas.
+        Los estados se configuran por proyecto. Solamente un administrador puede agregarlos. No se eliminan estados existentes ni se reasignan cargas.
       </p>
       {loading ? <p role="status">Consultando estados…</p> : (
         <>
@@ -79,10 +79,11 @@ export function ProductionStatesSetup({ workspaceSlug, projectId }: Props) {
           </div>
           {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
           {report && <p role="status" className="mt-3 text-sm">{report}</p>}
+          {missing.length > 0 && <p className="mt-3 text-xs text-custom-text-300">Si tu usuario no es administrador del proyecto, solicita que un administrador realice esta configuración.</p>}
           {missing.length > 0 && <button type="button" onClick={addMissing}
             disabled={saving || Boolean(error)}
             className="mt-3 rounded border border-subtle px-3 py-1.5 text-sm disabled:opacity-50">
-            {saving ? "Agregando estados…" : `Crear ${missing.length} estados faltantes (administrador)`}
+            {saving ? "Agregando estados…" : `Agregar ${missing.length} estados de Producción`}
           </button>}
         </>
       )}
