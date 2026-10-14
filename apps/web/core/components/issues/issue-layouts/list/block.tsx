@@ -243,7 +243,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
                   </div>
                 </Tooltip>
               )}
-              {displayProperties && (displayProperties.key || displayProperties.issue_type) && (
+              {!isProjectList && displayProperties && (displayProperties.key || displayProperties.issue_type) && (
                 <div className="flex-shrink-0" style={{ minWidth: `${keyMinWidth}px` }}>
                   {issue.project_id && (
                     <IssueIdentifier
@@ -280,6 +280,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
               )}
             </div>
 
+            {isProjectList && <span className="ml-3 shrink-0 rounded bg-layer-2 px-1.5 py-0.5 text-xs tabular-nums text-tertiary">{projectIdentifier ? `${projectIdentifier}-${issue.sequence_id}` : issue.sequence_id}</span>}
             <Tooltip
               tooltipContent={issue.name}
               isMobile={isMobile}
