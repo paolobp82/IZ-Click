@@ -60,6 +60,18 @@ export function ProductionDashboard({
   })).filter((row) => row.metrics.total > 0).sort((a, b) => b.metrics.total - a.metrics.total),
     [issues, states, producers, clientId, projectId]);
 
+  // Aggregate by the actual state catalogue. Unknown or customized states remain
+  // in the pie chart and are not falsely classified as approved or rejected.
+  const outcomeTotals = useMemo(() => {
+    const approved = metrics.slices.filter((slice) => /^aprobado(?:\\s+por\\s+cliente)?$/i.test(slice.name.trim()))
+      .reduce((total, slice) => total + slice.count, 0);
+    const rejected = metrics.slices.filter((slice) => /^rechazad[oa](?:\\s+por\\s+cliente)?$/i.test(slice.name.trim()))
+      .reduce((total, slice) => total + slice.count, 0);
+    const followUp = metrics.slices.filter((slice) => /^en\\s+seguimiento$/i.test(slice.name.trim()))
+      .reduce((total, slice) => total + slice.count, 0);
+    return { approved, rejected, followUp };
+  }, [metrics]);
+
   const selectClass = "w-full rounded-md border border-subtle bg-surface-1 px-3 py-2 text-sm";
 
   return (
@@ -103,6 +115,19 @@ export function ProductionDashboard({
         <p role="status">Cargando cargas...</p>
       ) : (
         <>
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Indicadores de cargas">
+            {[
+              { label: "Total de cargas", value: metrics.total },
+              { label: "Aprobadas", value: outcomeTotals.approved },
+              { label: "Rechazadas", value: outcomeTotals.rejected },
+              { label: "En seguimiento", value: outcomeTotals.followUp },
+            ].map((indicator) => (
+              <div key={indicator.label} className="rounded-lg border border-subtle bg-surface-1 p-4">
+                <p className="text-xs text-custom-text-300">{indicator.label}</p>
+                <p className="mt-2 text-2xl font-semibold tabular-nums">{indicator.value}</p>
+              </div>
+            ))}
+          </section>
           <ProductionStatusPie metrics={metrics} title="Estados de las cargas" />
           {!producerId && producerSummary.length > 0 && (
             <section className="rounded-lg border border-subtle bg-surface-1 p-5" aria-label="Resumen por productor">
