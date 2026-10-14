@@ -287,6 +287,19 @@ export const ListGroup = observer(function ListGroup(props: Props) {
       </Row>
       {shouldExpand && (
         <div className="relative">
+          {/* Project-only native table header: retains the existing Plane grouped list and inline editors. */}
+          {group_by === "state" && !isEpic && (
+            <div
+              className="sticky top-9 z-[2] hidden min-h-9 items-center border-b border-subtle bg-layer-1 px-3 text-xs font-medium text-tertiary lg:flex"
+              aria-label="Columnas de cargas"
+            >
+              <span className="min-w-0 flex-1">Nombre de la carga</span>
+              <span className="flex shrink-0 items-center justify-end gap-3">
+                <span className="w-28 text-center">Propiedades</span>
+                <span className="w-20 text-right">Acciones</span>
+              </span>
+            </div>
+          )}
           <GroupDragOverlay
             dragColumnOrientation={dragColumnOrientation}
             canOverlayBeVisible={canOverlayBeVisible}
