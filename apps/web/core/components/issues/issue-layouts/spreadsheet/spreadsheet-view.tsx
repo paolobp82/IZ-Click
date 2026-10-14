@@ -75,14 +75,14 @@ export const SpreadsheetView = observer(function SpreadsheetView(props: Props) {
         return true;
       });
 
-  if (!issueIds || issueIds.length === 0) return <></>;
+  const visibleIssueIds = issueIds ?? [];
   return (
     <div className="relative flex h-full w-full flex-col overflow-x-hidden bg-layer-1 whitespace-nowrap text-secondary">
       <div ref={portalRef} className="spreadsheet-menu-portal" />
       <MultipleSelectGroup
         containerRef={containerRef}
         entities={{
-          [SPREADSHEET_SELECT_GROUP]: issueIds,
+          [SPREADSHEET_SELECT_GROUP]: visibleIssueIds,
         }}
         disabled={!isBulkOperationsEnabled || isEpic}
       >
@@ -93,7 +93,7 @@ export const SpreadsheetView = observer(function SpreadsheetView(props: Props) {
                 displayProperties={displayProperties}
                 displayFilters={displayFilters}
                 handleDisplayFilterUpdate={handleDisplayFilterUpdate}
-                issueIds={issueIds}
+                issueIds={visibleIssueIds}
                 isEstimateEnabled={isEstimateEnabled}
                 portalElement={portalRef}
                 quickActions={quickActions}
@@ -106,6 +106,11 @@ export const SpreadsheetView = observer(function SpreadsheetView(props: Props) {
                 selectionHelpers={helpers}
                 isEpic={isEpic}
               />
+              {visibleIssueIds.length === 0 && !canLoadMoreIssues && (
+                <div className="px-6 py-8 text-center text-sm text-secondary" role="status">
+                  No hay cargas que coincidan con los filtros actuales.
+                </div>
+              )}
             </div>
             <div className="border-t border-subtle">
               <div className="sticky bottom-0 left-0 z-5">
