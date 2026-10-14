@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ProductionDashboard } from "@/app/components/izclick/production-dashboard";
 import { ProductionLoadDirectory } from "@/app/components/izclick/production-load-directory";
+import { ProductionStatesSetup } from "@/app/components/izclick/production-states-setup";
 import { usePlaneProjectProduction } from "@/app/lib/izclick/use-plane-project-production";
 
 type Props = { workspaceSlug: string; projectId: string; projectName?: string };
@@ -31,7 +32,10 @@ export function ProductionProjectPanel({ workspaceSlug, projectId, projectName }
       projects={[{ id: projectId, name: projectName || "Proyecto actual" }]}
       loading={loading}
     />
-    {!loading && <div className="px-5 pb-6"><ProductionLoadDirectory issues={issues} states={states} projects={[{ id: projectId, name: projectName || "Proyecto actual" }]} clients={clients} workspaceSlug={workspaceSlug} /></div>}
+    {!loading && <div className="flex flex-col gap-4 px-5 pb-6">
+      <ProductionStatesSetup workspaceSlug={workspaceSlug} projectId={projectId} />
+      <ProductionLoadDirectory issues={issues} states={states} projects={[{ id: projectId, name: projectName || "Proyecto actual" }]} clients={clients} workspaceSlug={workspaceSlug} />
+    </div>}
     </>
   );
 }
