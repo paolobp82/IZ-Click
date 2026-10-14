@@ -11,14 +11,20 @@ export type ProjectProductionMetadata = {
 };
 
 const pending = new Map<string, Promise<ProjectProductionMetadata>>();
+const cache = new Map<string, { value: ProjectProductionMetadata; expiresAt: number }>();
+const CACHE_TTL_MS = 15_000;
 
 /**
  * Share project-scoped API calls across all visible spreadsheet rows.
- * Cache in-flight requests only; subsequent mounts fetch current values.
+ * Cache successful results briefly to support virtualized rows and avoid bursts.
+ * Invalidate immediately after a successful inline write.
  * Editing a cell uses the native per-issue endpoint and refreshes its saved value.
  */
 export function fetchProjectProductionMetadata(workspaceSlug: string, projectId: string): Promise<ProjectProductionMetadata> {
   const key = JSON.stringify([workspaceSlug, projectId]);
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);
+  cache.delete(key);
   const active = pending.get(key);
   if (active) return active;
   const root = (API_BASE_URL || "").replace(/\/$/, "");
@@ -36,9 +42,17 @@ export function fetchProjectProductionMetadata(workspaceSlug: string, projectId:
     dates: normalizeEventDateMap(dates),
     sigLinks: normalizeSigLinkMap(links),
     clients: clientsFromPlaneLabels(labels),
-  })).finally(() => {
+  })).then((value) => {
+    cache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+    return value;
+  }).finally(() => {
     if (pending.get(key) === promise) pending.delete(key);
   });
   pending.set(key, promise);
   return promise;
+}
+
+/** Flush stale snapshots when a user edits native Plane metadata or client labels. */
+export function invalidateProjectProductionMetadata(workspaceSlug: string, projectId: string): void {
+  cache.delete(JSON.stringify([workspaceSlug, projectId]));
 }
