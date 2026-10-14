@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IssueService } from "@/services/issue";
-import { fetchProjectProductionMetadata } from "./production-project-metadata";
+import { fetchProjectProductionMetadata, invalidateProjectProductionMetadata } from "./production-project-metadata";
 import { validCalendarDate } from "@/app/lib/izclick/production-schedule";
 import { sigLinkPayload, sigProjectAssociation } from "@/app/lib/izclick/production-sig";
 import type { PlaneExternalLink } from "@/app/lib/izclick/production-sig";
@@ -101,6 +101,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
         if (existing) await service.updateIssueLink(workspaceSlug, projectId, issueId, existing.id, payload);
         else await service.createIssueLink(workspaceSlug, projectId, issueId, payload);
       }
+      invalidateProjectProductionMetadata(workspaceSlug, projectId);
       await refresh(); // Read the persisted values, not an optimistic assumption.
       setEditing(false);
     } catch (cause) {
@@ -129,6 +130,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
         if (existing) await service.updateIssueLink(workspaceSlug, projectId, issueId, existing.id, payload);
         else await service.createIssueLink(workspaceSlug, projectId, issueId, payload);
       }
+      invalidateProjectProductionMetadata(workspaceSlug, projectId);
       await refresh();
       setEditingSig(false);
     } catch (cause) {
@@ -145,6 +147,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
       const clientIds = new Set(clients.map((item) => item.id));
       const untouchedLabels = labelIds.filter((id) => !clientIds.has(id));
       await onUpdateLabels(clientId ? [...untouchedLabels, clientId] : untouchedLabels);
+      invalidateProjectProductionMetadata(workspaceSlug, projectId);
       setEditingClient(false);
     } catch {
       setClientError("No se pudo actualizar el cliente.");
