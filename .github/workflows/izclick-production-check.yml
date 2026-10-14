@@ -47,3 +47,5 @@ jobs:
           platforms: linux/amd64
           push: false
           tags: izclick-production:web-test
+          build-args: |
+            IZCLICK_VALIDATE_TYPES=true
