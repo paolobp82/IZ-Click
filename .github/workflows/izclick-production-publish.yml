@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   publish-candidate:
-    if: github.event.inputs.confirm == 'PUBLICAR_IMAGENES'
+    if: github.ref == 'refs/heads/izclick/produccion-v1' && github.event.inputs.confirm == 'PUBLICAR_IMAGENES'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
