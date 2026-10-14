@@ -393,6 +393,10 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
           issueId={issueDetail.id}
           canEdit={!disableUserActions}
           labelIds={issueDetail.label_ids ?? []}
+          onUpdateLabels={async (ids) => {
+            if (!updateIssue) throw new Error("Edición no disponible");
+            await updateIssue(issueDetail.project_id, issueDetail.id, { label_ids: ids });
+          }}
         />
       )}
       {/* Rest of the columns */}
