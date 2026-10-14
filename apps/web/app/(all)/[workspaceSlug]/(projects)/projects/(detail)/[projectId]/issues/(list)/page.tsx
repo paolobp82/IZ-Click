@@ -18,7 +18,7 @@ import type { Route } from "./+types/page";
 
 function ProjectIssuesPage({ params }: Route.ComponentProps) {
   const { projectId, workspaceSlug } = params;
-  const [showProduction, setShowProduction] = useState(false);
+  const [showProduction, setShowProduction] = useState(true);
   // i18n
   const { t } = useTranslation();
   // store
@@ -39,7 +39,7 @@ function ProjectIssuesPage({ params }: Route.ComponentProps) {
             onClick={() => setShowProduction((value) => !value)}
             className="rounded-md border border-subtle px-3 py-1.5 text-sm"
           >
-            {showProduction ? "Volver a tareas" : "Control de cargas"}
+            {showProduction ? "Abrir vista clásica" : "Volver a cargas"}
           </button>
         </div>
         {showProduction ? (
