@@ -31,6 +31,8 @@ test("rechaza dos fechas de evento simultáneas", () => {
 
 test("rechaza payload sin etiquetas para prevenir borrado", () => {
   assert.deepEqual(parseIssueLabelIds({ labels: ["client", { id: "old" }] }), ["client", "old"]);
+  assert.deepEqual(parseIssueLabelIds({ label_ids: ["client", "old"] }), ["client", "old"]);
+  assert.deepEqual(parseIssueLabelIds({ label_ids: ["client"], labels: ["old"] }), ["client"]);
   assert.throws(() => parseIssueLabelIds({}), /no devolvió/);
   assert.throws(() => parseIssueLabelIds({ labels: null }), /inesperado/);
 });
