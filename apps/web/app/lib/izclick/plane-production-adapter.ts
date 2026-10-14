@@ -27,6 +27,7 @@ export function normalizePlaneIssue(item: ApiIssue): ProductionWorkItem | null {
   if (!id) return null;
   return {
     id,
+    sequence_id: typeof item.sequence_id === "number" && Number.isSafeInteger(item.sequence_id) && item.sequence_id > 0 ? item.sequence_id : null,
     parent_id: idOf(item.parent_id ?? item.parent),
     state_id: idOf(item.state_id ?? item.state),
     assignee_ids: idsOf(item.assignee_ids ?? item.assignees),
