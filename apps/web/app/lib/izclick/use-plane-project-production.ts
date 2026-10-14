@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "@plane/constants";
 import { useEffect, useState } from "react";
 import type { ProductionState, ProductionWorkItem } from "@/app/lib/izclick/production-metrics";
 import { normalizeProductionMembers } from "@/app/lib/izclick/production-members";
@@ -25,7 +26,8 @@ type PlanePage = {
 };
 
 async function fetchJson(url: string, signal: AbortSignal): Promise<unknown> {
-  const response = await fetch(url, { credentials: "same-origin", signal });
+  const base = (API_BASE_URL || "").replace(/\/$/, "");
+  const response = await fetch(url.startsWith("http") ? url : `${base}${url}`, { credentials: "include", signal });
   if (!response.ok) throw new Error(`Error consultando Plane (HTTP ${response.status})`);
   return response.json();
 }
