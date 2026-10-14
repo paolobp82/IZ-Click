@@ -5,6 +5,8 @@
  */
 export type ProductionWorkItem = {
   id: string;
+  /** Visible sequence within the Plane project. Never use as a database key. */
+  sequence_id?: number | null;
   parent_id?: string | null;
   state_id?: string | null;
   assignee_ids?: readonly string[] | null;
