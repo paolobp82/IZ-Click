@@ -45,6 +45,9 @@ jobs:
           python3 -m py_compile apps/api/plane/app/views/issue/base.py
           python3 -m py_compile apps/api/plane/app/views/__init__.py
           python3 -m py_compile apps/api/plane/app/urls/issue.py
+          python3 -m py_compile apps/api/plane/utils/izclick_production.py
+      - name: Execute API metadata contract tests
+        run: python3 -m unittest discover -s apps/api/izclick_contract_tests -p 'test_*.py' -v
 
   web-build:
     runs-on: ubuntu-latest
