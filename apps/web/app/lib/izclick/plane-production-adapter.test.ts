@@ -4,11 +4,11 @@ import { normalizePlaneIssue, normalizePlaneState, normalizePlaneCollection } fr
 
 test("normaliza issue Plane: estado, responsable, proyecto y subtarea", () => {
   const item = normalizePlaneIssue({
-    id: "i1", state: "s1", assignees: ["u1", { id: "u2" }],
+    id: "i1", sequence_id: 8, state: "s1", assignees: ["u1", { id: "u2" }],
     parent: "parent1", project: "p1",
   });
   assert.deepEqual(item, {
-    id: "i1", parent_id: "parent1", state_id: "s1",
+    id: "i1", sequence_id: 8, parent_id: "parent1", state_id: "s1",
     assignee_ids: ["u1", "u2"], project_id: "p1",
     client_id: null, label_ids: [], event_date: null, target_date: null, name: null, priority: null,
   });
@@ -29,4 +29,5 @@ test("el padre puede ser objeto y no solo uuid", () => {
   const issue = normalizePlaneIssue({ id: "sub", parent: { id: "root" }, assignees: null });
   assert.equal(issue?.parent_id, "root");
   assert.deepEqual(issue?.assignee_ids, []);
+  assert.equal(issue?.sequence_id, null);
 });
