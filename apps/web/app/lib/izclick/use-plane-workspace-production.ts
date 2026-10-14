@@ -8,6 +8,7 @@ import { collectPlanePages } from "@/app/lib/izclick/production-pagination";
 import { clientsFromPlaneLabels, productionClientKey } from "@/app/lib/izclick/production-clients";
 import { eventDateFromLabels } from "@/app/lib/izclick/production-event-date";
 import { normalizeEventDateMap } from "@/app/lib/izclick/production-event-date-map";
+import { normalizeSigLinkMap } from "@/app/lib/izclick/production-sig-map";
 import type { PlaneLabelSummary } from "@/app/lib/izclick/production-event-date";
 import type { ProductionClient } from "@/app/lib/izclick/production-clients";
 
@@ -68,7 +69,10 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
           json(`${base}/states/`, controller.signal),
         ]);
         states.push(...normalizePlaneCollection(rawStates, normalizePlaneState));
-        const eventDates = normalizeEventDateMap(await json(`${base}/production-event-dates/`, controller.signal));
+        const [eventDates, sigLinks] = await Promise.all([
+          json(`${base}/production-event-dates/`, controller.signal).then(normalizeEventDateMap),
+          json(`${base}/production-sig-links/`, controller.signal).then(normalizeSigLinkMap),
+        ]);
         const allLabelsResponse = await json(`${base}/issue-labels/`, controller.signal);
         const allLabels = normalizePlaneCollection(allLabelsResponse, (item): PlaneLabelSummary | null =>
           typeof item.id === "string" && typeof item.name === "string"
@@ -85,6 +89,8 @@ export function usePlaneWorkspaceProduction(workspaceSlug: string): Result {
           ...issue,
           project_id: project.id,
           event_date: eventDates[issue.id] ?? eventDateFromLabels(allLabels, issue.label_ids ?? []),
+          sig_code: sigLinks[issue.id]?.code ?? null,
+          sig_url: sigLinks[issue.id]?.url ?? null,
           client_id: issue.label_ids?.map((id) => clientByLabel.get(id)).find((id): id is string => Boolean(id)) ?? issue.client_id,
         })));
       }
