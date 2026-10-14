@@ -1,5 +1,5 @@
 /** Native Plane issue links are the storage for IZ-Click ↔ SIG associations. */
-export type PlaneExternalLink = { id: string; title: string; url: string };
+export type PlaneExternalLink = { id: string; title: string; url: string; metadata?: Record<string, unknown> | null };
 export type SigAssociation = PlaneExternalLink & { code: string };
 export const SIG_LINK_PREFIX = "SIG Izango 360 | ";
 
@@ -16,16 +16,24 @@ export function validSigProjectUrl(input: string): string | null {
 }
 
 export function sigProjectAssociation(link: PlaneExternalLink): SigAssociation | null {
-  if (!link.title.startsWith(SIG_LINK_PREFIX)) return null;
-  const code = link.title.slice(SIG_LINK_PREFIX.length);
+  const metadataCode = link.metadata?.izclick_kind === "sig-project"
+    ? link.metadata?.izclick_sig_code : null;
+  const code = typeof metadataCode === "string"
+    ? metadataCode
+    : link.title.startsWith(SIG_LINK_PREFIX) ? link.title.slice(SIG_LINK_PREFIX.length) : null;
+  if (!code) return null;
   if (!CODE_PATTERN.test(code) || !validSigProjectUrl(link.url)) return null;
   return { ...link, code };
 }
 
-export function sigLinkPayload(code: string, url: string): { title: string; url: string } {
+export function sigLinkPayload(code: string, url: string): { title: string; url: string; metadata: Record<string, string> } {
   const normalizedCode = code.trim().toUpperCase().replace(/\s+/g, " ");
   const normalizedUrl = validSigProjectUrl(url);
   if (!CODE_PATTERN.test(normalizedCode)) throw new Error("Código SIG inválido. Ejemplo: IZ-26968");
   if (!normalizedUrl) throw new Error("Utiliza el enlace HTTPS del proyecto en izango-erp.vercel.app/proyectos/");
-  return { title: SIG_LINK_PREFIX + normalizedCode, url: normalizedUrl };
+  return {
+    title: SIG_LINK_PREFIX + normalizedCode,
+    url: normalizedUrl,
+    metadata: { izclick_kind: "sig-project", izclick_sig_code: normalizedCode },
+  };
 }
