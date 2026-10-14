@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { calculateProductionMetrics } from "@/app/lib/izclick/production-metrics";
-import type { ProductionState, ProductionWorkItem } from "@/app/lib/izclick/production-metrics";
+import type { ProductionFilter, ProductionState, ProductionWorkItem } from "@/app/lib/izclick/production-metrics";
 import { ProductionStatusPie } from "./production-status-pie";
 
 export type ProductionProducer = {
@@ -16,6 +16,7 @@ type Props = {
   clients?: readonly { id: string; name: string; color?: string }[];
   projects?: readonly { id: string; name: string }[];
   loading?: boolean;
+  onFiltersChange?: (filters: ProductionFilter) => void;
 };
 
 /** Production-specific dashboard, independent of Plane's business-model/authorization layer. */
@@ -26,10 +27,19 @@ export function ProductionDashboard({
   clients = [],
   projects = [],
   loading = false,
+  onFiltersChange,
 }: Props) {
   const [producerId, setProducerId] = useState("");
   const [clientId, setClientId] = useState("");
   const [projectId, setProjectId] = useState("");
+  useEffect(() => {
+    onFiltersChange?.({
+      producerId: producerId || null,
+      clientId: clientId || null,
+      projectId: projectId || null,
+    });
+  }, [producerId, clientId, projectId, onFiltersChange]);
+
   const metrics = useMemo(
     () =>
       calculateProductionMetrics(issues, states, {
