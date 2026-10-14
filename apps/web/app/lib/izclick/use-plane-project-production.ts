@@ -39,11 +39,9 @@ async function fetchAllProjectIssues(base: string, projectId: string, signal: Ab
 
   // Strict cap: fail visibly instead of silently showing incomplete totals.
   for (let page = 0; page < 200; page++) {
-    const url = new URL(`${base}/issues/`, window.location.origin);
-    url.searchParams.set("per_page", "100");
-    url.searchParams.set("sub_issue", "true");
-    if (cursor) url.searchParams.set("cursor", cursor);
-    const payload = await fetchJson(url.toString(), signal);
+    const params = new URLSearchParams({ per_page: "100", sub_issue: "true" });
+    if (cursor) params.set("cursor", cursor);
+    const payload = await fetchJson(`${base}/issues/?${params.toString()}`, signal);
     issues.push(...normalizePlaneCollection(payload, normalizePlaneIssue).map((issue) => ({
       ...issue,
       project_id: issue.project_id || projectId,
