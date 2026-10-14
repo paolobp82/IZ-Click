@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calculateProductionMetrics } from "./production-metrics.ts";
+import { calculateProductionMetrics, matchesProductionFilter } from "./production-metrics.ts";
 
 const states = [
   { id: "a", name: "Aprobado", color: "#008000" },
@@ -74,4 +74,17 @@ test("carga compartida: cada productor la ve, pero el global no la duplica", () 
   assert.equal(calculateProductionMetrics(issues, states).total, 1);
   assert.equal(calculateProductionMetrics(issues, states, { producerId: "u1" }).total, 1);
   assert.equal(calculateProductionMetrics(issues, states, { producerId: "u2" }).total, 1);
+});
+
+
+test("los filtros de calendario y directorio coinciden con los del gráfico", () => {
+  const issue = {
+    id: "sig1", project_id: "p1", client_id: "cliente:ripley",
+    assignee_ids: ["u1", "u2"], state_id: "a",
+  };
+  const criteria = { producerId: "u1", projectId: "p1", clientId: "cliente:ripley" };
+  assert.equal(matchesProductionFilter(issue, criteria), true);
+  assert.equal(calculateProductionMetrics([issue], states, criteria).total, 1);
+  assert.equal(matchesProductionFilter(issue, { ...criteria, projectId: "p2" }), false);
+  assert.equal(calculateProductionMetrics([issue], states, { ...criteria, projectId: "p2" }).total, 0);
 });
