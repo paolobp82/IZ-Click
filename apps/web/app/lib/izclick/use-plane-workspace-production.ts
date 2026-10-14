@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "@plane/constants";
 import { useEffect, useState } from "react";
 import type { ProductionState, ProductionWorkItem } from "@/app/lib/izclick/production-metrics";
 import type { ProductionMember } from "@/app/lib/izclick/production-members";
@@ -14,7 +15,8 @@ type Result = { issues: ProductionWorkItem[]; states: ProductionState[]; members
 const empty = (): Result => ({ issues: [], states: [], members: [], clients: [], projects: [], loading: true, error: null });
 
 async function json(url: string, signal: AbortSignal): Promise<unknown> {
-  const response = await fetch(url, { credentials: "same-origin", signal });
+  const base = (API_BASE_URL || "").replace(/\/$/, "");
+  const response = await fetch(`${base}${url}`, { credentials: "include", signal });
   if (!response.ok) throw new Error(`Plane HTTP ${response.status} al consultar ${new URL(url, window.location.origin).pathname}`);
   return response.json();
 }
