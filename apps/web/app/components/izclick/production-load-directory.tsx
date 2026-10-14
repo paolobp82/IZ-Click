@@ -98,10 +98,18 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
                   </div>
                 </td>
                 <td className="py-2">
-                  <button type="button" aria-expanded={selected === issue.id} onClick={() => setSelected((id) => id === issue.id ? null : issue.id)}
-                    className="rounded border border-subtle px-2 py-1 text-xs">
-                    {selected === issue.id ? "Cerrar" : "Vincular SIG"}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {issue.sig_code && issue.sig_url && (
+                      <a href={issue.sig_url} target="_blank" rel="noopener noreferrer"
+                        className="text-sm font-medium underline" title="Abrir proyecto SIG">
+                        {issue.sig_code} ↗
+                      </a>
+                    )}
+                    <button type="button" aria-expanded={selected === issue.id} onClick={() => setSelected((id) => id === issue.id ? null : issue.id)}
+                      className="rounded border border-subtle px-2 py-1 text-xs">
+                      {selected === issue.id ? "Cerrar" : issue.sig_code ? "Editar SIG" : "Vincular SIG"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
