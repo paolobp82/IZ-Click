@@ -43,20 +43,41 @@ class WorkspaceProductionStatusesEndpoint(BaseAPIView):
                 projects = list(Project.objects.filter(
                     workspace=workspace, archived_at__isnull=True, deleted_at__isnull=True
                 ))
-                # Reject collisions with existing unmapped Plane states; no silent remapping.
-                collision = State.objects.filter(
-                    project__in=projects, name__iexact=fields["name"], deleted_at__isnull=True
-                ).exists()
-                if collision:
-                    return Response({
-                        "error": "Este nombre ya existe en algún proyecto de Plane. Antes de importarlo se requiere reconciliar los estados existentes."
-                    }, status=status.HTTP_409_CONFLICT)
+                # Resolve equal-name native states without changing their IDs,
+                # group, or the issues that already point to them. Refuse ambiguous
+                # duplicate matches and states already bound to another catalogue entry.
+                matches = {}
+                for project in projects:
+                    candidates = list(
+                        State.objects.filter(
+                            project=project, name__iexact=fields["name"], deleted_at__isnull=True
+                        )
+                    )
+                    if len(candidates) > 1:
+                        return Response({
+                            "error": "Hay estados homónimos en un proyecto. Se requiere revisión manual antes de vincular."
+                        }, status=status.HTTP_409_CONFLICT)
+                    if candidates:
+                        candidate = candidates[0]
+                        if IzClickProductionStatusBinding.objects.filter(plane_state=candidate).exists():
+                            return Response({
+                                "error": "El estado existente ya está vinculado a otro estado general."
+                            }, status=status.HTTP_409_CONFLICT)
+                        if candidate.group != fields["group"]:
+                            return Response({
+                                "error": "El estado existente pertenece a otro grupo de flujo. Revísalo antes de vincular."
+                            }, status=status.HTTP_409_CONFLICT)
+                        matches[project.pk] = candidate
+
                 entry = IzClickProductionStatus.objects.create(workspace=workspace, **fields)
                 for project in projects:
-                    native = State.objects.create(
-                        project=project, workspace=workspace, name=entry.name,
-                        color=entry.color, group=entry.group, created_by=request.user
-                    )
+                    native = matches.get(project.pk)
+                    if native is None:
+                        native = State.objects.create(
+                            project=project, workspace=workspace, name=entry.name,
+                            color=entry.color, group=entry.group,
+                            sequence=entry.sequence, created_by=request.user
+                        )
                     IzClickProductionStatusBinding.objects.create(
                         status=entry, project=project, plane_state=native
                     )
