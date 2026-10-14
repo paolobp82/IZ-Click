@@ -6,6 +6,7 @@ type Props = {
   issues: readonly ProductionWorkItem[];
   states: readonly ProductionState[];
   projects: readonly { id: string; name: string }[];
+  clients?: readonly { id: string; name: string; color: string }[];
   workspaceSlug: string;
 };
 
@@ -13,12 +14,13 @@ const priorityNames: Record<string, string> = {
   urgent: "Urgente", high: "Alta", medium: "Media", low: "Baja", none: "Sin prioridad",
 };
 
-export function ProductionLoadDirectory({ issues, states, projects, workspaceSlug }: Props) {
+export function ProductionLoadDirectory({ issues, states, projects, clients = [], workspaceSlug }: Props) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const stateNames = useMemo(() => new Map(states.map((s) => [s.id, s.name])), [states]);
   const projectNames = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects]);
+  const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
 
   const filtered = useMemo(() => {
     const seen = new Set<string>();
@@ -26,10 +28,10 @@ export function ProductionLoadDirectory({ issues, states, projects, workspaceSlu
     return issues.filter((issue) => {
       if (!issue.id || !issue.project_id || issue.parent_id || seen.has(issue.id)) return false;
       seen.add(issue.id);
-      return !term || [issue.name, projectNames.get(issue.project_id), stateNames.get(issue.state_id || "")]
+      return !term || [issue.name, projectNames.get(issue.project_id), stateNames.get(issue.state_id || ""), clientById.get(issue.client_id || "")?.name]
         .some((value) => value?.toLocaleLowerCase("es").includes(term));
     });
-  }, [issues, query, projectNames, stateNames]);
+  }, [issues, query, projectNames, stateNames, clientById]);
   const pageSize = 50;
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, pages - 1);
@@ -50,7 +52,7 @@ export function ProductionLoadDirectory({ issues, states, projects, workspaceSlu
         <table className="w-full text-left text-sm">
           <thead><tr className="border-b border-subtle">
             <th className="py-2 pr-3">Carga</th><th className="py-2 pr-3">Proyecto</th>
-            <th className="py-2 pr-3">Estado</th><th className="py-2 pr-3">Prioridad</th>
+            <th className="py-2 pr-3">Cliente</th><th className="py-2 pr-3">Estado</th><th className="py-2 pr-3">Prioridad</th>
             <th className="py-2 pr-3">Fecha prevista</th><th className="py-2">SIG</th>
           </tr></thead>
           <tbody>
@@ -68,6 +70,14 @@ export function ProductionLoadDirectory({ issues, states, projects, workspaceSlu
                   )}
                 </td>
                 <td className="py-2 pr-3">{projectNames.get(issue.project_id!) || "Proyecto"}</td>
+                <td className="py-2 pr-3">
+                  {clientById.get(issue.client_id || "") ? (
+                    <span className="inline-flex items-center gap-1">
+                      <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: clientById.get(issue.client_id!)?.color }} />
+                      {clientById.get(issue.client_id!)?.name}
+                    </span>
+                  ) : "—"}
+                </td>
                 <td className="py-2 pr-3">{stateNames.get(issue.state_id || "") || "Sin estado"}</td>
                 <td className="py-2 pr-3">{priorityNames[issue.priority || "none"] || issue.priority}</td>
                 <td className="py-2 pr-3">{issue.target_date || "—"}</td>
