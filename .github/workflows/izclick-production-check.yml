@@ -12,6 +12,7 @@ on:
       - 'izclick/flujo-nativo-sin-duplicados-20261014'
     paths:
       - 'apps/web/**'
+      - 'docs/izclick/**'
       - 'packages/i18n/**'
       - 'apps/api/plane/db/**'
       - 'apps/api/plane/utils/**'
