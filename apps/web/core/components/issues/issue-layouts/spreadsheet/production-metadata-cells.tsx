@@ -12,6 +12,7 @@ type Props = {
   canEdit: boolean;
   labelIds: string[];
   onUpdateLabels: (ids: string[]) => Promise<void>;
+  asDiv?: boolean;
 };
 const EVENT_KIND = "event-date";
 const dateOf = (links: PlaneExternalLink[]): string => {
@@ -20,7 +21,7 @@ const dateOf = (links: PlaneExternalLink[]): string => {
 };
 
 /** Inline editor on the native spreadsheet; reads and writes Plane IssueLink records. */
-export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit, labelIds, onUpdateLabels }: Props) {
+export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit, labelIds, onUpdateLabels, asDiv = false }: Props) {
   const service = useMemo(() => new IssueService(), []);
   const [date, setDate] = useState("");
   const [draft, setDraft] = useState("");
@@ -162,9 +163,11 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     } finally { setClientBusy(false); }
   };
 
+  const Cell = asDiv ? "div" : "td";
+
   return (
     <>
-      <td className="h-11 min-w-40 border-r border-subtle px-3 text-13">
+      <Cell className="h-11 min-w-40 border-r border-subtle px-3 text-13">
         {editingClient ? (
           <div className="flex flex-col gap-1 py-1">
             <select aria-label="Seleccionar cliente" value={client?.id ?? ""} disabled={clientBusy}
@@ -188,8 +191,8 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
             <span className="truncate">{client?.name ?? (loading ? "…" : "Sin cliente")}</span>
           </button>
         )}
-      </td>
-      <td className="h-11 min-w-40 border-r border-subtle px-2 text-13">
+      </Cell>
+      <Cell className="h-11 min-w-40 border-r border-subtle px-2 text-13">
         {editing ? (
           <div className="flex flex-wrap items-center gap-1">
             <input type="date" aria-label="Fecha del evento" value={draft} disabled={busy}
@@ -206,8 +209,8 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
             {loading ? "…" : loadError ? "No disponible" : date || "—"}
           </button>
         )}
-      </td>
-      <td className="h-11 min-w-40 border-r border-subtle px-2 text-13">
+      </Cell>
+      <Cell className="h-11 min-w-40 border-r border-subtle px-2 text-13">
         {editingSig ? (
           <div className="flex min-w-56 flex-col gap-1 py-1">
             <input aria-label="Código SIG" maxLength={60} value={sigCodeDraft} disabled={busy}
@@ -235,7 +238,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
             </button>}
           </div>
         )}
-      </td>
+      </Cell>
     </>
   );
 }
