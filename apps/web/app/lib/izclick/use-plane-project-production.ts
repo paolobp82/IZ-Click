@@ -8,6 +8,7 @@ import { eventDateFromLabels } from "@/app/lib/izclick/production-event-date";
 import type { PlaneLabelSummary } from "@/app/lib/izclick/production-event-date";
 import type { ProductionClient } from "@/app/lib/izclick/production-clients";
 import { normalizePlaneCollection, normalizePlaneIssue, normalizePlaneState } from "@/app/lib/izclick/plane-production-adapter";
+import { collectPlanePages } from "@/app/lib/izclick/production-pagination";
 
 type Result = {
   issues: ProductionWorkItem[];
@@ -18,13 +19,6 @@ type Result = {
   error: string | null;
 };
 
-type PlanePage = {
-  results?: unknown[];
-  next_cursor?: string | null;
-  next_page_results?: boolean;
-  next?: string | null;
-};
-
 async function fetchJson(url: string, signal: AbortSignal): Promise<unknown> {
   const base = (API_BASE_URL || "").replace(/\/$/, "");
   const response = await fetch(url.startsWith("http") ? url : `${base}${url}`, { credentials: "include", signal });
@@ -33,37 +27,18 @@ async function fetchJson(url: string, signal: AbortSignal): Promise<unknown> {
 }
 
 async function fetchAllProjectIssues(base: string, projectId: string, signal: AbortSignal): Promise<ProductionWorkItem[]> {
-  const issues: ProductionWorkItem[] = [];
-  const visited = new Set<string>();
-  let cursor: string | null = null;
-
-  // Strict cap: fail visibly instead of silently showing incomplete totals.
-  for (let page = 0; page < 200; page++) {
-    const params = new URLSearchParams({ per_page: "100", sub_issue: "true" });
-    if (cursor) params.set("cursor", cursor);
-    const payload = await fetchJson(`${base}/issues/?${params.toString()}`, signal);
-    issues.push(...normalizePlaneCollection(payload, normalizePlaneIssue).map((issue) => ({
-      ...issue,
-      project_id: issue.project_id || projectId,
-    })));
-    if (Array.isArray(payload)) return issues;
-
-    const data = payload as PlanePage;
-    const hasNext = data.next_page_results === true || Boolean(data.next_cursor) || Boolean(data.next);
-    if (!hasNext) {
-      // A full page without pagination metadata could be incomplete.
-      if (data.next_page_results !== false && Array.isArray(data.results) && data.results.length === 100 && !data.next_cursor && !data.next) {
-        throw new Error("La API no informó la paginación; no es seguro calcular los totales.");
-      }
-      return issues;
-    }
-    if (!data.next_cursor || visited.has(data.next_cursor)) {
-      throw new Error("Paginación de Plane incompleta; no se mostrarán totales parciales.");
-    }
-    visited.add(data.next_cursor);
-    cursor = data.next_cursor;
-  }
-  throw new Error("Demasiadas páginas de cargas; se canceló el cálculo para proteger la precisión.");
+  const issues = await collectPlanePages(
+    (cursor) => {
+      const params = new URLSearchParams({ per_page: "100", sub_issue: "true" });
+      if (cursor) params.set("cursor", cursor);
+      return fetchJson(`${base}/issues/?${params.toString()}`, signal);
+    },
+    (payload) => normalizePlaneCollection(payload, normalizePlaneIssue)
+  );
+  return issues.map((issue) => ({
+    ...issue,
+    project_id: issue.project_id || projectId,
+  }));
 }
 
 /**
