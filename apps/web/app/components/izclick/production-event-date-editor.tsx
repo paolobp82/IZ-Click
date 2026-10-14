@@ -85,7 +85,7 @@ export function ProductionEventDateEditor({ workspaceSlug, projectId, issueId, o
 
       // Plane's labels PATCH replaces the full list. Keep all non-event labels intact.
       const desired = mergeEventDateLabelIds(currentIds, projectLabels, nextLabelId);
-      await issueService.patchIssue(workspaceSlug, projectId, issueId, { labels: desired });
+      await issueService.patchIssue(workspaceSlug, projectId, issueId, { label_ids: desired });
       setLabels([...projectLabels, ...(nextLabelId && !projectLabels.some((label) => label.id === nextLabelId)
         ? [{ id: nextLabelId, name: eventDateLabelName(date), color: EVENT_LABEL_COLOR }] : [])]);
       setOriginalDate(date || null);
