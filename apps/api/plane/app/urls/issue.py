@@ -30,10 +30,16 @@ from plane.app.views import (
     IssueVersionEndpoint,
     WorkItemDescriptionVersionEndpoint,
     IssueMetaEndpoint,
+    ProductionEventDatesEndpoint,
     IssueDetailIdentifierEndpoint,
 )
 
 urlpatterns = [
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/production-event-dates/",
+        ProductionEventDatesEndpoint.as_view(http_method_names=["get"]),
+        name="izclick-production-event-dates",
+    ),
     path(
         "workspaces/<str:slug>/projects/<uuid:project_id>/issues/list/",
         IssueListEndpoint.as_view(),
