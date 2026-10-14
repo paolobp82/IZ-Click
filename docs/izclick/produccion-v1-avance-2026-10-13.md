@@ -56,3 +56,11 @@ Se agregó `GET /api/workspaces/:slug/projects/:projectId/production-sig-links/`
 - Publicador manual de imágenes web/API preparado, NO ejecutado.
 
 **Validación:** las compilaciones previas de web/API y los contratos Python pasaron. La versión con calendario mensual/selector de columnas requiere confirmar el resultado del nuevo CI. Sigue sin despliegue ni prueba end-to-end con usuarios.
+
+
+## Cierre de validación del corte 70%
+- Run #142 (38495233741) finalizó con backend-syntax, production-metrics y web-build en success, incluyendo TypeScript estricto.
+- Último build API confirmado: run #4 (38494435934), completado correctamente tras el endurecimiento de validadores y metadatos.
+- La publicación manual de imágenes web/API está preparada, pero no se ha ejecutado.
+- Próxima barrera: integración autenticada con datos piloto y acceso controlado a web + API de la instalación.
+- Ningún cambio ha sido desplegado en el VPS productivo durante este bloque.
