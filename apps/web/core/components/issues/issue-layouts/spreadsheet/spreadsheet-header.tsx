@@ -78,6 +78,7 @@ export const SpreadsheetHeader = observer(function SpreadsheetHeader(props: Prop
 
         {!isEpic && projectId && (
           <>
+            <th className="h-11 min-w-40 border-r border-subtle bg-layer-1 px-3 text-left text-13 font-medium">Cliente</th>
             <th className="h-11 min-w-40 border-r border-subtle bg-layer-1 px-3 text-left text-13 font-medium">
               Fecha del evento
             </th>
