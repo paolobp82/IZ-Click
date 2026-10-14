@@ -171,6 +171,10 @@ export const IssueMainContent = observer(function IssueMainContent(props: Props)
         issueServiceType={EIssueServiceType.ISSUES}
       />
 
+      {windowSize[0] < 1024 && (
+        <IssueActivity workspaceSlug={workspaceSlug} projectId={projectId} issueId={issueId} disabled={isArchived} />
+      )}
+
       {windowSize[0] < 768 && (
         <PeekOverviewProperties
           workspaceSlug={workspaceSlug}
