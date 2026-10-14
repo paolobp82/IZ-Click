@@ -63,11 +63,11 @@ export function ProductionDashboard({
   // Aggregate by the actual state catalogue. Unknown or customized states remain
   // in the pie chart and are not falsely classified as approved or rejected.
   const outcomeTotals = useMemo(() => {
-    const approved = metrics.slices.filter((slice) => /^aprobado(?:\\s+por\\s+cliente)?$/i.test(slice.name.trim()))
+    const approved = metrics.slices.filter((slice) => /^aprobado(?:\s+por\s+cliente)?$/i.test(slice.name.trim()))
       .reduce((total, slice) => total + slice.count, 0);
-    const rejected = metrics.slices.filter((slice) => /^rechazad[oa](?:\\s+por\\s+cliente)?$/i.test(slice.name.trim()))
+    const rejected = metrics.slices.filter((slice) => /^rechazad[oa](?:\s+por\s+cliente)?$/i.test(slice.name.trim()))
       .reduce((total, slice) => total + slice.count, 0);
-    const followUp = metrics.slices.filter((slice) => /^en\\s+seguimiento$/i.test(slice.name.trim()))
+    const followUp = metrics.slices.filter((slice) => /^en\s+seguimiento$/i.test(slice.name.trim()))
       .reduce((total, slice) => total + slice.count, 0);
     return { approved, rejected, followUp };
   }, [metrics]);
