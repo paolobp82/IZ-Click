@@ -4,57 +4,30 @@
  * See the LICENSE file for details.
  */
 
-import { useState } from "react";
 import { observer } from "mobx-react";
-// i18n
 import { useTranslation } from "@plane/i18n";
-// components
 import { PageHead } from "@/components/core/page-title";
-import { ProductionProjectPanel } from "@/app/components/izclick/production-project-panel";
 import { ProjectLayoutRoot } from "@/components/issues/issue-layouts/roots/project-layout-root";
-// hooks
 import { useProject } from "@/hooks/store/use-project";
 import type { Route } from "./+types/page";
 
+/**
+ * The editable native Plane layout is the single source of truth for IZ-Click.
+ * No parallel panels or alternate state/issue stores are rendered on this route.
+ * All five native layouts share the same issue store, actions and permissions.
+ */
 function ProjectIssuesPage({ params }: Route.ComponentProps) {
-  const { projectId, workspaceSlug } = params;
-  const [showProduction, setShowProduction] = useState(true);
-  // i18n
+  const { projectId } = params;
   const { t } = useTranslation();
-  // store
   const { getProjectById } = useProject();
-
-  // derived values
   const project = getProjectById(projectId);
-  const pageTitle = project?.name ? `${project?.name} - ${t("issue.label", { count: 2 })}` : undefined; // Count is for pluralization
+  const pageTitle = project?.name ? `${project.name} - ${t("issue.label", { count: 2 })}` : undefined;
 
   return (
     <>
       <PageHead title={pageTitle} />
-      <div className="flex h-full w-full flex-col">
-        <div className="flex justify-end border-b border-subtle px-4 py-2">
-          <button
-            type="button"
-            aria-pressed={showProduction}
-            onClick={() => setShowProduction((value) => !value)}
-            className="rounded-md border border-subtle px-3 py-1.5 text-sm"
-          >
-            {showProduction ? "Abrir vista clásica" : "Volver a cargas"}
-          </button>
-        </div>
-        {showProduction ? (
-          <div className="h-full overflow-y-auto">
-            <ProductionProjectPanel
-              workspaceSlug={workspaceSlug}
-              projectId={projectId}
-              projectName={project?.name}
-            />
-          </div>
-        ) : (
-          <div className="min-h-0 flex-1">
-            <ProjectLayoutRoot />
-          </div>
-        )}
+      <div className="h-full min-h-0 w-full">
+        <ProjectLayoutRoot />
       </div>
     </>
   );
