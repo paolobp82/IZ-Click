@@ -6,6 +6,7 @@ import type { ProductionMember } from "@/app/lib/izclick/production-members";
 import { clientsFromPlaneLabels } from "@/app/lib/izclick/production-clients";
 import { eventDateFromLabels } from "@/app/lib/izclick/production-event-date";
 import { normalizeEventDateMap } from "@/app/lib/izclick/production-event-date-map";
+import { normalizeSigLinkMap } from "@/app/lib/izclick/production-sig-map";
 import type { PlaneLabelSummary } from "@/app/lib/izclick/production-event-date";
 import type { ProductionClient } from "@/app/lib/izclick/production-clients";
 import { normalizePlaneCollection, normalizePlaneIssue, normalizePlaneState } from "@/app/lib/izclick/plane-production-adapter";
@@ -66,17 +67,21 @@ export function usePlaneProjectProduction(workspaceSlug: string, projectId: stri
         .catch(() => [] as ProductionMember[]),
       fetchJson(`${base}/production-event-dates/`, controller.signal)
         .then(normalizeEventDateMap),
+      fetchJson(`${base}/production-sig-links/`, controller.signal)
+        .then(normalizeSigLinkMap),
       fetchJson(`${base}/issue-labels/`, controller.signal)
         .then((payload) => normalizePlaneCollection(payload, (item): PlaneLabelSummary | null =>
           typeof item.id === "string" && typeof item.name === "string" ? { id: item.id, name: item.name } : null
         )),
     ])
-      .then(([issues, states, members, eventDates, allLabels]) => {
+      .then(([issues, states, members, eventDates, sigLinks, allLabels]) => {
         const clients = clientsFromPlaneLabels(allLabels);
         const clientLabels = new Set(clients.map((client) => client.id));
         const normalizedIssues = issues.map((issue) => ({
           ...issue,
           event_date: eventDates[issue.id] ?? eventDateFromLabels(allLabels, issue.label_ids ?? []),
+          sig_code: sigLinks[issue.id]?.code ?? null,
+          sig_url: sigLinks[issue.id]?.url ?? null,
           client_id: issue.label_ids?.find((id) => clientLabels.has(id)) ?? issue.client_id,
         }));
         if (!controller.signal.aborted) setResult({ issues: normalizedIssues, states, members, clients, loading: false, error: null });
