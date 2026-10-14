@@ -32,3 +32,26 @@ test("rechaza marcador next=true sin cursor", async () => {
 test("acepta respuesta de arreglo directo", async () => {
   assert.deepEqual(await collectPlanePages(async () => [1, 2], (v) => v as number[]), [1, 2]);
 });
+
+
+test("Plane incluye next_cursor aun cuando next_page_results=false: no repetir ultima pagina", async () => {
+  let requests = 0;
+  const rows = await collectPlanePages(async () => {
+    requests++;
+    return { results: ["last"], next_cursor: "100:1:0", next_page_results: false };
+  }, (payload) => (payload as { results: string[] }).results);
+  assert.deepEqual(rows, ["last"]);
+  assert.equal(requests, 1);
+});
+
+test("Plane pagina correctamente si el indicador true y luego false", async () => {
+  const visited: Array<string | null> = [];
+  const rows = await collectPlanePages(async (cursor) => {
+    visited.push(cursor);
+    return cursor === null
+      ? { results: ["a"], next_cursor: "100:1:0", next_page_results: true }
+      : { results: ["b"], next_cursor: "100:2:0", next_page_results: false };
+  }, (payload) => (payload as { results: string[] }).results);
+  assert.deepEqual(rows, ["a", "b"]);
+  assert.deepEqual(visited, [null, "100:1:0"]);
+});
