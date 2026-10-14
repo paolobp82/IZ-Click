@@ -57,8 +57,9 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
   }, [issues, query, projectNames, stateNames, clientById]);
   const groupedByState = useMemo(() => {
     const groups = new Map<string, ProductionWorkItem[]>();
+    const knownStateIds = new Set(states.map((state) => state.id));
     for (const issue of filtered) {
-      const state = issue.state_id || "__none__";
+      const state = issue.state_id && knownStateIds.has(issue.state_id) ? issue.state_id : "__none__";
       groups.set(state, [...(groups.get(state) || []), issue]);
     }
     const ordered = states.filter((state) => groups.has(state.id)).map((state) => ({
