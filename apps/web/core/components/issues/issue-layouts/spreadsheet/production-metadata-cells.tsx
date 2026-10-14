@@ -144,9 +144,13 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     setClientBusy(true);
     setClientError("");
     try {
+      // Avoid duplicate native Plane labels and leave unrelated labels intact.
       const clientIds = new Set(clients.map((item) => item.id));
-      const untouchedLabels = labelIds.filter((id) => !clientIds.has(id));
-      await onUpdateLabels(clientId ? [...untouchedLabels, clientId] : untouchedLabels);
+      const untouchedLabels = [...new Set(labelIds)].filter((id) => !clientIds.has(id));
+      const nextLabels = clientId ? [...untouchedLabels, clientId] : untouchedLabels;
+      if (nextLabels.length !== labelIds.length || nextLabels.some((id, index) => id !== labelIds[index])) {
+        await onUpdateLabels(nextLabels);
+      }
       invalidateProjectProductionMetadata(workspaceSlug, projectId);
       setEditingClient(false);
     } catch {
