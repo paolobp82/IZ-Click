@@ -91,7 +91,12 @@ export function usePlaneProjectProduction(workspaceSlug: string, projectId: stri
         .catch(() => [] as ProductionClient[]),
     ])
       .then(([issues, states, members, clients]) => {
-        if (!controller.signal.aborted) setResult({ issues, states, members, clients, loading: false, error: null });
+        const clientLabels = new Set(clients.map((client) => client.id));
+        const normalizedIssues = issues.map((issue) => ({
+          ...issue,
+          client_id: issue.label_ids?.find((id) => clientLabels.has(id)) ?? issue.client_id,
+        }));
+        if (!controller.signal.aborted) setResult({ issues: normalizedIssues, states, members, clients, loading: false, error: null });
       })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
