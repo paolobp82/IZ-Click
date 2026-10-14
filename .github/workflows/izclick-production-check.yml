@@ -9,6 +9,8 @@ on:
       - 'izclick/produccion-v1'
     paths:
       - 'apps/web/**'
+      - 'apps/api/plane/app/views/**'
+      - 'apps/api/plane/app/urls/**'
       - '.github/workflows/izclick-production-check.yml'
   workflow_dispatch:
 
@@ -32,6 +34,17 @@ jobs:
         run: node --experimental-strip-types --test apps/web/app/lib/izclick/*.test.ts
       - name: Verify all test files discovered
         run: find apps/web/app/lib/izclick -name '*.test.ts' -print
+
+  backend-syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Django module syntax without changing database
+        run: |
+          python3 -m py_compile apps/api/plane/app/views/issue/base.py
+          python3 -m py_compile apps/api/plane/app/views/__init__.py
+          python3 -m py_compile apps/api/plane/app/urls/issue.py
 
   web-build:
     runs-on: ubuntu-latest
