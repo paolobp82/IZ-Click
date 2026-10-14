@@ -11,6 +11,7 @@ type Props = {
   issueId: string;
   canEdit: boolean;
   labelIds: string[];
+  onUpdateLabels: (ids: string[]) => Promise<void>;
 };
 const EVENT_KIND = "event-date";
 const dateOf = (links: PlaneExternalLink[]): string => {
@@ -19,13 +20,16 @@ const dateOf = (links: PlaneExternalLink[]): string => {
 };
 
 /** Inline editor on the native spreadsheet; reads and writes Plane IssueLink records. */
-export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit, labelIds }: Props) {
+export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit, labelIds, onUpdateLabels }: Props) {
   const service = useMemo(() => new IssueService(), []);
   const [date, setDate] = useState("");
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editingClient, setEditingClient] = useState(false);
+  const [clientBusy, setClientBusy] = useState(false);
+  const [clientError, setClientError] = useState("");
   const [clients, setClients] = useState<{ id: string; name: string; color: string }[]>([]);
   const [sig, setSig] = useState<{ code: string; url: string } | null>(null);
   const [error, setError] = useState("");
@@ -133,18 +137,46 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
   };
 
   const client = clients.find((candidate) => labelIds.includes(candidate.id));
+  const changeClient = async (clientId: string) => {
+    if (!canEdit || clientBusy) return;
+    setClientBusy(true);
+    setClientError("");
+    try {
+      const clientIds = new Set(clients.map((item) => item.id));
+      const untouchedLabels = labelIds.filter((id) => !clientIds.has(id));
+      await onUpdateLabels(clientId ? [...untouchedLabels, clientId] : untouchedLabels);
+      setEditingClient(false);
+    } catch {
+      setClientError("No se pudo actualizar el cliente.");
+    } finally { setClientBusy(false); }
+  };
 
   return (
     <>
       <td className="h-11 min-w-40 border-r border-subtle px-3 text-13">
-        {client ? (
-          <span className="inline-flex max-w-44 items-center gap-1.5 truncate rounded px-2 py-1"
-            style={{ border: `1px solid ${client.color}` }} title={client.name}>
-            <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: client.color }} />
-            <span className="truncate">{client.name}</span>
-          </span>
-        ) : <span className="text-secondary">{loading ? "…" : "—"}</span>}
+        {editingClient ? (
+          <div className="flex flex-col gap-1 py-1">
+            <select aria-label="Seleccionar cliente" value={client?.id ?? ""} disabled={clientBusy}
+              onChange={(event) => void changeClient(event.target.value)}
+              className="max-w-48 rounded border border-subtle bg-surface-1 p-1 text-xs">
+              <option value="">Sin cliente</option>
+              {clients.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <button type="button" disabled={clientBusy} className="text-left text-xs underline"
+              onClick={() => { setEditingClient(false); setClientError(""); }}>Cancelar</button>
+            {clientError && <span role="alert" className="whitespace-normal text-xs text-red-500">{clientError}</span>}
+          </div>
+        ) : (
+          <button type="button" disabled={!canEdit || loading}
+            onClick={() => { setEditingClient(true); setClientError(""); }}
+            title="Seleccionar cliente de esta carga"
+            className="inline-flex max-w-44 items-center gap-1.5 truncate rounded px-2 py-1 text-left disabled:cursor-default"
+            style={client ? { border: `1px solid ${client.color}` } : undefined}>
+            {client && <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: client.color }} />}
+            <span className="truncate">{client?.name ?? (loading ? "…" : "Sin cliente")}</span>
+          </button>
+        )}
       </td>
       <td className="h-11 min-w-40 border-r border-subtle px-2 text-13">
         {editing ? (
