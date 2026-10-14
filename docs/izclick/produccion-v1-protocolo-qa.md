@@ -28,3 +28,17 @@
 
 ## Criterios para autorizar publicación
 No fusionar PR ni sustituir las imágenes activas hasta concluir pruebas automáticas e integración. Los módulos financieros y de cotización residen exclusivamente en SIG Izango 360. La fecha del evento, estados específicos de negocio y ajustes UX pendientes continúan fuera del bloque aprobado y requieren entrega posterior.
+
+
+## Verificación adicional de seguridad y rendimiento
+- [ ] Probar con administrador, productor e invitado restringido que production-event-dates/ y production-sig-links/ respetan visibilidad de tareas.
+- [ ] Sin sesión o sin membresía: obtener 401/403, sin simular cero cargas.
+- [ ] Rechazar URL SIG externas, parámetros y rutas distintas de https://izango-erp.vercel.app/proyectos/UUID.
+- [ ] Comprobar colores reales de clientes en varios proyectos.
+- [ ] Probar 1, 4 y 20 proyectos: concurrencia máxima cuatro y sin cifras parciales.
+- [ ] Editar fecha sin permiso de crear etiquetas ni alterar el vencimiento.
+- [ ] Comprobar que la actualización automática del título de enlace conserva metadata de código SIG.
+- [ ] Desplegar y revertir de forma coordinada web y API; la API original no tiene los endpoints nuevos.
+
+## Validaciones offline
+El CI incluye pruebas de apps/api/izclick_contract_tests/test_metadata.py sin servidor ni base de datos. No reemplazan integración autenticada real.
