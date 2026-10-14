@@ -110,3 +110,15 @@ export function calculateProductionMetrics(
     })),
   };
 }
+
+/** Outcome KPIs use names from the shared Production catalogue across projects. */
+export function calculateProductionOutcomes(metrics: ProductionMetrics) {
+  const sum = (pattern: RegExp) => metrics.slices
+    .filter((slice) => pattern.test(slice.name.trim()))
+    .reduce((total, slice) => total + slice.count, 0);
+  return {
+    approved: sum(/^aprobado(?:\s+por\s+cliente)?$/i),
+    rejected: sum(/^rechazad[oa](?:\s+por\s+cliente)?$/i),
+    followUp: sum(/^en\s+seguimiento$/i),
+  };
+}
