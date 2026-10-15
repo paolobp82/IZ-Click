@@ -40,6 +40,16 @@ class IzclickCustomFieldValidationTests(SimpleTestCase):
         with self.assertRaises(ValidationError):
             field.clean()
 
+    def test_select_field_rejects_bad_option_color(self):
+        field = IzclickCustomField(name="Zona", field_type="select", options=[{"id": "a", "name": "Norte", "color": "red"}])
+        with self.assertRaises(ValidationError):
+            field.clean()
+
+    def test_select_field_rejects_blank_option_name(self):
+        field = IzclickCustomField(name="Zona", field_type="select", options=[{"id": "a", "name": "   "}])
+        with self.assertRaises(ValidationError):
+            field.clean()
+
     def test_field_type_choices_are_declared(self):
         self.assertEqual(
             set(dict(IzclickCustomField.TYPES)),
