@@ -8,6 +8,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
   const [fields, setFields] = useState<IzclickCustomField[]>([]);
   const [fieldsAvailable, setFieldsAvailable] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
+  const [valuesError, setValuesError] = useState(false);
   const [active, setActive] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -17,7 +18,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
     let mounted = true;
     const refresh = () => {
       getCustomFields(workspaceSlug, projectId).then(f => { if (mounted) { setFields(f); setFieldsAvailable(true); } }).catch(() => { if (mounted) { setFields([]); setFieldsAvailable(false); } });
-      getCustomValues(workspaceSlug, projectId, issueId).then(v => { if (mounted && v && typeof v === "object" && !Array.isArray(v)) setValues(v); }).catch(() => {});
+      getCustomValues(workspaceSlug, projectId, issueId).then(v => { if (mounted && v && typeof v === "object" && !Array.isArray(v)) { setValues(v); setValuesError(false); } }).catch(() => { if (mounted) setValuesError(true); });
     };
     refresh();
     const onChange = (e: Event) => { if ((e as CustomEvent<string>).detail === projectId) refresh(); };
@@ -54,7 +55,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
       const option = field.options?.find(item => item.id === current);
       const label = field.type === "select" ? (option?.name || "—") : current == null || current === "" ? "—" : String(current);
       return <div key={field.id} className="relative flex h-11 w-44 shrink-0 items-center border-l border-subtle px-2 text-xs" style={{ minWidth: 176, maxWidth: 176 }} onClick={e => e.stopPropagation()}>
-        <button disabled={!canEdit} type="button" title={label} className="w-full truncate rounded px-1 py-1 text-left hover:bg-layer-1-hover disabled:cursor-default" onClick={() => { setActive(field.id); setDraft(current == null ? "" : String(current)); setError(""); }}>{label}</button>
+        <button disabled={!canEdit || valuesError} type="button" title={valuesError ? "No se pudieron cargar los valores. Actualiza la lista." : label} className="w-full truncate rounded px-1 py-1 text-left hover:bg-layer-1-hover disabled:cursor-default" onClick={() => { setActive(field.id); setDraft(current == null ? "" : String(current)); setError(""); }}>{valuesError ? "Error al cargar" : label}</button>
         {active === field.id && <div data-izclick-popover ref={popupRef} className="absolute left-0 top-full z-[90] w-64 rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl">
           <span className="mb-2 block font-medium">{field.name}</span>
           {field.type === "select" ? <select aria-label={field.name} className="w-full rounded border border-subtle bg-surface-1 p-2" value={draft} onChange={e => setDraft(e.target.value)}>
