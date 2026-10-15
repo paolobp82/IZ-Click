@@ -2,6 +2,8 @@ name: IZ-Click isolated browser QA
 # Explicit manual trigger. No SSH, production credentials, public staging host,
 # shared volumes or production data. Uses an ephemeral GitHub runner.
 on:
+  pull_request:
+    types: [labeled]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +12,7 @@ permissions:
 
 jobs:
   isolated-browser-qa:
-    if: github.ref == 'refs/heads/izclick/clickup-native-list-detail-20261014'
+    if: (github.event_name == 'pull_request' && github.event.label.name == 'run-isolated-qa' && github.head_ref == 'izclick/clickup-native-list-detail-20261014') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/izclick/clickup-native-list-detail-20261014')
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
@@ -44,7 +46,7 @@ jobs:
           docker compose -f qa/compose.qa.yml up -d qa-api qa-web qa-proxy
           for attempt in $(seq 1 90); do
             code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:38080/api/instances/ || true)
-            if [ "$code" != "000" ] && [ "$code" != "502" ] && [ "$code" != "503" ]; then
+            if [ "$code" = "200" ] || [ "$code" = "401" ] || [ "$code" = "403" ] || [ "$code" = "404" ]; then
               echo "QA API responded with HTTP $code"
               exit 0
             fi
