@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { API_BASE_URL } from "@plane/constants";
 import { getCustomFields, invalidateCustomFields } from "./izclick-custom-field-api";
+import { ProductionStateManager } from "./production-state-manager";
 
 export const LIST_COLUMNS = [
   { id: "state", name: "Estado", width: 260 },
@@ -43,7 +44,7 @@ function apply(prefs: Preferences) {
   root.style.setProperty("--izclick-link-width", `${420 + propertiesWidth}px`);
 }
 
-export function ListColumnControls() {
+export function ListColumnControls({ canManageStates }: { canManageStates: boolean }) {
   const { projectId } = useParams();
   const scope = String(projectId ?? "default");
   const [prefs, setPrefs] = useState<Preferences>(defaults);
@@ -289,7 +290,8 @@ export function ListColumnControls() {
             width: `var(--izclick-col-${col.id}, ${col.width}px)`,
           }}
         >
-          <span className="truncate">{col.name}</span>
+          <span className="min-w-0 flex-1 truncate">{col.name}</span>
+          {col.id === "state" && projectId && <ProductionStateManager projectId={String(projectId)} canEdit={canManageStates} />}
           <button
             type="button"
             aria-label={`Cambiar ancho de ${col.name}`}
