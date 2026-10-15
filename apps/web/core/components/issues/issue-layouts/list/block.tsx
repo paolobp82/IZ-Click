@@ -364,6 +364,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
         />
       </div>
     )}
+    {isProjectList && workspaceSlug && issue.project_id && <IzclickCustomFieldCells workspaceSlug={workspaceSlug} projectId={issue.project_id} issueId={issue.id} canEdit={canEditIssueProperties} />}
     </div>
   );
 });
