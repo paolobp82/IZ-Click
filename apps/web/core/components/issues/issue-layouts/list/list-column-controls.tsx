@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 export const LIST_COLUMNS = [
-  { id: "state", name: "Estado", width: 144 },
-  { id: "priority", name: "Prioridad", width: 112 },
+  { id: "state", name: "Estado", width: 260 },
+  { id: "priority", name: "Prioridad", width: 150 },
   { id: "assignee", name: "Responsable", width: 144 },
   { id: "due", name: "Vencimiento", width: 144 },
   { id: "client", name: "Cliente", width: 160 },
@@ -13,7 +13,7 @@ export const LIST_COLUMNS = [
 
 type ColumnId = (typeof LIST_COLUMNS)[number]["id"];
 type Preferences = Record<ColumnId, { width: number; visible: boolean }>;
-const storageKey = (projectId: string) => `izclick-project-list-columns-v2:${projectId}`;
+const storageKey = (projectId: string) => `izclick-project-list-columns-v3:${projectId}`;
 const updateEvent = "izclick-list-columns-updated";
 const defaults = (): Preferences =>
   Object.fromEntries(LIST_COLUMNS.map((col) => [col.id, { width: col.width, visible: true }])) as Preferences;
