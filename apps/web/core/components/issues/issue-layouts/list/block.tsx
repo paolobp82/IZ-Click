@@ -177,7 +177,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
     isArchived: !!issue?.archived_at,
   });
   return (
-    <div className={cn("relative flex items-stretch border-b border-subtle has-[[data-izclick-popover]]:z-[70]", { "w-max min-w-max": isProjectList })}>
+    <div data-izclick-issue-id={isProjectList ? issue.id : undefined} className={cn("relative flex items-stretch border-b border-subtle has-[[data-izclick-popover]]:z-[70]", { "w-max min-w-max": isProjectList })}>
     <ControlLink
       id={`issue-${issue.id}`}
       href={workItemLink}
