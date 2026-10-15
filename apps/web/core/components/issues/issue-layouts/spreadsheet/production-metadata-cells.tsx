@@ -193,7 +193,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
 
   return (
     <>
-      <Cell className="h-11 w-40 min-w-0 shrink-0 overflow-hidden border-r border-subtle px-3 text-13" style={asDiv ? { display: "var(--izclick-show-client, flex)", width: "var(--izclick-col-client, 160px)" } : undefined}>
+      <Cell className="h-11 w-40 min-w-0 shrink-0 border-r border-subtle px-3 text-13" style={asDiv ? { display: "var(--izclick-show-client, flex)", width: "var(--izclick-col-client, 160px)" } : undefined}>
         {editingClient ? (
           <div className="flex flex-col gap-1 py-1">
             <select aria-label="Seleccionar cliente" value={client?.id ?? ""} disabled={clientBusy}
