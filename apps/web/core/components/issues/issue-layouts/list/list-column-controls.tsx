@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import { API_BASE_URL } from "@plane/constants";
 
 export const LIST_COLUMNS = [
   { id: "state", name: "Estado", width: 260 },
@@ -42,6 +43,36 @@ export function ListColumnControls() {
   const [prefs, setPrefs] = useState<Preferences>(defaults);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLSpanElement>(null);
+  const [newFieldName, setNewFieldName] = useState("");
+  const [newFieldType, setNewFieldType] = useState("text");
+  const [customFields, setCustomFields] = useState<{ id: string; name: string; type: string }[]>([]);
+  const [customError, setCustomError] = useState("");
+  const [savingField, setSavingField] = useState(false);
+  const { workspaceSlug } = useParams();
+  const customFieldsUrl = `${(API_BASE_URL || "").replace(/\/$/, "")}/api/v1/workspaces/${String(workspaceSlug || "")}/projects/${scope}/izclick-custom-fields/`;
+  const loadCustomFields = async () => {
+    if (!workspaceSlug || !projectId) return;
+    try {
+      const res = await fetch(customFieldsUrl, { credentials: "include" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const values = await res.json();
+      if (Array.isArray(values)) setCustomFields(values);
+    } catch { setCustomFields([]); }
+  };
+  const createCustomField = async () => {
+    if (!newFieldName.trim() || savingField) return;
+    setSavingField(true);
+    setCustomError("");
+    try {
+      const res = await fetch(customFieldsUrl, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newFieldName.trim(), type: newFieldType, options: [] }) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setNewFieldName("");
+      await loadCustomFields();
+    } catch { setCustomError("No se pudo crear el campo. La API y su migración aún deben habilitarse."); }
+    finally { setSavingField(false); }
+  };
+
+  useEffect(() => { if (open) void loadCustomFields(); }, [open, scope]);
 
   useEffect(() => {
     if (!open) return;
@@ -156,7 +187,16 @@ export function ListColumnControls() {
       <span ref={menuRef} className="relative flex w-11 shrink-0 items-center justify-center border-l border-subtle">
         <button type="button" aria-label="Agregar o quitar columnas" title="Agregar o quitar columnas" className="rounded p-1.5 text-lg hover:bg-layer-1-hover" onClick={() => setOpen((value) => !value)}>+</button>
         {open && <span data-izclick-popover className="absolute right-0 top-full z-[80] w-56 rounded border border-subtle bg-surface-1 p-2 shadow-lg">
+          <span className="mb-2 block text-xs font-semibold">Columnas existentes</span>
           {LIST_COLUMNS.map((col) => <label key={col.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-layer-1-hover"><input type="checkbox" checked={prefs[col.id].visible} onChange={() => toggle(col.id)} /><span>{col.name}</span></label>)}
+          <span className="mt-3 block border-t border-subtle pt-3">
+            <span className="mb-2 block text-xs font-semibold">Crear columna personalizada</span>
+            <input aria-label="Nombre de columna" placeholder="Nombre de columna" maxLength={100} value={newFieldName} onChange={e => setNewFieldName(e.target.value)} className="mb-2 w-full rounded border border-subtle bg-surface-1 px-2 py-1.5 text-xs" />
+            <select aria-label="Tipo de columna" value={newFieldType} onChange={e => setNewFieldType(e.target.value)} className="mb-2 w-full rounded border border-subtle bg-surface-1 p-1.5 text-xs"><option value="text">Texto</option><option value="number">Número</option><option value="date">Fecha</option><option value="select">Selección</option></select>
+            <button type="button" onClick={() => void createCustomField()} disabled={savingField || !newFieldName.trim()} className="w-full rounded bg-accent-primary px-2 py-1.5 text-xs text-white disabled:opacity-50">+ Crear campo</button>
+            {customError && <span role="alert" className="mt-2 block text-xs text-red-500">{customError}</span>}
+            {customFields.length > 0 && <span className="mt-2 block text-xs text-tertiary">{customFields.length} campos personalizados registrados. Visualización de celdas pendiente.</span>}
+          </span>
         </span>}
       </span>
     </>
