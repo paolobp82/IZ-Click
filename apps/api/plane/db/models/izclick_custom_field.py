@@ -3,6 +3,7 @@
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.functions import Lower
 
 from .base import BaseModel
 
@@ -28,12 +29,14 @@ class IzclickCustomField(BaseModel):
     class Meta:
         db_table = "izclick_project_custom_fields"
         constraints = [
-            models.UniqueConstraint(fields=("project", "name"), name="izclick_field_project_name_unique"),
+            models.UniqueConstraint(Lower("name"), "project", name="izclick_field_project_name_ci_unique"),
         ]
         ordering = ("position", "created_at")
 
     def clean(self):
         super().clean()
+        if not self.name or not self.name.strip():
+            raise ValidationError({"name": "El nombre es obligatorio."})
         if self.field_type != self.TYPE_SELECT and self.options:
             raise ValidationError({"options": "Las opciones solo corresponden a campos de selección."})
         if self.field_type == self.TYPE_SELECT:
@@ -78,5 +81,5 @@ class IzclickCustomFieldValue(BaseModel):
                 date.fromisoformat(self.value)
             except ValueError as exc:
                 raise ValidationError({"value": "Fecha inválida."}) from exc
-        if kind == IzclickCustomField.TYPE_SELECT and self.value not in [o["id"] for o in self.field.options]:
+        if kind == IzclickCustomField.TYPE_SELECT and self.value not in [o.get("id") for o in self.field.options if isinstance(o, dict)]:
             raise ValidationError({"value": "La opción no existe en este campo."})
