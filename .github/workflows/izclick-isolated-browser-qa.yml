@@ -114,7 +114,8 @@ jobs:
           except Resolver404:
               print("INTAKE_ROUTE=not_registered")
           else:
-              view_class = getattr(result.func, "view_class", None)\n              print(f"INTAKE_ROUTE=registered:{result.view_name};class={view_class};kwargs={result.kwargs}")
+              view_class = getattr(result.func, "view_class", None)
+              print(f"INTAKE_ROUTE=registered:{result.view_name};class={view_class};kwargs={result.kwargs}")
           PY
       - name: Snapshot identities and states of synthetic work items
         run: |
