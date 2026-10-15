@@ -84,8 +84,7 @@ export function ListColumnControls() {
       setNewFieldName("");
       setNewOptions([]);
       invalidateCustomFields(String(workspaceSlug), scope);
-      await loadCustomFields();
-    } catch { setCustomError("No se pudo crear el campo. La API y su migración aún deben habilitarse."); }
+    } catch { setCustomError("No se pudo crear la columna. Comprueba tus permisos y vuelve a intentarlo."); }
     finally { setSavingField(false); }
   };
 
@@ -95,14 +94,6 @@ export function ListColumnControls() {
     window.addEventListener("izclick-custom-fields-updated", listen);
     return () => window.removeEventListener("izclick-custom-fields-updated", listen);
   }, [scope, workspaceSlug]);
-  useEffect(() => {
-    const onFieldUpdate = (event: Event) => {
-      if ((event as CustomEvent<string>).detail === scope) void loadCustomFields();
-    };
-    window.addEventListener("izclick-custom-fields-updated", onFieldUpdate);
-    return () => window.removeEventListener("izclick-custom-fields-updated", onFieldUpdate);
-  }, [scope, workspaceSlug]);
-
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => {
@@ -230,7 +221,7 @@ export function ListColumnControls() {
             </span>}
             <button type="button" onClick={() => void createCustomField()} disabled={fieldsLoading || !apiAvailable || savingField || !newFieldName.trim() || (newFieldType === "select" && newOptions.length === 0)} className="w-full rounded bg-accent-primary px-2 py-1.5 text-xs text-white disabled:opacity-50">+ Crear campo</button>
             {fieldsLoading && <span className="mb-2 block text-xs text-tertiary">Consultando campos del proyecto…</span>}
-            {!fieldsLoading && !apiAvailable && <span className="mb-2 block text-xs text-tertiary">Creación no disponible: primero deben habilitarse la API y la migración.</span>}
+            {!fieldsLoading && !apiAvailable && <span className="mb-2 block text-xs text-tertiary">No se pudieron cargar las columnas. Revisa la conexión o tus permisos.</span>}
             {customError && <span role="alert" className="mt-2 block text-xs text-red-500">{customError}</span>}
             {customFields.length > 0 && <span className="mt-2 block text-xs text-tertiary">{customFields.length} campos personalizados registrados. Visualización de celdas pendiente.</span>}
           </span>
