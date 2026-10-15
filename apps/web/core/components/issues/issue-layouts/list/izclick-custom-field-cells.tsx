@@ -17,8 +17,33 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
   useEffect(() => {
     let mounted = true;
     const refresh = () => {
-      getCustomFields(workspaceSlug, projectId).then(f => { if (mounted) { setFields(f); setFieldsAvailable(true); } }).catch(() => { if (mounted) { setFields([]); setFieldsAvailable(false); } });
-      getCustomValues(workspaceSlug, projectId, issueId).then(v => { if (mounted && v && typeof v === "object" && !Array.isArray(v)) { setValues(v); setValuesError(false); } }).catch(() => { if (mounted) setValuesError(true); });
+      getCustomFields(workspaceSlug, projectId)
+        .then(async (availableFields) => {
+          if (!mounted) return;
+          setFields(availableFields);
+          setFieldsAvailable(true);
+          if (!availableFields.length) {
+            setValues({});
+            setValuesError(false);
+            return;
+          }
+          try {
+            const persistedValues = await getCustomValues(workspaceSlug, projectId, issueId);
+            if (mounted && persistedValues && typeof persistedValues === "object" && !Array.isArray(persistedValues)) {
+              setValues(persistedValues);
+              setValuesError(false);
+            }
+          } catch {
+            if (mounted) setValuesError(true);
+          }
+        })
+        .catch(() => {
+          if (mounted) {
+            setFields([]);
+            setFieldsAvailable(false);
+            setValuesError(true);
+          }
+        });
     };
     refresh();
     const onChange = (e: Event) => { if ((e as CustomEvent<string>).detail === projectId) refresh(); };
