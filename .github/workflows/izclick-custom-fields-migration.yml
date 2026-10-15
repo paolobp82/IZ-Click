@@ -6,6 +6,7 @@ on:
       - 'apps/api/plane/db/models/izclick_custom_field.py'
       - 'apps/api/plane/db/models/__init__.py'
       - 'apps/api/plane/api/views/izclick_custom_fields.py'
+      - 'apps/api/plane/api/tests/test_izclick_custom_field_validation.py'
       - '.github/workflows/izclick-custom-fields-migration.yml'
   workflow_dispatch:
 
@@ -37,6 +38,7 @@ jobs:
           python manage.py makemigrations db --name izclick_custom_fields --noinput
           git status --short plane/db/migrations
           git diff -- plane/db/migrations
+          python manage.py makemigrations db --check --dry-run --noinput
           test -n "$(git ls-files --others --exclude-standard plane/db/migrations/)"
       - name: Upload migration for inspection; do not apply it
         uses: actions/upload-artifact@v4
