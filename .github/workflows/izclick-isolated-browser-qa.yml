@@ -102,13 +102,28 @@ jobs:
           npm init -y >/dev/null
           npm install --no-save playwright@1.56.1
           npx playwright install --with-deps chromium
+      - name: Snapshot identities and states of synthetic work items
+        run: |
+          docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell -c \
+            'import json; from plane.db.models import Issue; rows=Issue.objects.filter(workspace__slug="izclick-qa").values_list("id","state_id","priority").order_by("id"); print("IZCLICK_BASELINE="+json.dumps([(str(i),str(st),p) for i,st,p in rows]))' | grep '^IZCLICK_BASELINE=' | cut -d= -f2- > "$RUNNER_TEMP/izclick-baseline.json"
+          python3 -c 'import json,os; a=json.load(open(os.environ["RUNNER_TEMP"]+"/izclick-baseline.json")); assert len(a)==8'
       - name: Measure real List alignment and persistence in browser
         run: node qa/visual-qa.mjs
-      - name: Verify synthetic loads survived browser edits
+      - name: Verify identities, states and saved custom value after browser edits
         if: success()
         run: |
           docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell -c \
-            'from plane.db.models import Workspace, Issue; w=Workspace.objects.get(slug="izclick-qa"); assert Issue.objects.filter(workspace=w).count()==8, "Synthetic issue count changed during browser tests"; from plane.db.models import IzclickCustomFieldValue; v=IzclickCustomFieldValue.objects.get(field__project__workspace=w, field__name="Material QA"); assert v.value=="Madera QA guardada", "Custom field value did not persist in PostgreSQL"; print("Eight synthetic loads and edited custom value preserved")'
+            'import json; from plane.db.models import Issue,IzclickCustomFieldValue; rows=Issue.objects.filter(workspace__slug="izclick-qa").values_list("id","state_id","priority").order_by("id"); print("IZCLICK_AFTER="+json.dumps([(str(i),str(st),p) for i,st,p in rows])); v=IzclickCustomFieldValue.objects.get(field__project__workspace__slug="izclick-qa",field__name="Material QA"); assert v.value=="Madera QA guardada", "Custom field value not persisted"' | grep '^IZCLICK_AFTER=' | cut -d= -f2- > "$RUNNER_TEMP/izclick-after.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          folder = Path(os.environ["RUNNER_TEMP"])
+          baseline = json.loads((folder / "izclick-baseline.json").read_text())
+          after = json.loads((folder / "izclick-after.json").read_text())
+          assert len(baseline) == len(after) == 8, "Synthetic work-item count changed"
+          assert baseline == after, "Synthetic work-item IDs, state or priority changed"
+          print("All 8 identities, states and priorities preserved; custom value persisted")
+          PY
       - name: Save only fictional QA evidence, never sessions or DB
         if: always()
         uses: actions/upload-artifact@v4
