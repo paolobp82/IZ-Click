@@ -260,7 +260,7 @@ export const ListGroup = observer(function ListGroup(props: Props) {
   return validateEmptyIssueGroups(groupIssueCount) ? (
     <div
       ref={groupRef}
-      className={cn(`relative flex flex-shrink-0 flex-col`, {
+      className={cn(`relative flex flex-shrink-0 flex-col has-[[data-izclick-popover]]:z-[60]`, {
         "border-accent-strong": isDraggingOverColumn,
         "border-danger-subtle": isDraggingOverColumn && isDropDisabled,
       })}
