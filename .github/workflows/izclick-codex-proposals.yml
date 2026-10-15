@@ -1,0 +1,134 @@
+name: IZ-Click autonomous repair proposals
+# Only proposes isolated fix PRs. Never merges, deploys, or accesses production.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 8 * * 1-5'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: izclick-codex-proposals
+  cancel-in-progress: false
+
+jobs:
+  codex-propose:
+    if: github.repository == 'paolobp82/IZ-Click'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    outputs:
+      has_patch: ${{ steps.patch.outputs.has_patch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: izclick/clickup-native-list-detail-20261014
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Verify branch and API key availability
+        id: readiness
+        env:
+          CODEX_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          test "$(git branch --show-current)" = "izclick/clickup-native-list-detail-20261014"
+          if [ -z "$CODEX_KEY" ]; then
+            echo "enabled=false" }}> "$GITHUB_OUTPUT"
+            echo "::notice::Configure OPENAI_API_KEY in repository Actions secrets to enable Codex."
+          else
+            echo "enabled=true" }}> "$GITHUB_OUTPUT"
+          fi
+      - name: Run Codex in repository workspace only
+        if: steps.readiness.outputs.enabled == 'true'
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          permission-profile: ":workspace"
+          safety-strategy: drop-sudo
+          prompt: |
+            You are working on IZ-Click PR #4 ONLY. Diagnose and fix the
+            smallest demonstrable regression in the native Plane integration.
+            Priorities: React hydration errors #418/#423; intake-state 404
+            only when truly a product defect; missing triage in QA fixtures
+            is already fixed. Review relevant sources before changing code.
+            Never weaken QA gates or delete tests to make CI green.
+            Do not run commands against production, Contabo, deployment
+            servers, external databases or live domains. Never change
+            GitHub Actions, secret files, Docker deploy definitions, or
+            migration history. Keep all work local to this checkout.
+            Preserve issue UUIDs, statuses, permissions and existing data.
+            Avoid unrelated enhancements. Run feasible local checks.
+            Changes are only proposals and require independent review.
+      - name: Export strictly scoped patch
+        if: steps.readiness.outputs.enabled == 'true'
+        id: patch
+        run: |
+          set -euo pipefail
+          git diff --binary }} "$RUNNER_TEMP/proposal.patch"
+          if [ -s "$RUNNER_TEMP/proposal.patch" ]; then
+            # Reject all edits outside application and isolated QA source.
+            if git diff --name-only | grep -Ev '^(apps/web/|apps/api/|qa/)' ; then
+              echo "::error::Changes exceed approved source paths."
+              exit 1
+            fi
+            # Reject added files and renames; only existing tracked files.
+            if git status --porcelain | grep -Eq '^\?\?|^A|^R|^D|^.D' ; then
+              echo "::error::New, renamed or deleted files need manual review."
+              exit 1
+            fi
+            echo "has_patch=true" }}> "$GITHUB_OUTPUT"
+          else
+            echo "has_patch=false" }}> "$GITHUB_OUTPUT"
+          fi
+          mkdir -p qa/proposals
+          cp "$RUNNER_TEMP/proposal.patch" qa/proposals/isolated-fix.patch
+      - uses: actions/upload-artifact@v4
+        if: steps.readiness.outputs.enabled == 'true' && steps.patch.outputs.has_patch == 'true'
+        with:
+          name: izclick-codex-proposed-patch
+          path: qa/proposals/isolated-fix.patch
+          retention-days: 7
+
+  publish-proposal:
+    needs: codex-propose
+    if: needs.codex-propose.outputs.has_patch == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: izclick/clickup-native-list-detail-20261014
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: izclick-codex-proposed-patch
+          path: "$RUNNER_TEMP/izclick-fix"
+      - name: Validate patch and open isolated proposal PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          PATCH="$RUNNER_TEMP/izclick-fix/isolated-fix.patch"
+          test -s "$PATCH"
+          git apply --check "$PATCH"
+          git apply "$PATCH"
+          if git diff --name-only | grep -Ev '^(apps/web/|apps/api/|qa/)' ; then
+            echo "::error::Unapproved files in patch"
+            exit 1
+          fi
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          NEW_BRANCH="izclick/codex-fix-$RUN_ID"
+          git switch -c "$NEW_BRANCH"
+          git add apps/web apps/api qa
+          git commit -m "fix(izclick): Codex isolated remediation proposal"
+          git push origin "HEAD:refs/heads/$NEW_BRANCH"
+          gh pr create \
+            --draft \
+            --base izclick/clickup-native-list-detail-20261014 \
+            --head "$NEW_BRANCH" \
+            --title "Draft: Codex QA correction $RUN_ID" \
+            --body "Automated source-only proposal for IZ-Click PR #4. **Do not merge automatically.** Requires human review, CI, isolated E2E, data-integrity checks and explicit production approval. Original workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$RUN_ID"
