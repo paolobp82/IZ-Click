@@ -13,7 +13,7 @@ export const LIST_COLUMNS = [
 
 type ColumnId = (typeof LIST_COLUMNS)[number]["id"];
 type Preferences = Record<ColumnId, { width: number; visible: boolean }>;
-const storageKey = (projectId: string) => `izclick-project-list-columns-v3:${projectId}`;
+const storageKey = (projectId: string) => `izclick-project-list-columns-v4:${projectId}`;
 const updateEvent = "izclick-list-columns-updated";
 const defaults = (): Preferences =>
   Object.fromEntries(LIST_COLUMNS.map((col) => [col.id, { width: col.width, visible: true }])) as Preferences;
@@ -69,7 +69,7 @@ export function ListColumnControls() {
         if (!setting) continue;
         next[col.id] = {
           visible: setting.visible !== false,
-          width: Math.max(96, Math.min(500, Number(setting.width) || col.width)),
+          width: Math.max(col.id === "state" ? 220 : col.id === "priority" ? 120 : 96, Math.min(500, Number(setting.width) || col.width)),
         };
       }
       setPrefs(next);
@@ -104,7 +104,7 @@ export function ListColumnControls() {
     let moved = false;
     const move = (event: PointerEvent) => {
       moved = true;
-      updated = { ...updated, [id]: { ...updated[id], width: Math.max(96, Math.min(500, initial + event.clientX - startX)) } };
+      updated = { ...updated, [id]: { ...updated[id], width: Math.max(id === "state" ? 220 : id === "priority" ? 120 : 96, Math.min(500, initial + event.clientX - startX)) } };
       apply(updated);
     };
     const end = () => {
