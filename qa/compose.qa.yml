@@ -1,0 +1,80 @@
+# IZ-Click QA: isolated and disposable, NEVER on the production host.
+name: izclick-qa
+
+services:
+  qa-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: izclick_qa
+      POSTGRES_PASSWORD: qa_ephemeral_not_for_production
+      POSTGRES_DB: izclick_qa
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U izclick_qa -d izclick_qa"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  qa-redis:
+    image: valkey/valkey:7.2.11-alpine
+
+  qa-mq:
+    image: rabbitmq:3.13.6-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: izclick_qa
+      RABBITMQ_DEFAULT_PASS: qa_ephemeral_not_for_production
+      RABBITMQ_DEFAULT_VHOST: izclick_qa
+
+  qa-minio:
+    image: minio/minio
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: izclick_qa_storage
+      MINIO_ROOT_PASSWORD: qa_ephemeral_not_for_production
+
+  qa-api:
+    image: ${IZCLICK_QA_API_IMAGE:?The immutable QA API image tag is required}
+    environment:
+      DEBUG: "0"
+      SECRET_KEY: ${IZCLICK_QA_SECRET_KEY:?Generate a random ephemeral secret}
+      DATABASE_URL: postgresql://izclick_qa:qa_ephemeral_not_for_production@qa-db:5432/izclick_qa
+      REDIS_URL: redis://qa-redis:6379/0
+      RABBITMQ_HOST: qa-mq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: izclick_qa
+      RABBITMQ_PASSWORD: qa_ephemeral_not_for_production
+      RABBITMQ_VHOST: izclick_qa
+      USE_MINIO: "1"
+      AWS_ACCESS_KEY_ID: izclick_qa_storage
+      AWS_SECRET_ACCESS_KEY: qa_ephemeral_not_for_production
+      AWS_S3_ENDPOINT_URL: http://qa-minio:9000
+      AWS_S3_BUCKET_NAME: qa-uploads
+      MINIO_ENDPOINT_SSL: "0"
+      APP_BASE_URL: http://127.0.0.1:38080
+      WEB_URL: http://127.0.0.1:38080
+      CORS_ALLOWED_ORIGINS: http://127.0.0.1:38080
+      GUNICORN_WORKERS: "1"
+      PORT: "8000"
+      SKIP_ENV_VAR: "1"
+      ALLOWED_HOSTS: "127.0.0.1,localhost,qa-api,qa-proxy"
+    depends_on:
+      qa-db:
+        condition: service_healthy
+      qa-redis:
+        condition: service_started
+      qa-mq:
+        condition: service_started
+      qa-minio:
+        condition: service_started
+
+  qa-web:
+    image: ${IZCLICK_QA_WEB_IMAGE:?The matching immutable QA Web image tag is required}
+
+  qa-proxy:
+    image: nginx:1.31-alpine
+    volumes:
+      - ./nginx.qa.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:38080:80"
+    depends_on:
+      - qa-api
+      - qa-web
