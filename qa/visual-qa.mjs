@@ -12,6 +12,9 @@ const projectUrl = `${base}/${fixture.workspace}/projects/${fixture.project_id}/
 const browser = await chromium.launch({ headless: true });
 const results = [];
 const runtimeErrors = [];
+const failedApiResponses = [];
+let lastBrowserUrl = null;
+let lastBrowserTitle = null;
 
 function addSession(context, session) {
   return context.addCookies([{
@@ -63,10 +66,18 @@ try {
   await addSession(context, fixture.admin_session);
   const page = await context.newPage();
   page.on("pageerror", error => runtimeErrors.push(error.message));
+  page.on("response", response => {
+    if (response.url().startsWith(`${base}/api/`) && response.status() >= 400) {
+      failedApiResponses.push({ status: response.status(), path: new URL(response.url()).pathname });
+    }
+  });
   page.on("console", message => {
     if (message.type() === "error") runtimeErrors.push(message.text());
   });
   await page.goto(projectUrl, { waitUntil: "domcontentloaded", timeout: 45000 });
+  lastBrowserUrl = page.url();
+  lastBrowserTitle = await page.title();
+  await recordScreenshot(page, "initial-navigation.png");
   let issue;
   try {
     await perform("session authenticated and synthetic issue visible", async () => {
@@ -133,7 +144,10 @@ try {
     syntheticOnly: true,
     candidateProjectId: fixture.project_id,
     steps: results,
-    runtimeErrors,
+    runtimeErrors: [...new Set(runtimeErrors)].slice(0, 15),
+    failedApiResponses: failedApiResponses.slice(0, 30),
+    lastBrowserUrl,
+    lastBrowserTitle,
   }, null, 2));
   await browser.close();
 }
