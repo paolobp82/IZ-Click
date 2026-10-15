@@ -48,6 +48,7 @@ export function ListColumnControls() {
   const [customFields, setCustomFields] = useState<{ id: string; name: string; type: string }[]>([]);
   const [customError, setCustomError] = useState("");
   const [savingField, setSavingField] = useState(false);
+  const [apiAvailable, setApiAvailable] = useState(false);
   const { workspaceSlug } = useParams();
   const customFieldsUrl = `${(API_BASE_URL || "").replace(/\/$/, "")}/api/v1/workspaces/${String(workspaceSlug || "")}/projects/${scope}/izclick-custom-fields/`;
   const loadCustomFields = async () => {
@@ -56,8 +57,8 @@ export function ListColumnControls() {
       const res = await fetch(customFieldsUrl, { credentials: "include" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const values = await res.json();
-      if (Array.isArray(values)) setCustomFields(values);
-    } catch { setCustomFields([]); }
+      if (Array.isArray(values)) { setCustomFields(values); setApiAvailable(true); }
+    } catch { setCustomFields([]); setApiAvailable(false); }
   };
   const createCustomField = async () => {
     if (!newFieldName.trim() || savingField) return;
@@ -193,7 +194,8 @@ export function ListColumnControls() {
             <span className="mb-2 block text-xs font-semibold">Crear columna personalizada</span>
             <input aria-label="Nombre de columna" placeholder="Nombre de columna" maxLength={100} value={newFieldName} onChange={e => setNewFieldName(e.target.value)} className="mb-2 w-full rounded border border-subtle bg-surface-1 px-2 py-1.5 text-xs" />
             <select aria-label="Tipo de columna" value={newFieldType} onChange={e => setNewFieldType(e.target.value)} className="mb-2 w-full rounded border border-subtle bg-surface-1 p-1.5 text-xs"><option value="text">Texto</option><option value="number">Número</option><option value="date">Fecha</option><option value="select">Selección</option></select>
-            <button type="button" onClick={() => void createCustomField()} disabled={savingField || !newFieldName.trim()} className="w-full rounded bg-accent-primary px-2 py-1.5 text-xs text-white disabled:opacity-50">+ Crear campo</button>
+            <button type="button" onClick={() => void createCustomField()} disabled={!apiAvailable || savingField || !newFieldName.trim()} className="w-full rounded bg-accent-primary px-2 py-1.5 text-xs text-white disabled:opacity-50">+ Crear campo</button>
+            {!apiAvailable && <span className="mb-2 block text-xs text-tertiary">Creación no disponible: primero deben habilitarse la API y la migración.</span>}
             {customError && <span role="alert" className="mt-2 block text-xs text-red-500">{customError}</span>}
             {customFields.length > 0 && <span className="mt-2 block text-xs text-tertiary">{customFields.length} campos personalizados registrados. Visualización de celdas pendiente.</span>}
           </span>
