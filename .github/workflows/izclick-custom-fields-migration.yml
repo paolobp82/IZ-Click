@@ -40,11 +40,9 @@ jobs:
           REDIS_URL: redis://127.0.0.1:6379/0
           SECRET_KEY: migration-preflight-not-for-production
         run: |
-          python manage.py makemigrations db --name izclick_custom_fields --noinput
-          git status --short plane/db/migrations
-          git diff -- plane/db/migrations
           python manage.py makemigrations db --check --dry-run --noinput
-          test -n "$(git ls-files --others --exclude-standard plane/db/migrations/)"
+          python manage.py migrate db --plan
+          test -f plane/db/migrations/0124_izclick_custom_fields.py
       - name: Upload migration for inspection; do not apply it
         uses: actions/upload-artifact@v4
         with:
