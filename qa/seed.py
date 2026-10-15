@@ -91,6 +91,13 @@ done = State.objects.create(
     workspace=workspace, project=project, name="Terminada",
     color="#22c55e", group="completed",
 )
+# The frontend requests /intake-state/ for project views. Plane responds
+# 404 unless a triage state exists, even when the List itself is functional.
+# Mirror a normally provisioned project in the disposable QA database.
+State.objects.create(
+    workspace=workspace, project=project, name="Por clasificar",
+    color="#6b7280", group="triage", default=False,
+)
 project.default_state = pending
 project.save(update_fields=["default_state"])
 states = [pending, pending, active, active, done, done, pending, active]
