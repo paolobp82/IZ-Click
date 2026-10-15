@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 import { useProjectState } from "@/hooks/store/use-project-state";
@@ -14,6 +14,19 @@ export const ProductionStateManager = observer(function ProductionStateManager({
   const slug = String(workspaceSlug ?? "");
   const { getProjectStates, createState, updateState } = useProjectState();
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handleOutside = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setOpen(false); setEditingId(null); }
+    };
+    document.addEventListener("pointerdown", handleOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => { document.removeEventListener("pointerdown", handleOutside); document.removeEventListener("keydown", handleEscape); };
+  }, [open]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [group, setGroup] = useState<StateGroup>("unstarted");
@@ -63,7 +76,7 @@ export const ProductionStateManager = observer(function ProductionStateManager({
 
   if (!canEdit || !slug) return null;
   return (
-    <span className="relative shrink-0">
+    <span ref={rootRef} className="relative shrink-0">
       <button type="button" className="rounded px-1 text-tertiary hover:bg-layer-1-hover"
         aria-label="Administrar estados del proyecto" title="Crear o editar estados y colores"
         onClick={(event) => { event.preventDefault(); event.stopPropagation(); setOpen(!open); setEditingId(null); }}>⋯</button>
