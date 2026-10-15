@@ -43,11 +43,57 @@ export async function getCustomFields(slug: string, projectId: string): Promise<
   return request;
 }
 
-export async function getCustomValues(slug: string, projectId: string, issueId: string): Promise<Record<string, unknown>> {
-  const response = await fetch(`${projectUrl(slug, projectId)}/issues/${encodeURIComponent(issueId)}/izclick-custom-field-values/`, { credentials: "include" });
-  if (!response.ok) throw new Error(`Custom values HTTP ${response.status}`);
-  return response.json();
+// Queue reads from rows mounted in the same render and request them per project.
+// This avoids one API call for each visible work item in large lists.
+type ValueRead = {
+  issueId: string;
+  resolve: (value: Record<string, unknown>) => void;
+  reject: (error: Error) => void;
+};
+const valueQueues = new Map<string, ValueRead[]>();
+
+async function flushValueReads(key: string) {
+  const queue = valueQueues.get(key) ?? [];
+  valueQueues.delete(key);
+  if (!queue.length) return;
+  const ids = [...new Set(queue.map((item) => item.issueId))];
+  const readBatch = async (issueIds: string[]) => {
+    const response = await fetch(`${key}/izclick-custom-field-values/batch/`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ issue_ids: issueIds }),
+    });
+    if (!response.ok) throw new Error(`Custom values batch HTTP ${response.status}`);
+    const result: unknown = await response.json();
+    if (!result || typeof result !== "object" || Array.isArray(result)) throw new Error("Respuesta de valores inválida");
+    return result as Record<string, Record<string, unknown>>;
+  };
+  try {
+    const batches: Record<string, Record<string, unknown>> = {};
+    for (let offset = 0; offset < ids.length; offset += 200) {
+      Object.assign(batches, await readBatch(ids.slice(offset, offset + 200)));
+    }
+    queue.forEach(({ issueId, resolve }) => resolve(batches[issueId] ?? {}));
+  } catch (cause) {
+    const error = cause instanceof Error ? cause : new Error("No se pudieron consultar los valores");
+    queue.forEach(({ reject }) => reject(error));
+  }
 }
+
+export function getCustomValues(slug: string, projectId: string, issueId: string): Promise<Record<string, unknown>> {
+  const key = projectUrl(slug, projectId);
+  return new Promise((resolve, reject) => {
+    const pending = valueQueues.get(key);
+    if (pending) {
+      pending.push({ issueId, resolve, reject });
+    } else {
+      valueQueues.set(key, [{ issueId, resolve, reject }]);
+      void Promise.resolve().then(() => flushValueReads(key));
+    }
+  });
+}
+
 export async function updateCustomValue(slug: string, projectId: string, issueId: string, fieldId: string, value: unknown) {
   const response = await fetch(`${projectUrl(slug, projectId)}/issues/${encodeURIComponent(issueId)}/izclick-custom-field-values/`, {
     method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
