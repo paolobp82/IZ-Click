@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IssueService } from "@/services/issue";
 import { useLabel } from "@/hooks/store/use-label";
 import { fetchProjectProductionMetadata, invalidateProjectProductionMetadata } from "./production-project-metadata";
@@ -24,6 +24,9 @@ const dateOf = (links: PlaneExternalLink[]): string => {
 /** Inline editor on the native spreadsheet; reads and writes Plane IssueLink records. */
 export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit, labelIds, onUpdateLabels, asDiv = false }: Props) {
   const service = useMemo(() => new IssueService(), []);
+  const clientEditorRef = useRef<HTMLDivElement>(null);
+  const dateEditorRef = useRef<HTMLDivElement>(null);
+  const sigEditorRef = useRef<HTMLDivElement>(null);
   const { createLabel } = useLabel();
   const [newClient, setNewClient] = useState("");
   const [newClientColor, setNewClientColor] = useState("#3b82f6");
@@ -189,13 +192,37 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     } finally { setClientBusy(false); }
   };
 
+  useEffect(() => {
+    if (!editingClient && !editing && !editingSig) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (editingClient && clientEditorRef.current && !clientEditorRef.current.contains(target) && !clientBusy) setEditingClient(false);
+      if (editing && dateEditorRef.current && !dateEditorRef.current.contains(target) && !busy) { setEditing(false); setDraft(date); }
+      if (editingSig && sigEditorRef.current && !sigEditorRef.current.contains(target) && !busy) setEditingSig(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setEditingClient(false);
+        setEditing(false);
+        setEditingSig(false);
+        setDraft(date);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [editingClient, editing, editingSig, clientBusy, busy, date]);
+
   const Cell = asDiv ? "div" : "td";
 
   return (
     <>
-      <Cell className="h-11 w-40 min-w-0 shrink-0 border-r border-subtle px-3 text-13" style={asDiv ? { display: "var(--izclick-show-client, flex)", width: "var(--izclick-col-client, 160px)" } : undefined}>
+      <Cell className="relative h-11 w-40 min-w-0 shrink-0 items-center border-r border-subtle px-3 text-13" style={asDiv ? { display: "var(--izclick-show-client, flex)", width: "var(--izclick-col-client, 160px)" } : undefined}>
         {editingClient ? (
-          <div className="flex flex-col gap-1 py-1">
+          <div ref={clientEditorRef} className={asDiv ? "absolute left-0 top-full z-40 flex w-72 flex-col gap-2 rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl" : "flex flex-col gap-1 py-1"}>
             <select aria-label="Seleccionar cliente" value={client?.id ?? ""} disabled={clientBusy}
               onChange={(event) => void changeClient(event.target.value)}
               className="max-w-48 rounded border border-subtle bg-surface-1 p-1 text-xs">
@@ -226,9 +253,9 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
           </button>
         )}
       </Cell>
-      <Cell className="h-11 w-40 min-w-0 shrink-0 overflow-hidden border-r border-subtle px-2 text-13" style={asDiv ? { display: "var(--izclick-show-event, flex)", width: "var(--izclick-col-event, 160px)" } : undefined}>
+      <Cell className="relative h-11 w-40 min-w-0 shrink-0 items-center border-r border-subtle px-2 text-13" style={asDiv ? { display: "var(--izclick-show-event, flex)", width: "var(--izclick-col-event, 160px)" } : undefined}>
         {editing ? (
-          <div className="flex flex-wrap items-center gap-1">
+          <div ref={dateEditorRef} className={asDiv ? "absolute left-0 top-full z-40 flex w-64 flex-wrap items-center gap-2 rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl" : "flex flex-wrap items-center gap-1"}>
             <input type="date" aria-label="Fecha del evento" value={draft} disabled={busy}
               onChange={(event) => setDraft(event.target.value)}
               className="max-w-36 rounded border border-subtle bg-surface-1 px-1 py-1 text-xs" />
@@ -244,9 +271,9 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
           </button>
         )}
       </Cell>
-      <Cell className="h-11 min-w-40 border-r border-subtle px-2 text-13">
+      <Cell className="relative h-11 min-w-40 border-r border-subtle px-2 text-13">
         {editingSig ? (
-          <div className="flex min-w-56 flex-col gap-1 py-1">
+          <div ref={sigEditorRef} className={asDiv ? "absolute right-0 top-full z-40 flex w-80 flex-col gap-2 rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl" : "flex min-w-56 flex-col gap-1 py-1"}>
             <input aria-label="Código SIG" maxLength={60} value={sigCodeDraft} disabled={busy}
               onChange={(event) => setSigCodeDraft(event.target.value)}
               placeholder="IZ-26968" className="rounded border border-subtle bg-surface-1 px-2 py-1 text-xs" />
