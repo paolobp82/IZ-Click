@@ -41,7 +41,18 @@ jobs:
           SECRET_KEY: migration-preflight-not-for-production
         run: |
           python manage.py makemigrations db --check --dry-run --noinput
-          python manage.py migrate db --plan
+          python - <<'PY'
+          import os
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "plane.settings.production")
+          import django
+          django.setup()
+          from django.db.migrations.loader import MigrationLoader
+          loader = MigrationLoader(None)
+          target = ("db", "0124_izclick_custom_fields")
+          assert target in loader.graph.nodes, "Custom field migration is missing"
+          assert ("db", "0123_izclick_production_workspace_statuses") in loader.graph.node_map[target].parents, "Unexpected parent migration"
+          print("Migration dependency graph validated without database access")
+          PY
           test -f plane/db/migrations/0124_izclick_custom_fields.py
       - name: Upload migration for inspection; do not apply it
         uses: actions/upload-artifact@v4
