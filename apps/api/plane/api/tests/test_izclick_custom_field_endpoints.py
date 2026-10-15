@@ -6,6 +6,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from plane.api.views.izclick_custom_fields import (
     IzclickProjectCustomFieldsAPI,
     IzclickIssueCustomFieldValuesAPI,
+    IzclickProjectCustomFieldBulkValuesAPI,
 )
 from plane.db.models import Issue, Project, ProjectMember, Workspace, User, IzclickCustomFieldValue
 
@@ -94,3 +95,41 @@ class IzclickCustomFieldEndpointTests(TestCase):
             f"{root}/izclick-custom-fields/", self.outsider,
         )
         self.assertEqual(read.status_code, 403)
+
+    def test_bulk_values_are_project_scoped_and_permission_checked(self):
+        root = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}"
+        field_response = self.request(
+            IzclickProjectCustomFieldsAPI, "post",
+            f"{root}/izclick-custom-fields/", self.user,
+            {"name": "Material", "type": "text"},
+        )
+        self.assertEqual(field_response.status_code, 201, field_response.data)
+        field_id = field_response.data["id"]
+        value_response = self.request(
+            IzclickIssueCustomFieldValuesAPI, "patch",
+            f"{root}/issues/{self.issue.id}/izclick-custom-field-values/",
+            self.user, {"values": {field_id: "Acero"}},
+        )
+        self.assertEqual(value_response.status_code, 200, value_response.data)
+        path = f"{root}/izclick-custom-field-values/batch/"
+        self.assertEqual(resolve(path).url_name, "izclick-custom-values-batch")
+        payload = {"issue_ids": [str(self.issue.id)]}
+        result = self.request(
+            IzclickProjectCustomFieldBulkValuesAPI, "post", path, self.user, payload,
+        )
+        self.assertEqual(result.status_code, 200, result.data)
+        self.assertEqual(result.data[str(self.issue.id)][field_id], "Acero")
+        unauthorized = self.request(
+            IzclickProjectCustomFieldBulkValuesAPI, "post", path, self.outsider, payload,
+        )
+        self.assertEqual(unauthorized.status_code, 403)
+
+    def test_bulk_values_rejects_invalid_input(self):
+        root = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}"
+        path = f"{root}/izclick-custom-field-values/batch/"
+        for payload in ({"issue_ids": []}, {"issue_ids": ["bad-uuid"]},
+                        {"issue_ids": ["x"] * 201}, {"issue_ids": "bad"}):
+            response = self.request(
+                IzclickProjectCustomFieldBulkValuesAPI, "post", path, self.user, payload,
+            )
+            self.assertEqual(response.status_code, 400, response.data)
