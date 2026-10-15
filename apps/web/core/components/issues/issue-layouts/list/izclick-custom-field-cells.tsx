@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { customFieldsEvent, getCustomFields, getCustomValues, updateCustomValue } from "./izclick-custom-field-api";
 import type { IzclickCustomField } from "./izclick-custom-field-api";
 
@@ -10,6 +11,8 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [valuesError, setValuesError] = useState(false);
   const [active, setActive] = useState<string | null>(null);
+  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
+  const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -51,15 +54,33 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
     return () => { mounted = false; window.removeEventListener(customFieldsEvent, onChange); };
   }, [workspaceSlug, projectId, issueId]);
   useEffect(() => {
-    if (!active) return;
+    if (!active || !anchor) return;
+    const updatePosition = () => {
+      const rect = anchor.getBoundingClientRect();
+      const width = Math.min(256, window.innerWidth - 32);
+      const left = Math.max(16, Math.min(window.innerWidth - width - 16, rect.left));
+      const top = window.innerHeight - rect.bottom >= 230
+        ? rect.bottom + 6
+        : Math.max(16, rect.top - 210);
+      setPopupPosition({ top, left });
+    };
+    updatePosition();
     const outside = (e: PointerEvent) => {
-      if (!popupRef.current?.contains(e.target as Node) && !busy) setActive(null);
+      const node = e.target as Node;
+      if (!popupRef.current?.contains(node) && !anchor.contains(node) && !busy) setActive(null);
     };
     const escape = (e: KeyboardEvent) => { if (e.key === "Escape" && !busy) setActive(null); };
     document.addEventListener("pointerdown", outside);
     document.addEventListener("keydown", escape);
-    return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
-  }, [active, busy]);
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [active, anchor, busy]);
   const save = async (field: IzclickCustomField) => {
     let value: unknown = draft || null;
     if (draft && field.type === "number") {
@@ -74,6 +95,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
     } catch { setError("No se pudo guardar el valor."); }
     finally { setBusy(false); }
   };
+  const activeField = fields.find(field => field.id === active);
   return <>
     {fieldsAvailable && fields.map(field => {
       const current = values[field.id];
@@ -82,22 +104,43 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
       return <div key={field.id} className="relative flex h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2 text-xs" style={{ display: `var(--izclick-custom-display-${field.id}, flex)`, width: `var(--izclick-custom-width-${field.id}, 176px)`, minWidth: `var(--izclick-custom-width-${field.id}, 176px)`, maxWidth: `var(--izclick-custom-width-${field.id}, 176px)` }} onClick={e => e.stopPropagation()}>
         <button disabled={!canEdit || valuesError} type="button" title={valuesError ? "No se pudieron cargar los valores. Actualiza la lista." : label}
           className="flex w-full min-w-0 items-center gap-1.5 rounded px-1 py-1 text-left hover:bg-layer-1-hover disabled:cursor-default"
-          onClick={() => { setActive(field.id); setDraft(current == null ? "" : String(current)); setError(""); }}>
+          onClick={event => { setAnchor(event.currentTarget); setActive(field.id); setDraft(current == null ? "" : String(current)); setError(""); }}>
           {!valuesError && field.type === "select" && option?.color && <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: option.color }} />}
           <span className="min-w-0 flex-1 truncate">{valuesError ? "Error al cargar" : label}</span>
         </button>
-        {active === field.id && <div data-izclick-popover ref={popupRef} className="absolute left-0 top-full z-[90] w-64 rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl">
-          <span className="mb-2 block font-medium">{field.name}</span>
-          {field.type === "select" ? <select aria-label={field.name} className="w-full rounded border border-subtle bg-surface-1 p-2" value={draft} onChange={e => setDraft(e.target.value)}>
-            <option value="">Sin valor</option>{(field.options || []).map(opt => <option value={opt.id} key={opt.id}>{opt.name}</option>)}
-          </select> : <input aria-label={field.name} className="w-full rounded border border-subtle bg-surface-1 p-2" type={field.type === "date" ? "date" : field.type === "number" ? "number" : "text"} value={draft} onChange={e => setDraft(e.target.value)} />}
-          {error && <div role="alert" className="mt-2 text-red-500">{error}</div>}
-          <div className="mt-3 flex justify-end gap-2">
-            <button type="button" disabled={busy} onClick={() => setActive(null)}>Cancelar</button>
-            <button type="button" disabled={busy} className="rounded bg-accent-primary px-2 py-1 text-white" onClick={() => void save(field)}>Guardar</button>
-          </div>
-        </div>}
       </div>;
     })}
+    {activeField && anchor && createPortal(
+      <div
+        data-izclick-popover
+        ref={popupRef}
+        role="dialog"
+        aria-label={`Editar ${activeField.name}`}
+        className="fixed z-[1000] max-h-[calc(100vh-2rem)] w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-subtle bg-surface-1 p-3 text-xs shadow-xl"
+        style={{ top: popupPosition.top, left: popupPosition.left }}
+      >
+        <span className="mb-2 block font-medium">{activeField.name}</span>
+        {activeField.type === "select" ? (
+          <select aria-label={activeField.name} className="w-full rounded border border-subtle bg-surface-1 p-2" value={draft} onChange={event => setDraft(event.target.value)}>
+            <option value="">Sin valor</option>
+            {(activeField.options || []).map(option => <option value={option.id} key={option.id}>{option.name}</option>)}
+          </select>
+        ) : (
+          <input
+            aria-label={activeField.name}
+            className="w-full rounded border border-subtle bg-surface-1 p-2"
+            type={activeField.type === "date" ? "date" : activeField.type === "number" ? "number" : "text"}
+            value={draft}
+            onChange={event => setDraft(event.target.value)}
+          />
+        )}
+        {error && <div role="alert" className="mt-2 text-red-500">{error}</div>}
+        <div className="mt-3 flex justify-end gap-2">
+          <button type="button" disabled={busy} onClick={() => setActive(null)}>Cancelar</button>
+          <button type="button" disabled={busy} className="rounded bg-accent-primary px-2 py-1 text-white" onClick={() => void save(activeField)}>Guardar</button>
+        </div>
+      </div>,
+      document.body
+    )}
   </>;
 }
