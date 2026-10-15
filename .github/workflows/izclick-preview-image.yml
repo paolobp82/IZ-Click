@@ -6,6 +6,7 @@ on:
       - izclick/clickup-native-list-detail-20261014
     paths:
       - 'apps/web/**'
+      - 'apps/api/**'
       - '.github/workflows/izclick-preview-image.yml'
   workflow_dispatch:
 
