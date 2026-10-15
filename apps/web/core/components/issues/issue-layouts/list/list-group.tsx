@@ -6,6 +6,7 @@
 
 import type { MutableRefObject } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { observer } from "mobx-react";
@@ -108,6 +109,7 @@ export const ListGroup = observer(function ListGroup(props: Props) {
   const { t } = useTranslation();
   const projectState = useProjectState();
   const isProjectList = useIssueStoreType() === EIssuesStoreType.PROJECT && !isEpic;
+  const { projectId: routedProjectId } = useParams();
 
   const {
     issues: { getGroupIssueCount, getPaginationData, getIssueLoader },
@@ -291,7 +293,7 @@ export const ListGroup = observer(function ListGroup(props: Props) {
         <div className="relative">
           {isProjectList && (
             <div className="sticky top-9 z-[2] flex min-h-9 w-max min-w-max items-center border-b border-subtle bg-layer-1 text-xs font-medium text-tertiary" aria-label="Columnas de cargas">
-              <ListColumnControls />
+              <ListColumnControls canManageStates={canEditProperties(routedProjectId?.toString())} />
             </div>
           )}
           <GroupDragOverlay
