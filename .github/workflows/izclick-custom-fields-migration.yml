@@ -5,6 +5,7 @@ on:
     paths:
       - 'apps/api/plane/db/models/izclick_custom_field.py'
       - 'apps/api/plane/db/models/__init__.py'
+      - 'apps/api/plane/api/views/izclick_custom_fields.py'
       - '.github/workflows/izclick-custom-fields-migration.yml'
   workflow_dispatch:
 
@@ -33,7 +34,7 @@ jobs:
           REDIS_URL: redis://127.0.0.1:6379/0
           SECRET_KEY: migration-preflight-not-for-production
         run: |
-          python manage.py makemigrations db --name izclick_custom_fields --noinput --no-header
+          python manage.py makemigrations db --name izclick_custom_fields --noinput
           git status --short plane/db/migrations
           git diff -- plane/db/migrations
           test -n "$(git ls-files --others --exclude-standard plane/db/migrations/)"
