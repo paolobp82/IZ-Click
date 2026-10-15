@@ -1,4 +1,4 @@
-"""Project-scoped IZ-Click custom field endpoints (disabled until migration is deployed)."""
+"""Project-scoped IZ-Click custom fields for the authenticated application."""
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from rest_framework.response import Response
@@ -7,7 +7,7 @@ from rest_framework import status
 from plane.db.models import (
     Project, ProjectMember, Issue, IzclickCustomField, IzclickCustomFieldValue,
 )
-from .base import BaseAPIView
+from plane.app.views.base import BaseAPIView
 
 
 def project_access(request, slug, project_id, write=False, schema=False):
