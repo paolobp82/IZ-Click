@@ -73,6 +73,21 @@ jobs:
           Path("qa/.qa-fixture.json").write_text(json.dumps(fixture))
           print("QA fixture successfully created; session credentials withheld")
           PY
+      - name: Verify synthetic instance and refresh API configuration cache
+        run: |
+          docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell -c \
+            'from plane.license.models import Instance; from plane.db.models import Workspace, Issue; i=Instance.objects.first(); assert i is not None and i.is_setup_done and i.is_test, "QA instance not set up"; assert Workspace.objects.filter(slug="izclick-qa").exists(); assert Issue.objects.filter(workspace__slug="izclick-qa").count()==8; print("QA setup verified with 8 synthetic work items")'
+          docker compose -f qa/compose.qa.yml restart qa-api
+          for attempt in $(seq 1 50); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:38080/api/instances/ || true)
+            if [ "$code" = "200" ]; then
+              echo "QA API instance endpoint responsive after restart"
+              exit 0
+            fi
+            sleep 3
+          done
+          docker compose -f qa/compose.qa.yml logs --tail=90 qa-api
+          exit 1
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
