@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 import { useProjectState } from "@/hooks/store/use-project-state";
@@ -15,17 +16,38 @@ export const ProductionStateManager = observer(function ProductionStateManager({
   const { getProjectStates, createState, updateState } = useProjectState();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLSpanElement>(null);
+  const panelRef = useRef<HTMLSpanElement>(null);
+  const [panelPosition, setPanelPosition] = useState({ top: 0, left: 0 });
   useEffect(() => {
     if (!open) return;
+    const updatePosition = () => {
+      const rect = rootRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = Math.min(288, window.innerWidth - 32);
+      const left = Math.max(16, Math.min(window.innerWidth - width - 16, rect.left));
+      const top = window.innerHeight - rect.bottom >= 320
+        ? rect.bottom + 6
+        : Math.max(16, rect.top - Math.min(window.innerHeight * 0.7, 410) - 6);
+      setPanelPosition({ top, left });
+    };
+    updatePosition();
     const handleOutside = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const node = event.target as Node;
+      if (!rootRef.current?.contains(node) && !panelRef.current?.contains(node)) setOpen(false);
     };
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") { setOpen(false); setEditingId(null); }
     };
     document.addEventListener("pointerdown", handleOutside);
     document.addEventListener("keydown", handleEscape);
-    return () => { document.removeEventListener("pointerdown", handleOutside); document.removeEventListener("keydown", handleEscape); };
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      document.removeEventListener("pointerdown", handleOutside);
+      document.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
   }, [open]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -80,8 +102,8 @@ export const ProductionStateManager = observer(function ProductionStateManager({
       <button type="button" className="rounded px-1 text-tertiary hover:bg-layer-1-hover"
         aria-label="Administrar estados del proyecto" title="Crear o editar estados y colores"
         onClick={(event) => { event.preventDefault(); event.stopPropagation(); setOpen(!open); setEditingId(null); }}>⋯</button>
-      {open && (
-        <span data-izclick-popover className="absolute left-0 top-full z-[80] block w-72 rounded border border-subtle bg-surface-1 p-3 text-xs shadow-lg"
+      {open && createPortal(
+        <span ref={panelRef} data-izclick-popover role="dialog" aria-label="Administrar estados del proyecto" className="fixed z-[1000] block max-h-[70vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded border border-subtle bg-surface-1 p-3 text-xs shadow-lg" style={{ top: panelPosition.top, left: panelPosition.left }}
           onClick={(event) => event.stopPropagation()}>
           <span className="mb-2 flex items-center justify-between font-semibold">
             Estados del proyecto
@@ -138,7 +160,7 @@ export const ProductionStateManager = observer(function ProductionStateManager({
               </span>
             </span>
           )}
-        </span>
+        </span>, document.body
       )}
     </span>
   );
