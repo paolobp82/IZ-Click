@@ -81,7 +81,7 @@ export const ProductionStateManager = observer(function ProductionStateManager({
         aria-label="Administrar estados del proyecto" title="Crear o editar estados y colores"
         onClick={(event) => { event.preventDefault(); event.stopPropagation(); setOpen(!open); setEditingId(null); }}>⋯</button>
       {open && (
-        <span className="absolute left-0 top-full z-50 block w-72 rounded border border-subtle bg-surface-1 p-3 text-xs shadow-lg"
+        <span data-izclick-popover className="absolute left-0 top-full z-[80] block w-72 rounded border border-subtle bg-surface-1 p-3 text-xs shadow-lg"
           onClick={(event) => event.stopPropagation()}>
           <span className="mb-2 flex items-center justify-between font-semibold">
             Estados del proyecto
