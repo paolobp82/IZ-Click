@@ -13,6 +13,7 @@ const browser = await chromium.launch({ headless: true });
 const results = [];
 const runtimeErrors = [];
 const failedApiResponses = [];
+const intakeResponseDiagnostics = [];
 let lastBrowserUrl = null;
 let lastBrowserTitle = null;
 
@@ -67,6 +68,9 @@ try {
   const page = await context.newPage();
   page.on("pageerror", error => runtimeErrors.push(error.message));
   page.on("response", response => {
+    if (/\/intake-state\//.test(new URL(response.url()).pathname) && response.status() === 404 && intakeResponseDiagnostics.length < 4) {
+      response.text().then(body => intakeResponseDiagnostics.push({ role: "admin", status: response.status(), body: body.slice(0, 500) })).catch(() => {});
+    }
     if (response.url().startsWith(`${base}/api/`) && response.status() >= 400) {
       failedApiResponses.push({ status: response.status(), path: new URL(response.url()).pathname });
     }
@@ -130,6 +134,9 @@ try {
     if (message.type() === "error") runtimeErrors.push(`[guest] ${message.text()}`);
   });
   guest.on("response", response => {
+    if (/\/intake-state\//.test(new URL(response.url()).pathname) && response.status() === 404 && intakeResponseDiagnostics.length < 4) {
+      response.text().then(body => intakeResponseDiagnostics.push({ role: "guest", status: response.status(), body: body.slice(0, 500) })).catch(() => {});
+    }
     if (response.url().startsWith(`${base}/api/`) && response.status() >= 400) {
       failedApiResponses.push({ status: response.status(), path: new URL(response.url()).pathname, role: "guest" });
     }
@@ -162,6 +169,7 @@ try {
     },
     lastBrowserUrl,
     lastBrowserTitle,
+    intakeResponseDiagnostics,
   }, null, 2));
   await browser.close();
   // A visually passing run is not release-ready while React hydration or core API calls fail.
