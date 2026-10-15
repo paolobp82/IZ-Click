@@ -127,6 +127,6 @@ class IzclickIssueCustomFieldValuesAPI(BaseAPIView):
                     record.value = value
                     record.full_clean()
                     record.save()
-        except (IzclickCustomField.DoesNotExist, ValidationError, ValueError, TypeError) as exc:
+        except (IzclickCustomField.DoesNotExist, ValidationError, ValueError, TypeError, IntegrityError) as exc:
             return Response({"error": str(exc)}, status=400)
         return self.get(request, slug, project_id, issue_id)
