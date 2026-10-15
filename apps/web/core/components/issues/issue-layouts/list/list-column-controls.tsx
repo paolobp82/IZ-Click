@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { API_BASE_URL } from "@plane/constants";
 import { getCustomFields, invalidateCustomFields } from "./izclick-custom-field-api";
@@ -48,6 +49,8 @@ export function ListColumnControls() {
   const [prefs, setPrefs] = useState<Preferences>(defaults);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLSpanElement>(null);
+  const menuPanelRef = useRef<HTMLSpanElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [newFieldName, setNewFieldName] = useState("");
   const [newFieldType, setNewFieldType] = useState("text");
   const [newOptionName, setNewOptionName] = useState("");
@@ -101,17 +104,35 @@ export function ListColumnControls() {
   }, [scope, workspaceSlug]);
   useEffect(() => {
     if (!open) return;
+    const updatePosition = () => {
+      const rect = menuRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = Math.min(320, window.innerWidth - 32);
+      const menuHeight = Math.min(window.innerHeight * 0.75, 640);
+      const availableBelow = window.innerHeight - rect.bottom - 8;
+      const top = availableBelow >= Math.min(menuHeight, 260)
+        ? rect.bottom + 6
+        : Math.max(16, rect.top - menuHeight - 6);
+      const left = Math.max(16, Math.min(window.innerWidth - width - 16, rect.right - width));
+      setMenuPosition({ top, left });
+    };
+    updatePosition();
     const outside = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
+      const node = event.target as Node;
+      if (!menuRef.current?.contains(node) && !menuPanelRef.current?.contains(node)) setOpen(false);
     };
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
     document.addEventListener("pointerdown", outside);
     document.addEventListener("keydown", escape);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
     return () => {
       document.removeEventListener("pointerdown", outside);
       document.removeEventListener("keydown", escape);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
   }, [open]);
 
@@ -290,7 +311,7 @@ export function ListColumnControls() {
       </span>)}
       <span ref={menuRef} className="relative flex w-11 shrink-0 items-center justify-center border-l border-subtle">
         <button type="button" aria-label="Agregar o quitar columnas" title="Agregar o quitar columnas" className="rounded p-1.5 text-lg hover:bg-layer-1-hover" onClick={() => setOpen((value) => !value)}>+</button>
-        {open && <span data-izclick-popover className="absolute right-0 top-full z-[80] max-h-[min(75vh,640px)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl">
+        {open && createPortal(<span ref={menuPanelRef} data-izclick-popover className="fixed z-[1000] max-h-[min(75vh,640px)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl" style={{ top: menuPosition.top, left: menuPosition.left }}>
           <span className="mb-2 block text-xs font-semibold">Columnas existentes</span>
           {LIST_COLUMNS.map((col) => <label key={col.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-layer-1-hover"><input type="checkbox" checked={prefs[col.id].visible} onChange={() => toggle(col.id)} /><span>{col.name}</span></label>)}
           {customFields.length > 0 && <span className="mt-3 block border-t border-subtle pt-3">
@@ -316,7 +337,7 @@ export function ListColumnControls() {
             {customError && <span role="alert" className="mt-2 block text-xs text-red-500">{customError}</span>}
             {customFields.length > 0 && <span className="mt-2 block text-xs text-tertiary">{customFields.length} columna(s) personalizada(s) disponible(s) en este proyecto.</span>}
           </span>
-        </span>}
+        </span>, document.body)}
       </span>
     </>
   );
