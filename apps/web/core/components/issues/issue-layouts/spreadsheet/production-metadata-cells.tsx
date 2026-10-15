@@ -271,7 +271,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
           </button>
         )}
       </Cell>
-      <Cell className="relative h-11 min-w-40 border-r border-subtle px-2 text-13">
+      <Cell className="relative h-11 w-40 min-w-0 shrink-0 items-center border-r border-subtle px-2 text-13" style={asDiv ? { display: "var(--izclick-show-sig, flex)", width: "var(--izclick-col-sig, 160px)" } : undefined}>
         {editingSig ? (
           <div ref={sigEditorRef} className={asDiv ? "absolute right-0 top-full z-40 flex w-80 flex-col gap-2 rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl" : "flex min-w-56 flex-col gap-1 py-1"}>
             <input aria-label="Código SIG" maxLength={60} value={sigCodeDraft} disabled={busy}
