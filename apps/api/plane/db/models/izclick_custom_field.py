@@ -2,6 +2,8 @@
 # Copyright (c) 2026 Izango. Integrates with Plane's existing ORM.
 
 from django.core.exceptions import ValidationError
+from math import isfinite
+import re
 from django.db import models
 from django.db.models.functions import Lower
 
@@ -48,6 +50,10 @@ class IzclickCustomField(BaseModel):
                     raise ValidationError({"options": "Cada opción necesita un ID y nombre."})
                 if option["id"] in seen:
                     raise ValidationError({"options": "Los IDs de opciones deben ser únicos."})
+                if not option["name"].strip():
+                    raise ValidationError({"options": "Cada opción debe tener un nombre."})
+                if "color" in option and (not isinstance(option["color"], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", option["color"])):
+                    raise ValidationError({"options": "Color de opción inválido."})
                 seen.add(option["id"])
 
 
@@ -73,6 +79,8 @@ class IzclickCustomFieldValue(BaseModel):
             raise ValidationError({"value": "Se esperaba texto."})
         if kind == IzclickCustomField.TYPE_NUMBER and (not isinstance(self.value, (int, float)) or isinstance(self.value, bool)):
             raise ValidationError({"value": "Se esperaba un número."})
+        if kind == IzclickCustomField.TYPE_NUMBER and not isfinite(self.value):
+            raise ValidationError({"value": "El número debe ser finito."})
         if kind == IzclickCustomField.TYPE_DATE:
             from datetime import date
             if not isinstance(self.value, str):
