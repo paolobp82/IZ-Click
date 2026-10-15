@@ -19,6 +19,12 @@ Este banco de pruebas ejecuta **la API y la Web de una misma imagen candidata** 
 - El rol invitado puede consultar la Lista, pero no modificar valores personalizados.
 - Capturas de la Lista de escritorio y del modo lectura.
 
+## Gate de errores en navegador (15/10/2026)
+
+El navegador ahora adjunta en `qa-results.json` un resumen de errores de hidratación React (incluidos #418 y #423), fallos de `intake-state` y respuestas de API 5xx. Si se detecta cualquiera de estos eventos, el job falla aunque las seis verificaciones visuales sigan pasando. Este cambio **no corrige los errores de aplicación**; evita que el QA los oculte y obliga a resolverlos antes de aprobar el PR.
+
+Un commit nuevo exige primero publicar ambas imágenes candidatas correspondientes al **mismo SHA** y volver a ejecutar el QA; los seis PASS anteriores no certifican el nuevo HEAD.
+
 ## Restricciones y seguridad
 
 - Servicios `qa-*` aislados dentro de la red efímera de Docker; sin volúmenes de producción.
