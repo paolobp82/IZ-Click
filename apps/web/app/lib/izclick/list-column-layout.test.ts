@@ -47,3 +47,24 @@ test("columnas ocultas no incrementan el ancho aunque conserven su tamaño confi
   assert.equal(layout.widths.due, 0);
   assert.equal(layout.propertiesWidth, 260 + 150 + 144);
 });
+
+test("ocultar todas las columnas mantiene exactamente el ancho fijo de Carga", () => {
+  const prefs = defaults();
+  for (const column of LIST_COLUMNS) {
+    prefs[column.id].visible = false;
+  }
+  const layout = getListColumnLayout(prefs);
+  assert.equal(layout.linkWidth, LIST_NAME_WIDTH);
+  assert.equal(layout.rowWidth, LIST_NAME_WIDTH);
+  assert.equal(layout.propertiesWidth, 0);
+  assert.equal(layout.metadataWidth, 0);
+});
+
+test("tres grupos mantienen idéntica geometría con las mismas preferencias", () => {
+  const prefs = defaults();
+  prefs.state.width = 320;
+  prefs.priority.visible = false;
+  const groupedLayouts = ["Por hacer", "En curso", "Terminado"].map(() => getListColumnLayout(prefs));
+  assert.deepEqual(groupedLayouts[0], groupedLayouts[1]);
+  assert.deepEqual(groupedLayouts[1], groupedLayouts[2]);
+});
