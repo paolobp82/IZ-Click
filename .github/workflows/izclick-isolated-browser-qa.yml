@@ -102,6 +102,20 @@ jobs:
           npm init -y >/dev/null
           npm install --no-save playwright@1.56.1
           npx playwright install --with-deps chromium
+      - name: Diagnose intake-state routing without altering QA data
+        run: |
+          docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell <<'PY'
+          from django.urls import resolve, Resolver404
+          from plane.db.models import Project
+          project = Project.objects.get(workspace__slug="izclick-qa")
+          route = f"/api/workspaces/izclick-qa/projects/{project.pk}/intake-state/"
+          try:
+              result = resolve(route)
+          except Resolver404:
+              print("INTAKE_ROUTE=not_registered")
+          else:
+              print(f"INTAKE_ROUTE=registered:{result.view_name}")
+          PY
       - name: Snapshot identities and states of synthetic work items
         run: |
           docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell -c \
