@@ -5,18 +5,13 @@ import { API_BASE_URL } from "@plane/constants";
 import { getCustomFields, invalidateCustomFields } from "./izclick-custom-field-api";
 import { ProductionStateManager } from "./production-state-manager";
 
-export const LIST_COLUMNS = [
-  { id: "state", name: "Estado", width: 260 },
-  { id: "priority", name: "Prioridad", width: 150 },
-  { id: "assignee", name: "Responsable", width: 144 },
-  { id: "due", name: "Vencimiento", width: 144 },
-  { id: "client", name: "Cliente", width: 160 },
-  { id: "event", name: "Fecha del evento", width: 160 },
-  { id: "sig", name: "Código SIG", width: 160 },
-] as const;
+import { getListColumnLayout, LIST_COLUMNS } from "@/app/lib/izclick/list-column-layout";
+import type { ListColumnId, ListColumnPreferences } from "@/app/lib/izclick/list-column-layout";
 
-type ColumnId = (typeof LIST_COLUMNS)[number]["id"];
-type Preferences = Record<ColumnId, { width: number; visible: boolean }>;
+export { LIST_COLUMNS } from "@/app/lib/izclick/list-column-layout";
+
+type ColumnId = ListColumnId;
+type Preferences = ListColumnPreferences;
 const storageKey = (projectId: string) => `izclick-project-list-columns-v4:${projectId}`;
 const customWidthStorageKey = (projectId: string) => `izclick-project-custom-column-widths:${projectId}`;
 const customWidthVariable = (fieldId: string) => `--izclick-custom-width-${fieldId}`;
@@ -28,20 +23,16 @@ const defaults = (): Preferences =>
 
 function apply(prefs: Preferences) {
   const root = document.documentElement;
-  let propertiesWidth = 0;
-  let metadataWidth = 0;
-  for (const col of LIST_COLUMNS) {
-    const item = prefs[col.id];
-    const width = item.visible ? item.width : 0;
-    root.style.setProperty(`--izclick-col-${col.id}`, `${width}px`);
-    root.style.setProperty(`--izclick-show-${col.id}`, item.visible ? "flex" : "none");
-    if (["client", "event", "sig"].includes(col.id)) metadataWidth += width;
-    else propertiesWidth += width;
+  const layout = getListColumnLayout(prefs);
+  for (const column of LIST_COLUMNS) {
+    const width = layout.widths[column.id];
+    root.style.setProperty(`--izclick-col-${column.id}`, `${width}px`);
+    root.style.setProperty(`--izclick-show-${column.id}`, prefs[column.id].visible ? "flex" : "none");
   }
-  root.style.setProperty("--izclick-properties-width", `${propertiesWidth}px`);
-  root.style.setProperty("--izclick-metadata-width", `${metadataWidth}px`);
-  root.style.setProperty("--izclick-row-width", `${420 + propertiesWidth + metadataWidth}px`);
-  root.style.setProperty("--izclick-link-width", `${420 + propertiesWidth}px`);
+  root.style.setProperty("--izclick-properties-width", `${layout.propertiesWidth}px`);
+  root.style.setProperty("--izclick-metadata-width", `${layout.metadataWidth}px`);
+  root.style.setProperty("--izclick-row-width", `${layout.rowWidth}px`);
+  root.style.setProperty("--izclick-link-width", `${layout.linkWidth}px`);
 }
 
 export function ListColumnControls({ canManageStates }: { canManageStates: boolean }) {
