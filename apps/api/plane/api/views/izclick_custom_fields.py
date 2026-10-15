@@ -50,9 +50,8 @@ class IzclickProjectCustomFieldsAPI(BaseAPIView):
             return Response({"type": "Tipo no admitido."}, status=400)
         field = IzclickCustomField(project_id=project_id, name=name.strip(), field_type=kind, options=options, created_by=request.user, updated_by=request.user)
         try:
-            field.updated_by = request.user
             field.full_clean()
-            field.save()
+            field.save(disable_auto_set_user=True)
         except (ValidationError, IntegrityError) as exc:
             return Response({"error": str(exc)}, status=400)
         return Response(field_payload(field), status=201)
@@ -78,8 +77,9 @@ class IzclickProjectCustomFieldDetailAPI(BaseAPIView):
                 return Response({"position": "Orden inválido."}, status=400)
             field.position = position
         try:
+            field.updated_by = request.user
             field.full_clean()
-            field.save()
+            field.save(disable_auto_set_user=True)
         except (ValidationError, IntegrityError) as exc:
             return Response({"error": str(exc)}, status=400)
         return Response(field_payload(field))
@@ -122,13 +122,17 @@ class IzclickIssueCustomFieldValuesAPI(BaseAPIView):
             with transaction.atomic():
                 for field_id, value in values.items():
                     field = IzclickCustomField.objects.get(id=field_id, project_id=project_id)
-                    record, _ = IzclickCustomFieldValue.objects.get_or_create(
-                        field=field, issue_id=issue_id, defaults={"value": None, "created_by": request.user, "updated_by": request.user}
-                    )
+                    record = IzclickCustomFieldValue.objects.select_for_update().filter(
+                        field=field, issue_id=issue_id
+                    ).first()
+                    if record is None:
+                        record = IzclickCustomFieldValue(
+                            field=field, issue_id=issue_id, created_by=request.user
+                        )
                     record.value = value
                     record.updated_by = request.user
                     record.full_clean()
-                    record.save()
+                    record.save(disable_auto_set_user=True)
         except (IzclickCustomField.DoesNotExist, ValidationError, ValueError, TypeError, IntegrityError) as exc:
             return Response({"error": str(exc)}, status=400)
         return self.get(request, slug, project_id, issue_id)
