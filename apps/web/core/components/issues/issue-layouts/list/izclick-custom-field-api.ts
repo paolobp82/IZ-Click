@@ -11,7 +11,7 @@ export type IzclickCustomField = {
 export const customFieldsEvent = "izclick-custom-fields-updated";
 const root = (API_BASE_URL || "").replace(/\/$/, "");
 const projectUrl = (slug: string, projectId: string) =>
-  `${root}/api/v1/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(projectId)}`;
+  `${root}/api/workspaces/${encodeURIComponent(slug)}/projects/${encodeURIComponent(projectId)}`;
 const memo = new Map<string, { until: number; fields: IzclickCustomField[] }>();
 const pending = new Map<string, Promise<IzclickCustomField[]>>();
 const generations = new Map<string, number>();
