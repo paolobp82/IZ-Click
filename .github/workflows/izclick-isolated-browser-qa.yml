@@ -15,13 +15,15 @@ jobs:
     if: (github.event_name == 'pull_request' && github.event.label.name == 'run-isolated-qa' && github.head_ref == 'izclick/clickup-native-list-detail-20261014') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/izclick/clickup-native-list-detail-20261014')
     runs-on: ubuntu-latest
     timeout-minutes: 50
+    env:
+      QA_CANDIDATE_SHA: 03bc1979c70d0c0f371554b8444b967d1e7a5fd5
     steps:
       - uses: actions/checkout@v4
       - name: Define isolated QA candidate from this commit
         run: |
           set -eu
-          echo "IZCLICK_QA_API_IMAGE=ghcr.io/${{ github.repository_owner }}/izclick-api:preview-clickup-${{ github.sha }}" >> "$GITHUB_ENV"
-          echo "IZCLICK_QA_WEB_IMAGE=ghcr.io/${{ github.repository_owner }}/izclick-web:preview-clickup-${{ github.sha }}" >> "$GITHUB_ENV"
+          echo "IZCLICK_QA_API_IMAGE=ghcr.io/${{ github.repository_owner }}/izclick-api:preview-clickup-$QA_CANDIDATE_SHA" >> "$GITHUB_ENV"
+          echo "IZCLICK_QA_WEB_IMAGE=ghcr.io/${{ github.repository_owner }}/izclick-web:preview-clickup-$QA_CANDIDATE_SHA" >> "$GITHUB_ENV"
           echo "IZCLICK_QA_SECRET_KEY=$(openssl rand -hex 48)" >> "$GITHUB_ENV"
       - name: Authenticate to existing immutable preview images
         env:
@@ -31,7 +33,8 @@ jobs:
       - name: Guard against unintended deployment or shared volumes
         run: |
           set -eu
-          test "${{ github.ref_name }}" = "izclick/clickup-native-list-detail-20261014"
+          test "$GITHUB_HEAD_REF" = "izclick/clickup-native-list-detail-20261014"
+          test "${{ github.event.pull_request.number }}" = "4"
           docker compose -f qa/compose.qa.yml config --quiet
           ! grep -Eq '(izclick\.izango\.com\.pe|209\.145\.60\.238|/opt/iz-click)' qa/compose.qa.yml
           docker compose -f qa/compose.qa.yml pull
