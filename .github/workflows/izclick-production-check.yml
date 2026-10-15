@@ -103,6 +103,34 @@ jobs:
           build-args: |
             IZCLICK_VALIDATE_TYPES=true
 
+  publish-preview-api:
+    name: Publish preview API image (no deployment)
+    needs: [production-metrics, backend-syntax, web-build, api-build]
+    if: github.event_name == 'pull_request' && github.head_ref == 'izclick/clickup-native-list-detail-20261014'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish matching immutable backend image without deployment
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api
+          file: apps/api/Dockerfile.api
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/izclick-api:preview-clickup-${{ github.event.pull_request.head.sha }}
+          provenance: false
+
   publish-preview-web:
     name: Publish preview web image (no deployment)
     needs: [production-metrics, backend-syntax, web-build, api-build]
