@@ -101,7 +101,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
       const current = values[field.id];
       const option = field.options?.find(item => item.id === current);
       const label = field.type === "select" ? (option?.name || "—") : current == null || current === "" ? "—" : String(current);
-      return <div key={field.id} className="relative flex h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2 text-xs" style={{ display: `var(--izclick-custom-display-${field.id}, flex)`, width: `var(--izclick-custom-width-${field.id}, 176px)`, minWidth: `var(--izclick-custom-width-${field.id}, 176px)`, maxWidth: `var(--izclick-custom-width-${field.id}, 176px)` }} onClick={e => e.stopPropagation()}>
+      return <div key={field.id} data-izclick-custom-cell={field.id} className="relative flex h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2 text-xs" style={{ display: `var(--izclick-custom-display-${field.id}, flex)`, width: `var(--izclick-custom-width-${field.id}, 176px)`, minWidth: `var(--izclick-custom-width-${field.id}, 176px)`, maxWidth: `var(--izclick-custom-width-${field.id}, 176px)` }} onClick={e => e.stopPropagation()}>
         <button disabled={!canEdit || valuesError} type="button" title={valuesError ? "No se pudieron cargar los valores. Actualiza la lista." : label}
           className="flex w-full min-w-0 items-center gap-1.5 rounded px-1 py-1 text-left hover:bg-layer-1-hover disabled:cursor-default"
           onClick={event => { setAnchor(event.currentTarget); setActive(field.id); setDraft(current == null ? "" : String(current)); setError(""); }}>
