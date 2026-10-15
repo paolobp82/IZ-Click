@@ -23,7 +23,7 @@ class IzclickCustomFieldPersistenceTests(TestCase):
 
     def test_save_and_reload_text_value(self):
         field = IzclickCustomField.objects.create(project=self.project, name="Orden de montaje", field_type="text")
-        item = IzclickCustomFieldValue(field=field, issue=self.issue, value="Montaje A")
+        item = IzclickCustomFieldValue(field=field, issue=self.issue, value="Montaje A", created_by=self.user, updated_by=self.user)
         item.full_clean()
         item.save()
         self.assertEqual(
@@ -33,7 +33,7 @@ class IzclickCustomFieldPersistenceTests(TestCase):
 
     def test_update_value_persists(self):
         field = IzclickCustomField.objects.create(project=self.project, name="Costo", field_type="number")
-        item = IzclickCustomFieldValue.objects.create(field=field, issue=self.issue, value=120)
+        item = IzclickCustomFieldValue.objects.create(field=field, issue=self.issue, value=120, created_by=self.user, updated_by=self.user)
         item.value = 175
         item.full_clean()
         item.save()
@@ -42,7 +42,7 @@ class IzclickCustomFieldPersistenceTests(TestCase):
     def test_wrong_project_is_rejected(self):
         other = Project.objects.create(name="Eventos", identifier="EVE", workspace=self.workspace)
         field = IzclickCustomField.objects.create(project=other, name="Zona", field_type="text")
-        item = IzclickCustomFieldValue(field=field, issue=self.issue, value="Sur")
+        item = IzclickCustomFieldValue(field=field, issue=self.issue, value="Sur", created_by=self.user, updated_by=self.user)
         with self.assertRaises(ValidationError):
             item.full_clean()
 
