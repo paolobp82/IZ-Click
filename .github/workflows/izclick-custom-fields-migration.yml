@@ -54,6 +54,14 @@ jobs:
           print("Migration dependency graph validated without database access")
           PY
           test -f plane/db/migrations/0124_izclick_custom_fields.py
+      - name: Validate custom field options and types without modifying production
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://unused:unused@127.0.0.1:5432/unused
+          REDIS_URL: redis://127.0.0.1:6379/0
+          SECRET_KEY: migration-preflight-not-for-production
+        run: |
+          python manage.py test plane.api.tests.test_izclick_custom_field_validation --noinput
       - name: Upload migration for inspection; do not apply it
         uses: actions/upload-artifact@v4
         with:
