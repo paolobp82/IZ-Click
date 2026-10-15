@@ -36,7 +36,7 @@ export function ProductionListPropertyColumns({ issue, canEdit, updateIssue }: P
 
   return (
     <div className="flex shrink-0 items-stretch text-xs" onClick={stopLinkNavigation} onFocus={(event) => event.stopPropagation()}>
-      <div className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2" style={{ display: "var(--izclick-show-state, flex)", width: "var(--izclick-col-state, 260px)", minWidth: "var(--izclick-col-state, 260px)", maxWidth: "var(--izclick-col-state, 260px)" }}>
+      <div data-izclick-cell="state" className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2" style={{ display: "var(--izclick-show-state, flex)", width: "var(--izclick-col-state, 260px)", minWidth: "var(--izclick-col-state, 260px)", maxWidth: "var(--izclick-col-state, 260px)" }}>
         <div className="flex min-w-0 flex-1 items-center gap-1 rounded px-1 py-0.5" style={stateColor ? { backgroundColor: `${stateColor}18` } : undefined}>
           {stateColor && <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: stateColor }} />}
         <StateDropdown
@@ -50,7 +50,7 @@ export function ProductionListPropertyColumns({ issue, canEdit, updateIssue }: P
         />
         </div>
       </div>
-      <div className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2" style={{ display: "var(--izclick-show-priority, flex)", width: "var(--izclick-col-priority, 150px)", minWidth: "var(--izclick-col-priority, 150px)", maxWidth: "var(--izclick-col-priority, 150px)" }}>
+      <div data-izclick-cell="state" className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2" style={{ display: "var(--izclick-show-priority, flex)", width: "var(--izclick-col-priority, 150px)", minWidth: "var(--izclick-col-priority, 150px)", maxWidth: "var(--izclick-col-priority, 150px)" }}>
         <PriorityDropdown
           value={issue.priority}
           onChange={(priority) => void save({ priority })}
@@ -60,7 +60,7 @@ export function ProductionListPropertyColumns({ issue, canEdit, updateIssue }: P
           buttonClassName="w-full truncate text-left"
         />
       </div>
-      <div className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2" style={{ display: "var(--izclick-show-assignee, flex)", width: "var(--izclick-col-assignee, 144px)" }}>
+      <div data-izclick-cell="state" className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2" style={{ display: "var(--izclick-show-assignee, flex)", width: "var(--izclick-col-assignee, 144px)" }}>
         <MemberDropdown
           projectId={issue.project_id ?? undefined}
           value={issue.assignee_ids ?? []}
@@ -73,7 +73,7 @@ export function ProductionListPropertyColumns({ issue, canEdit, updateIssue }: P
           buttonClassName="w-full truncate text-left"
         />
       </div>
-      <div className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2" style={{ display: "var(--izclick-show-due, flex)", width: "var(--izclick-col-due, 144px)" }}>
+      <div data-izclick-cell="state" className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2" style={{ display: "var(--izclick-show-due, flex)", width: "var(--izclick-col-due, 144px)" }}>
         <DateDropdown
           value={issue.target_date}
           minDate={getDate(issue.start_date)}
