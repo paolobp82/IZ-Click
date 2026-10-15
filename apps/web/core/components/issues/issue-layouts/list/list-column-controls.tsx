@@ -18,6 +18,8 @@ type Preferences = Record<ColumnId, { width: number; visible: boolean }>;
 const storageKey = (projectId: string) => `izclick-project-list-columns-v4:${projectId}`;
 const customWidthStorageKey = (projectId: string) => `izclick-project-custom-column-widths:${projectId}`;
 const customWidthVariable = (fieldId: string) => `--izclick-custom-width-${fieldId}`;
+const customVisibilityKey = (projectId: string) => `izclick-project-custom-column-visibility:${projectId}`;
+const customVisibilityVariable = (fieldId: string) => `--izclick-custom-display-${fieldId}`;
 const updateEvent = "izclick-list-columns-updated";
 const defaults = (): Preferences =>
   Object.fromEntries(LIST_COLUMNS.map((col) => [col.id, { width: col.width, visible: true }])) as Preferences;
@@ -52,6 +54,7 @@ export function ListColumnControls() {
   const [newOptionColor, setNewOptionColor] = useState("#3b82f6");
   const [newOptions, setNewOptions] = useState<{ id: string; name: string; color: string }[]>([]);
   const [customFields, setCustomFields] = useState<{ id: string; name: string; type: string }[]>([]);
+  const [hiddenCustom, setHiddenCustom] = useState<Record<string, boolean>>({});
   const [customError, setCustomError] = useState("");
   const [savingField, setSavingField] = useState(false);
   const [apiAvailable, setApiAvailable] = useState(false);
@@ -151,6 +154,36 @@ export function ListColumnControls() {
     }
   }, [scope, customFields]);
 
+  useEffect(() => {
+    const syncCustomVisibility = () => {
+      let hidden: Record<string, boolean> = {};
+      try { hidden = JSON.parse(localStorage.getItem(customVisibilityKey(scope)) || "{}"); }
+      catch { hidden = {}; }
+      setHiddenCustom(hidden);
+      for (const field of customFields) {
+        document.documentElement.style.setProperty(
+          customVisibilityVariable(field.id), hidden[field.id] ? "none" : "flex"
+        );
+      }
+    };
+    syncCustomVisibility();
+    const onUpdate = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === scope) syncCustomVisibility();
+    };
+    window.addEventListener(updateEvent, onUpdate);
+    return () => window.removeEventListener(updateEvent, onUpdate);
+  }, [scope, customFields]);
+
+  const toggleCustom = (fieldId: string) => {
+    const next = { ...hiddenCustom, [fieldId]: !hiddenCustom[fieldId] };
+    localStorage.setItem(customVisibilityKey(scope), JSON.stringify(next));
+    setHiddenCustom(next);
+    document.documentElement.style.setProperty(
+      customVisibilityVariable(fieldId), next[fieldId] ? "none" : "flex"
+    );
+    window.dispatchEvent(new CustomEvent(updateEvent, { detail: scope }));
+  };
+
   const resizeCustom = (fieldId: string, startX: number) => {
     let stored: Record<string, number> = {};
     try { stored = JSON.parse(localStorage.getItem(customWidthStorageKey(scope)) || "{}"); } catch { stored = {}; }
@@ -249,7 +282,7 @@ export function ListColumnControls() {
           />
         </span>
       ))}
-      {customFields.map(field => <span key={field.id} className="relative flex h-9 min-w-0 shrink-0 items-center border-l border-subtle px-2 text-xs" style={{ width: `var(${customWidthVariable(field.id)}, 176px)` }} title={field.name}>
+      {customFields.map(field => <span key={field.id} className="relative flex h-9 min-w-0 shrink-0 items-center border-l border-subtle px-2 text-xs" style={{ width: `var(${customWidthVariable(field.id)}, 176px)`, display: `var(${customVisibilityVariable(field.id)}, flex)` }} title={field.name}>
         <span className="truncate">{field.name}</span>
         <button type="button" aria-label={`Cambiar ancho de ${field.name}`} title={`Arrastrar para cambiar ancho de ${field.name}`}
           className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize hover:bg-accent-primary/30"
@@ -260,6 +293,14 @@ export function ListColumnControls() {
         {open && <span data-izclick-popover className="absolute right-0 top-full z-[80] max-h-[min(75vh,640px)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl">
           <span className="mb-2 block text-xs font-semibold">Columnas existentes</span>
           {LIST_COLUMNS.map((col) => <label key={col.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-layer-1-hover"><input type="checkbox" checked={prefs[col.id].visible} onChange={() => toggle(col.id)} /><span>{col.name}</span></label>)}
+          {customFields.length > 0 && <span className="mt-3 block border-t border-subtle pt-3">
+            <span className="mb-2 block text-xs font-semibold">Columnas personalizadas</span>
+            {customFields.map(field => <label key={field.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-layer-1-hover">
+              <input type="checkbox" checked={!hiddenCustom[field.id]} onChange={() => toggleCustom(field.id)} />
+              <span className="min-w-0 flex-1 truncate" title={field.name}>{field.name}</span>
+              <span className="text-[10px] text-tertiary">{field.type}</span>
+            </label>)}
+          </span>}
           <span className="mt-3 block border-t border-subtle pt-3">
             <span className="mb-2 block text-xs font-semibold">Crear columna personalizada</span>
             <input aria-label="Nombre de columna" placeholder="Nombre de columna" maxLength={100} value={newFieldName} onChange={e => setNewFieldName(e.target.value)} className="mb-2 w-full rounded border border-subtle bg-surface-1 px-2 py-1.5 text-xs" />
