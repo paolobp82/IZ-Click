@@ -35,6 +35,7 @@ services:
     image: ${IZCLICK_QA_API_IMAGE:?The immutable QA API image tag is required}
     environment:
       DEBUG: "0"
+      IS_TEST: "1"
       SECRET_KEY: ${IZCLICK_QA_SECRET_KEY:?Generate a random ephemeral secret}
       DATABASE_URL: postgresql://izclick_qa:qa_ephemeral_not_for_production@qa-db:5432/izclick_qa
       REDIS_URL: redis://qa-redis:6379/0
