@@ -146,8 +146,25 @@ try {
     steps: results,
     runtimeErrors: [...new Set(runtimeErrors)].slice(0, 15),
     failedApiResponses: failedApiResponses.slice(0, 30),
+    diagnostics: {
+      hydrationErrors: [...new Set(runtimeErrors)].filter(message => /(?:418|423|hydration|hydrat(?:e|ion)|minified react error)/i.test(message)),
+      intakeStateFailures: failedApiResponses.filter(response => /intake.state/i.test(response.path)),
+      unexpectedApiFailures: failedApiResponses.filter(response => response.status >= 500),
+    },
     lastBrowserUrl,
     lastBrowserTitle,
   }, null, 2));
   await browser.close();
+  // A visually passing run is not release-ready while React hydration or core API calls fail.
+  const hydrationErrors = runtimeErrors.filter(message => /(?:418|423|hydration|hydrat(?:e|ion)|minified react error)/i.test(message));
+  const intakeStateFailures = failedApiResponses.filter(response => /intake.state/i.test(response.path));
+  const serverFailures = failedApiResponses.filter(response => response.status >= 500);
+  if (hydrationErrors.length || intakeStateFailures.length || serverFailures.length) {
+    console.error("IZ-Click release gate blocked:", JSON.stringify({
+      hydrationErrors: [...new Set(hydrationErrors)].slice(0, 5),
+      intakeStateFailures: intakeStateFailures.slice(0, 5),
+      serverFailures: serverFailures.slice(0, 5),
+    }));
+    process.exitCode = 1;
+  }
 }
