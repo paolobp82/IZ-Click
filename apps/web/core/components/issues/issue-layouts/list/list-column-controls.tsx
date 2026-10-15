@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 export const LIST_COLUMNS = [
@@ -41,6 +41,23 @@ export function ListColumnControls() {
   const scope = String(projectId ?? "default");
   const [prefs, setPrefs] = useState<Preferences>(defaults);
   const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
 
   useEffect(() => {
     const load = () => {
@@ -136,7 +153,7 @@ export function ListColumnControls() {
           />
         </span>
       ))}
-      <span className="relative flex w-11 shrink-0 items-center justify-center border-l border-subtle">
+      <span ref={menuRef} className="relative flex w-11 shrink-0 items-center justify-center border-l border-subtle">
         <button type="button" aria-label="Agregar o quitar columnas" title="Agregar o quitar columnas" className="rounded p-1.5 text-lg hover:bg-layer-1-hover" onClick={() => setOpen((value) => !value)}>+</button>
         {open && <span className="absolute right-0 top-full z-30 w-56 rounded border border-subtle bg-surface-1 p-2 shadow-lg">
           {LIST_COLUMNS.map((col) => <label key={col.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-layer-1-hover"><input type="checkbox" checked={prefs[col.id].visible} onChange={() => toggle(col.id)} /><span>{col.name}</span></label>)}
