@@ -6,6 +6,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
   workspaceSlug: string; projectId: string; issueId: string; canEdit: boolean;
 }) {
   const [fields, setFields] = useState<IzclickCustomField[]>([]);
+  const [fieldsAvailable, setFieldsAvailable] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [active, setActive] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -15,8 +16,8 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
   useEffect(() => {
     let mounted = true;
     const refresh = () => {
-      getCustomFields(workspaceSlug, projectId).then(f => { if (mounted) setFields(f); }).catch(() => {});
-      getCustomValues(workspaceSlug, projectId, issueId).then(v => { if (mounted) setValues(v); }).catch(() => {});
+      getCustomFields(workspaceSlug, projectId).then(f => { if (mounted) { setFields(f); setFieldsAvailable(true); } }).catch(() => { if (mounted) { setFields([]); setFieldsAvailable(false); } });
+      getCustomValues(workspaceSlug, projectId, issueId).then(v => { if (mounted && v && typeof v === "object" && !Array.isArray(v)) setValues(v); }).catch(() => {});
     };
     refresh();
     const onChange = (e: Event) => { if ((e as CustomEvent<string>).detail === projectId) refresh(); };
@@ -48,7 +49,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
     finally { setBusy(false); }
   };
   return <>
-    {fields.map(field => {
+    {fieldsAvailable && fields.map(field => {
       const current = values[field.id];
       const option = field.options?.find(item => item.id === current);
       const label = field.type === "select" ? (option?.name || "—") : current == null || current === "" ? "—" : String(current);
