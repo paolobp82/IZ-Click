@@ -240,8 +240,18 @@ export const IssueDetailRoot = observer(function IssueDetailRoot(props: TIssueDe
         />
       ) : (
         <div className="relative flex h-full w-full overflow-hidden">
-          <button type="button" aria-label="Cerrar tarea y regresar a la lista" title="Cerrar tarea" onClick={() => router.push(`/${workspaceSlug}/projects/${projectId}/issues`)} className="absolute right-4 top-3 z-30 rounded-md border border-subtle bg-surface-1 px-3 py-1.5 text-sm text-primary shadow-sm hover:bg-layer-1-hover">✕ Cerrar</button>
-          <div className="min-w-0 flex-1 space-y-6 overflow-y-auto px-6 py-5 xl:px-9">
+          <div className="min-w-0 flex-1 overflow-y-auto px-6 py-5 xl:px-9">
+            <div className="sticky top-0 z-20 mb-4 flex justify-end bg-surface-1 py-2">
+              <button
+                type="button"
+                aria-label="Cerrar tarea y regresar a la lista"
+                title="Regresar a la lista"
+                onClick={() => router.push(`/${workspaceSlug}/projects/${projectId}/issues`)}
+                className="rounded-md border border-subtle bg-surface-1 px-3 py-1.5 text-sm text-primary shadow-sm hover:bg-layer-1-hover"
+              >
+                ✕ Cerrar
+              </button>
+            </div>
             <IssueMainContent
               workspaceSlug={workspaceSlug}
               projectId={projectId}
