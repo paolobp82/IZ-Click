@@ -32,10 +32,10 @@ jobs:
         run: |
           test "$(git branch --show-current)" = "izclick/clickup-native-list-detail-20261014"
           if [ -z "$CODEX_KEY" ]; then
-            echo "enabled=false" }}> "$GITHUB_OUTPUT"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Configure OPENAI_API_KEY in repository Actions secrets to enable Codex."
           else
-            echo "enabled=true" }}> "$GITHUB_OUTPUT"
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Run Codex in repository workspace only
         if: steps.readiness.outputs.enabled == 'true'
@@ -75,9 +75,9 @@ jobs:
               echo "::error::New, renamed or deleted files need manual review."
               exit 1
             fi
-            echo "has_patch=true" }}> "$GITHUB_OUTPUT"
+            echo "has_patch=true" >> "$GITHUB_OUTPUT"
           else
-            echo "has_patch=false" }}> "$GITHUB_OUTPUT"
+            echo "has_patch=false" >> "$GITHUB_OUTPUT"
           fi
           mkdir -p qa/proposals
           cp "$RUNNER_TEMP/proposal.patch" qa/proposals/isolated-fix.patch
@@ -103,14 +103,14 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: izclick-codex-proposed-patch
-          path: "$RUNNER_TEMP/izclick-fix"
+          path: qa/proposals/incoming
       - name: Validate patch and open isolated proposal PR
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
-          PATCH="$RUNNER_TEMP/izclick-fix/isolated-fix.patch"
+          PATCH="qa/proposals/incoming/isolated-fix.patch"
           test -s "$PATCH"
           git apply --check "$PATCH"
           git apply "$PATCH"
