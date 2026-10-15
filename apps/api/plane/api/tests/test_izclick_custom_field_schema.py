@@ -48,6 +48,7 @@ class IzclickCustomFieldPersistenceTests(TestCase):
 
     def test_duplicate_case_insensitive_names_are_rejected(self):
         IzclickCustomField.objects.create(project=self.project, name="Zona", field_type="text")
-        duplicate = IzclickCustomField(project=self.project, name="zona", field_type="text")
-        with self.assertRaises(ValidationError):
+        duplicate = IzclickCustomField(project=self.project, name="zona", field_type="text", created_by=self.user, updated_by=self.user)
+        with self.assertRaises(ValidationError) as result:
             duplicate.full_clean()
+        self.assertIn("constraint", str(result.exception).lower())
