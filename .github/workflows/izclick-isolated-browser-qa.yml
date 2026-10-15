@@ -104,6 +104,11 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Measure real List alignment and persistence in browser
         run: node qa/visual-qa.mjs
+      - name: Verify synthetic loads survived browser edits
+        if: success()
+        run: |
+          docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell -c \
+            'from plane.db.models import Workspace, Issue; w=Workspace.objects.get(slug="izclick-qa"); assert Issue.objects.filter(workspace=w).count()==8, "Synthetic issue count changed during browser tests"; print("All 8 synthetic work items preserved")'
       - name: Save only fictional QA evidence, never sessions or DB
         if: always()
         uses: actions/upload-artifact@v4
