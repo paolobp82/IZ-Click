@@ -40,7 +40,7 @@ jobs:
           docker compose -f qa/compose.qa.yml pull
       - name: Start private ephemeral dependencies
         run: |
-          docker compose -f qa/compose.qa.yml up -d qa-db qa-redis qa-mq qa-minio
+          docker compose -f qa/compose.qa.yml up -d qa-db qa-redis qa-mq qa-s3
       - name: Apply migration to QA-only database
         run: |
           docker compose -f qa/compose.qa.yml run --rm --no-deps -T qa-api python manage.py migrate --noinput
