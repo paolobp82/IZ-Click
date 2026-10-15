@@ -48,8 +48,9 @@ class IzclickProjectCustomFieldsAPI(BaseAPIView):
             return Response({"name": "Nombre obligatorio (máximo 100 caracteres)."}, status=400)
         if kind not in dict(IzclickCustomField.TYPES):
             return Response({"type": "Tipo no admitido."}, status=400)
-        field = IzclickCustomField(project_id=project_id, name=name.strip(), field_type=kind, options=options)
+        field = IzclickCustomField(project_id=project_id, name=name.strip(), field_type=kind, options=options, created_by=request.user, updated_by=request.user)
         try:
+            field.updated_by = request.user
             field.full_clean()
             field.save()
         except (ValidationError, IntegrityError) as exc:
@@ -122,9 +123,10 @@ class IzclickIssueCustomFieldValuesAPI(BaseAPIView):
                 for field_id, value in values.items():
                     field = IzclickCustomField.objects.get(id=field_id, project_id=project_id)
                     record, _ = IzclickCustomFieldValue.objects.get_or_create(
-                        field=field, issue_id=issue_id, defaults={"value": None}
+                        field=field, issue_id=issue_id, defaults={"value": None, "created_by": request.user, "updated_by": request.user}
                     )
                     record.value = value
+                    record.updated_by = request.user
                     record.full_clean()
                     record.save()
         except (IzclickCustomField.DoesNotExist, ValidationError, ValueError, TypeError, IntegrityError) as exc:
