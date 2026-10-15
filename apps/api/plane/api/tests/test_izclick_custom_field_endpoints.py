@@ -1,4 +1,5 @@
 """Session-authenticated custom-field CRUD and permissions, isolated PostgreSQL."""
+import json
 from django.test import TestCase
 from django.urls import resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -133,3 +134,63 @@ class IzclickCustomFieldEndpointTests(TestCase):
                 IzclickProjectCustomFieldBulkValuesAPI, "post", path, self.user, payload,
             )
             self.assertEqual(response.status_code, 400, response.data)
+
+    def test_real_session_login_can_create_edit_and_reload(self):
+        """Exercise Django session auth rather than bypassing it with force_authenticate."""
+        self.client.force_login(self.user)
+        root = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}"
+        response = self.client.post(
+            f"{root}/izclick-custom-fields/",
+            data=json.dumps({"name": "Material en obra", "type": "text"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        field_id = response.json()["id"]
+        value_url = f"{root}/issues/{self.issue.id}/izclick-custom-field-values/"
+        updated = self.client.patch(
+            value_url, data=json.dumps({"values": {field_id: "Aluminio"}}),
+            content_type="application/json",
+        )
+        self.assertEqual(updated.status_code, 200, updated.content)
+        self.assertEqual(self.client.get(value_url).json()[field_id], "Aluminio")
+
+    def test_guest_can_read_but_not_change_values_or_schema(self):
+        ProjectMember.objects.filter(project=self.project, member=self.user).update(role=5)
+        root = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}"
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(f"{root}/izclick-custom-fields/").status_code, 200)
+        cannot_add = self.client.post(
+            f"{root}/izclick-custom-fields/",
+            data=json.dumps({"name": "Privado", "type": "text"}),
+            content_type="application/json",
+        )
+        self.assertEqual(cannot_add.status_code, 403)
+        cannot_write = self.client.patch(
+            f"{root}/issues/{self.issue.id}/izclick-custom-field-values/",
+            data=json.dumps({"values": {}}), content_type="application/json",
+        )
+        self.assertEqual(cannot_write.status_code, 403)
+
+    def test_valid_and_invalid_updates_are_atomic(self):
+        root = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}"
+        first = self.request(
+            IzclickProjectCustomFieldsAPI, "post", f"{root}/izclick-custom-fields/",
+            self.user, {"name": "Proveedor", "type": "text"},
+        )
+        second = self.request(
+            IzclickProjectCustomFieldsAPI, "post", f"{root}/izclick-custom-fields/",
+            self.user, {"name": "Cantidad", "type": "number"},
+        )
+        self.assertEqual(first.status_code, 201, first.data)
+        self.assertEqual(second.status_code, 201, second.data)
+        result = self.request(
+            IzclickIssueCustomFieldValuesAPI, "patch",
+            f"{root}/issues/{self.issue.id}/izclick-custom-field-values/",
+            self.user,
+            {"values": {first.data["id"]: "Proveedor A", second.data["id"]: "incorrecto"}},
+        )
+        self.assertEqual(result.status_code, 400, result.data)
+        self.assertFalse(
+            IzclickCustomFieldValue.objects.filter(issue=self.issue).exists(),
+            "Mixed-validity payload must not partially save any values",
+        )
