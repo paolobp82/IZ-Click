@@ -1,0 +1,92 @@
+name: IZ-Click isolated browser QA
+# Explicit manual trigger. No SSH, production credentials, public staging host,
+# shared volumes or production data. Uses an ephemeral GitHub runner.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  isolated-browser-qa:
+    if: github.ref == 'refs/heads/izclick/clickup-native-list-detail-20261014'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Define isolated QA candidate from this commit
+        run: |
+          set -eu
+          echo "IZCLICK_QA_API_IMAGE=ghcr.io/${{ github.repository_owner }}/izclick-api:preview-clickup-${{ github.sha }}" >> "$GITHUB_ENV"
+          echo "IZCLICK_QA_WEB_IMAGE=ghcr.io/${{ github.repository_owner }}/izclick-web:preview-clickup-${{ github.sha }}" >> "$GITHUB_ENV"
+          echo "IZCLICK_QA_SECRET_KEY=$(openssl rand -hex 48)" >> "$GITHUB_ENV"
+      - name: Authenticate to existing immutable preview images
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Guard against unintended deployment or shared volumes
+        run: |
+          set -eu
+          test "${{ github.ref_name }}" = "izclick/clickup-native-list-detail-20261014"
+          docker compose -f qa/compose.qa.yml config --quiet
+          ! grep -Eq '(izclick\.izango\.com\.pe|209\.145\.60\.238|/opt/iz-click)' qa/compose.qa.yml
+          docker compose -f qa/compose.qa.yml pull
+      - name: Start private ephemeral dependencies
+        run: |
+          docker compose -f qa/compose.qa.yml up -d qa-db qa-redis qa-mq qa-minio
+      - name: Apply migration to QA-only database
+        run: |
+          docker compose -f qa/compose.qa.yml run --rm --no-deps -T qa-api python manage.py migrate --noinput
+      - name: Start isolated backend, frontend and localhost proxy
+        run: |
+          docker compose -f qa/compose.qa.yml up -d qa-api qa-web qa-proxy
+          for attempt in $(seq 1 90); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:38080/api/instances/ || true)
+            if [ "$code" != "000" ] && [ "$code" != "502" ] && [ "$code" != "503" ]; then
+              echo "QA API responded with HTTP $code"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "QA backend was not ready" >&2
+          exit 1
+      - name: Create fictional workspace and temporary authenticated sessions
+        run: |
+          docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell < qa/seed.py > "$RUNNER_TEMP/izclick-qa-seed.log"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import os
+          log = Path(os.environ["RUNNER_TEMP"], "izclick-qa-seed.log").read_text()
+          rows = [line.split("IZCLICK_QA_FIXTURE=", 1)[1] for line in log.splitlines()
+                  if "IZCLICK_QA_FIXTURE=" in line]
+          assert len(rows) == 1, "QA seed did not produce exactly one fixture"
+          fixture = json.loads(rows[0])
+          assert fixture["workspace"] == "izclick-qa"
+          Path("qa/.qa-fixture.json").write_text(json.dumps(fixture))
+          print("QA fixture successfully created; session credentials withheld")
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install ephemeral browser harness
+        run: |
+          cd qa
+          npm init -y >/dev/null
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Measure real List alignment and persistence in browser
+        run: node qa/visual-qa.mjs
+      - name: Save only fictional QA evidence, never sessions or DB
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: izclick-isolated-visual-qa
+          path: qa/artifacts/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Destroy isolated database, objects and containers
+        if: always()
+        run: docker compose -f qa/compose.qa.yml down --volumes --remove-orphans || true
