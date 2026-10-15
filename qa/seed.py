@@ -11,6 +11,7 @@ from plane.db.models import (
     State, Issue, IzclickCustomField, IzclickCustomFieldValue,
 )
 from plane.db.models.session import SessionStore
+from plane.license.models import Instance, InstanceAdmin
 
 database_name = settings.DATABASES["default"]["NAME"]
 assert database_name == "izclick_qa", f"REFUSING seed for database {database_name!r}"
@@ -37,6 +38,25 @@ guest = User.objects.create(
     is_email_verified=True, is_email_valid=True, is_active=True,
     first_name="QA", last_name="Lector",
 )
+# Plane's first-run screen is controlled by the instance setup flag, not
+# merely the existence of workspace/project fixtures. Set it only in qa DB.
+instance = Instance.objects.first()
+assert instance is not None, "QA backend must have registered its own instance"
+instance.is_setup_done = True
+instance.is_signup_screen_visited = True
+instance.is_verified = True
+instance.is_test = True
+instance.is_telemetry_enabled = False
+instance.is_support_required = False
+instance.save(update_fields=[
+    "is_setup_done", "is_signup_screen_visited", "is_verified",
+    "is_test", "is_telemetry_enabled", "is_support_required",
+])
+InstanceAdmin.objects.get_or_create(
+    instance=instance, user=admin,
+    defaults={"is_verified": True, "role": 20},
+)
+
 for actor in (admin, guest):
     profile, _ = Profile.objects.get_or_create(user=actor)
     profile.is_onboarded = True
