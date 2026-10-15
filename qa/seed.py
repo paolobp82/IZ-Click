@@ -74,6 +74,7 @@ WorkspaceMember.objects.create(workspace=workspace, member=admin, role=20)
 WorkspaceMember.objects.create(workspace=workspace, member=guest, role=5)
 project = Project.objects.create(
     name="Activaciones ficticias QA", identifier="QAT", workspace=workspace,
+    guest_view_all_features=True,
 )
 ProjectMember.objects.create(workspace=workspace, project=project, member=admin, role=20)
 ProjectMember.objects.create(workspace=workspace, project=project, member=guest, role=5)
