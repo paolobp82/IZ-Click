@@ -16,9 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
-      QA_CANDIDATE_SHA: 03bc1979c70d0c0f371554b8444b967d1e7a5fd5
+      QA_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Define isolated QA candidate from this commit
         run: |
           set -eu
@@ -33,7 +35,8 @@ jobs:
       - name: Guard against unintended deployment or shared volumes
         run: |
           set -eu
-          test "$GITHUB_HEAD_REF" = "izclick/clickup-native-list-detail-20261014"
+          test "${{ github.head_ref || github.ref_name }}" = "izclick/clickup-native-list-detail-20261014"
+          test "$(git rev-parse HEAD)" = "$QA_CANDIDATE_SHA"
           test "${{ github.event.pull_request.number }}" = "4"
           docker compose -f qa/compose.qa.yml config --quiet
           ! grep -Eq '(izclick\.izango\.com\.pe|209\.145\.60\.238|/opt/iz-click)' qa/compose.qa.yml
