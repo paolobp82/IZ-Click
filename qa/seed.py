@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY
 from plane.db.models import (
     User, Profile, Workspace, WorkspaceMember, Project, ProjectMember,
-    State, Issue, IzclickCustomField, IzclickCustomFieldValue,
+    State, Issue, IssueAssignee, IssueSubscriber, IzclickCustomField, IzclickCustomFieldValue,
 )
 from plane.db.models.session import SessionStore
 from plane.license.models import Instance, InstanceAdmin
@@ -105,6 +105,15 @@ issues = [
     )
     for index, state in enumerate(states)
 ]
+# Plane guests only see work items they participate in. Make the first
+# synthetic work item visible to the read-only guest without granting edit role.
+IssueAssignee.objects.create(
+    workspace=workspace, project=project, issue=issues[0], assignee=guest,
+)
+IssueSubscriber.objects.create(
+    workspace=workspace, project=project, issue=issues[0], subscriber=guest,
+)
+
 field = IzclickCustomField(
     project=project, name="Material QA", field_type="text",
     created_by=admin, updated_by=admin,
