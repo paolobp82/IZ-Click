@@ -257,7 +257,7 @@ export function ListColumnControls() {
       </span>)}
       <span ref={menuRef} className="relative flex w-11 shrink-0 items-center justify-center border-l border-subtle">
         <button type="button" aria-label="Agregar o quitar columnas" title="Agregar o quitar columnas" className="rounded p-1.5 text-lg hover:bg-layer-1-hover" onClick={() => setOpen((value) => !value)}>+</button>
-        {open && <span data-izclick-popover className="absolute right-0 top-full z-[80] w-56 rounded border border-subtle bg-surface-1 p-2 shadow-lg">
+        {open && <span data-izclick-popover className="absolute right-0 top-full z-[80] max-h-[min(75vh,640px)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl">
           <span className="mb-2 block text-xs font-semibold">Columnas existentes</span>
           {LIST_COLUMNS.map((col) => <label key={col.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-layer-1-hover"><input type="checkbox" checked={prefs[col.id].visible} onChange={() => toggle(col.id)} /><span>{col.name}</span></label>)}
           <span className="mt-3 block border-t border-subtle pt-3">
@@ -273,7 +273,7 @@ export function ListColumnControls() {
             {fieldsLoading && <span className="mb-2 block text-xs text-tertiary">Consultando campos del proyecto…</span>}
             {!fieldsLoading && !apiAvailable && <span className="mb-2 block text-xs text-tertiary">No se pudieron cargar las columnas. Revisa la conexión o tus permisos.</span>}
             {customError && <span role="alert" className="mt-2 block text-xs text-red-500">{customError}</span>}
-            {customFields.length > 0 && <span className="mt-2 block text-xs text-tertiary">{customFields.length} campos personalizados registrados. Visualización de celdas pendiente.</span>}
+            {customFields.length > 0 && <span className="mt-2 block text-xs text-tertiary">{customFields.length} columna(s) personalizada(s) disponible(s) en este proyecto.</span>}
           </span>
         </span>}
       </span>
