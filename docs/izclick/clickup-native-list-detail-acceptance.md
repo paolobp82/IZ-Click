@@ -24,7 +24,7 @@ Rama de trabajo `izclick/clickup-native-list-detail-20261014` creada desde produ
 4. Navegación coherente con la Lista y vuelta a la posición previa, sin alterar rutas ni relaciones de cargas.
 
 ## Seguridad y liberación
-- Sin cambios en esquema, estados de otras áreas ni datos productivos.
+- La migración aditiva `0124_izclick_custom_fields` añade únicamente dos tablas de campos personalizados; **requiere respaldo y aplicación controlada antes de activar la función**. No modificar estados de otras áreas ni datos existentes.
 - No reemplazar componentes por `ProductionLoadDirectory` como pantalla paralela; integrarse en la vista nativa.
 - QA requerido: captura comparativa Lista/Detalle, editar y recargar campos, crear carga, mover estado, permisos de lectura, subtareas, adjuntos, calendario, integridad de 8 cargas originales.
 - `npm/pnpm` lint/typecheck y build web antes de publicar una imagen; desplegar solo con aprobación tras QA.
@@ -55,8 +55,29 @@ Los cambios posteriores permanecen únicamente en la rama de desarrollo.
 - [ ] Comprobar detalle nativo, descripción, comentarios, adjuntos y subtareas.
 - [ ] Verificar respaldo recuperable de PostgreSQL y objetos MinIO; documentar reversión de imagen.
 - [ ] Exigir compilación Web exitosa **del último commit**, y capturas de QA del mismo artefacto.
-- [ ] Publicar solo con aprobación; actualizar únicamente Web con `--no-deps`.
+- [ ] Publicar solo con aprobación; actualizar **API y Web como versión compatible**, después de aplicar `0124`. Está prohibido desplegar solo la nueva Web contra la API estable anterior.
 - [ ] Validar `running / healthy`, HTTPS, autenticación y Lista; revertir inmediatamente ante regresión.
 
 **No aprobado:** cualquier casilla crítica sin evidencia. GitHub Actions verde no
 sustituye una prueba funcional en navegador.
+
+
+## Secuencia de liberación de campos personalizados (sin autorización de despliegue)
+
+La Web del PR consume `/api/workspaces/.../izclick-custom-fields/` y
+`/api/workspaces/.../izclick-custom-field-values/batch/`.
+**La API estable anterior no tiene esas rutas.** No basta con actualizar Web.
+
+1. Completar CI sobre el **mismo commit**: prueba Django+PostgreSQL, compilación Web y build de imagen API. Verificar los tags de ambos artefactos y sus digests.
+2. Completar QA de navegador sin modificar producción: Lista a 1366 y 1920 px, menú de columnas, editor inline, valores persistidos, autorizaciones y estado de las cargas. Sin evidencias, no hay aprobación.
+3. Antes de cualquier cambio en Contabo, obtener autorización explícita, verificar el respaldo **restaurable** de PostgreSQL y objetos MinIO, guardar las imágenes/digests actuales de API y Web y registrar versión estable.
+4. Durante ventana de cambio aprobada, aplicar exclusivamente las migraciones Django pendientes (incluida `0124`) utilizando el backend compatible. Confirmar que **no modifica ni elimina** tablas previas y que ambas tablas nuevas existen.
+5. Desplegar una pareja **compatible** de imágenes API + Web. Comprobar autenticación por sesión, GET/POST de campos y PATCH/GET de valores, consultas batch, filtros, estados y navegación.
+6. En regresión, revertir **ambas imágenes** a la versión estable y desactivar las nuevas funciones; al ser aditiva, conservar las tablas `0124` para evitar eliminar datos. Nunca ejecutar una migración inversa destructiva como respuesta automática.
+
+El pipeline de imagen API candidata se define en
+`.github/workflows/izclick-preview-api-image.yml`.
+Solo publica en GHCR; **no hace SSH, migraciones ni despliegue**.
+
+**Estado actual:** pruebas automatizadas antes de QA visual; el cambio productivo
+permanece prohibido hasta superar las verificaciones y recibir autorización.
