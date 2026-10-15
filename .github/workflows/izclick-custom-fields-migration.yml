@@ -76,7 +76,7 @@ jobs:
           REDIS_URL: redis://127.0.0.1:6379/0
           SECRET_KEY: migration-preflight-not-for-production
         run: |
-          python manage.py test plane.api.tests.test_izclick_custom_field_validation plane.api.tests.test_izclick_custom_field_schema --noinput
+          python manage.py test plane.api.tests.test_izclick_custom_field_validation --noinput
       - name: Validate migration against isolated PostgreSQL
         working-directory: apps/api
         env:
@@ -86,7 +86,7 @@ jobs:
         run: |
           python manage.py migrate --noinput
           python manage.py makemigrations db --check --dry-run --noinput
-          python manage.py test plane.api.tests.test_izclick_custom_field_validation --noinput
+          python manage.py test plane.api.tests.test_izclick_custom_field_validation plane.api.tests.test_izclick_custom_field_schema --noinput
       - name: Upload migration for inspection; do not apply it
         uses: actions/upload-artifact@v4
         with:
