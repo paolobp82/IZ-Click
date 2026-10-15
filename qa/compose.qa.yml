@@ -24,12 +24,12 @@ services:
       RABBITMQ_DEFAULT_PASS: qa_ephemeral_not_for_production
       RABBITMQ_DEFAULT_VHOST: izclick_qa
 
-  qa-minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: server /data
+  qa-s3:
+    # S3 emulator; no external MinIO registry, credentials or production bucket.
+    image: localstack/localstack:3.8.1
     environment:
-      MINIO_ROOT_USER: izclick_qa_storage
-      MINIO_ROOT_PASSWORD: qa_ephemeral_not_for_production
+      SERVICES: s3
+      GATEWAY_LISTEN: 0.0.0.0:4566
 
   qa-api:
     image: ${IZCLICK_QA_API_IMAGE:?The immutable QA API image tag is required}
@@ -46,7 +46,7 @@ services:
       USE_MINIO: "1"
       AWS_ACCESS_KEY_ID: izclick_qa_storage
       AWS_SECRET_ACCESS_KEY: qa_ephemeral_not_for_production
-      AWS_S3_ENDPOINT_URL: http://qa-minio:9000
+      AWS_S3_ENDPOINT_URL: http://qa-s3:4566
       AWS_S3_BUCKET_NAME: qa-uploads
       MINIO_ENDPOINT_SSL: "0"
       APP_BASE_URL: http://127.0.0.1:38080
@@ -63,7 +63,7 @@ services:
         condition: service_started
       qa-mq:
         condition: service_started
-      qa-minio:
+      qa-s3:
         condition: service_started
 
   qa-web:
