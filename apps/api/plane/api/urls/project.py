@@ -3,10 +3,6 @@
 # See the LICENSE file for details.
 
 from django.urls import path
-from plane.api.views.izclick_custom_fields import (
-    IzclickProjectCustomFieldsAPI, IzclickProjectCustomFieldDetailAPI,
-    IzclickIssueCustomFieldValuesAPI,
-)
 
 from plane.api.views import (
     ProjectListCreateAPIEndpoint,
@@ -17,9 +13,6 @@ from plane.api.views import (
 )
 
 urlpatterns = [
-    path('workspaces/<str:slug>/projects/<uuid:project_id>/izclick-custom-fields/', IzclickProjectCustomFieldsAPI.as_view(), name='izclick-custom-fields'),
-    path('workspaces/<str:slug>/projects/<uuid:project_id>/izclick-custom-fields/<uuid:field_id>/', IzclickProjectCustomFieldDetailAPI.as_view(), name='izclick-custom-field-detail'),
-    path('workspaces/<str:slug>/projects/<uuid:project_id>/issues/<uuid:issue_id>/izclick-custom-field-values/', IzclickIssueCustomFieldValuesAPI.as_view(), name='izclick-issue-custom-field-values'),
     path(
         "workspaces/<str:slug>/projects/",
         ProjectListCreateAPIEndpoint.as_view(http_method_names=["get", "post"]),
