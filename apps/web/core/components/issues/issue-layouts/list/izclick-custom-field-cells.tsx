@@ -80,7 +80,12 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
       const option = field.options?.find(item => item.id === current);
       const label = field.type === "select" ? (option?.name || "—") : current == null || current === "" ? "—" : String(current);
       return <div key={field.id} className="relative flex h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2 text-xs" style={{ display: `var(--izclick-custom-display-${field.id}, flex)`, width: `var(--izclick-custom-width-${field.id}, 176px)`, minWidth: `var(--izclick-custom-width-${field.id}, 176px)`, maxWidth: `var(--izclick-custom-width-${field.id}, 176px)` }} onClick={e => e.stopPropagation()}>
-        <button disabled={!canEdit || valuesError} type="button" title={valuesError ? "No se pudieron cargar los valores. Actualiza la lista." : label} className="w-full truncate rounded px-1 py-1 text-left hover:bg-layer-1-hover disabled:cursor-default" onClick={() => { setActive(field.id); setDraft(current == null ? "" : String(current)); setError(""); }}>{valuesError ? "Error al cargar" : label}</button>
+        <button disabled={!canEdit || valuesError} type="button" title={valuesError ? "No se pudieron cargar los valores. Actualiza la lista." : label}
+          className="flex w-full min-w-0 items-center gap-1.5 rounded px-1 py-1 text-left hover:bg-layer-1-hover disabled:cursor-default"
+          onClick={() => { setActive(field.id); setDraft(current == null ? "" : String(current)); setError(""); }}>
+          {!valuesError && field.type === "select" && option?.color && <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: option.color }} />}
+          <span className="min-w-0 flex-1 truncate">{valuesError ? "Error al cargar" : label}</span>
+        </button>
         {active === field.id && <div data-izclick-popover ref={popupRef} className="absolute left-0 top-full z-[90] w-64 rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl">
           <span className="mb-2 block font-medium">{field.name}</span>
           {field.type === "select" ? <select aria-label={field.name} className="w-full rounded border border-subtle bg-surface-1 p-2" value={draft} onChange={e => setDraft(e.target.value)}>
