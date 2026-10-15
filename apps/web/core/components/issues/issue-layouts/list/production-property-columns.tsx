@@ -37,7 +37,7 @@ export function ProductionListPropertyColumns({ issue, canEdit, updateIssue }: P
 
   return (
     <div className="flex shrink-0 items-stretch text-xs" onClick={stopLinkNavigation} onFocus={(event) => event.stopPropagation()}>
-      <div className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2" style={{ display: "var(--izclick-show-state, flex)", width: "var(--izclick-col-state, 260px)" }}>
+      <div className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2" style={{ display: "var(--izclick-show-state, flex)", width: "var(--izclick-col-state, 260px)", minWidth: "var(--izclick-col-state, 260px)", maxWidth: "var(--izclick-col-state, 260px)" }}>
         <div className="flex min-w-0 flex-1 items-center gap-1 rounded px-1 py-0.5" style={stateColor ? { backgroundColor: `${stateColor}18` } : undefined}>
           {stateColor && <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: stateColor }} />}
         <StateDropdown
@@ -46,13 +46,13 @@ export function ProductionListPropertyColumns({ issue, canEdit, updateIssue }: P
           onChange={(state_id) => void save({ state_id })}
           disabled={disabled}
           buttonVariant="transparent-with-text"
-          buttonContainerClassName="min-w-0 flex-1"
-          buttonClassName="w-full truncate text-left"
+          buttonContainerClassName="min-w-0 flex-1 overflow-hidden"
+          buttonClassName="max-w-full min-w-0 truncate text-left"
         />
         </div>
         {issue.project_id && <ProductionStateManager projectId={issue.project_id} canEdit={canEdit} />}
       </div>
-      <div className="flex min-h-11 min-w-0 shrink-0 items-center overflow-hidden border-l border-subtle px-2" style={{ display: "var(--izclick-show-priority, flex)", width: "var(--izclick-col-priority, 150px)" }}>
+      <div className="flex min-h-11 min-w-0 shrink-0 items-center overflow-hidden border-l border-subtle px-2" style={{ display: "var(--izclick-show-priority, flex)", width: "var(--izclick-col-priority, 150px)", minWidth: "var(--izclick-col-priority, 150px)", maxWidth: "var(--izclick-col-priority, 150px)" }}>
         <PriorityDropdown
           value={issue.priority}
           onChange={(priority) => void save({ priority })}
