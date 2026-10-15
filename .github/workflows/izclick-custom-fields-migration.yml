@@ -50,7 +50,7 @@ jobs:
           loader = MigrationLoader(None)
           target = ("db", "0124_izclick_custom_fields")
           assert target in loader.graph.nodes, "Custom field migration is missing"
-          assert ("db", "0123_izclick_production_workspace_statuses") in loader.graph.node_map[target].parents, "Unexpected parent migration"
+          assert ("db", "0123_izclick_production_workspace_statuses") in loader.disk_migrations[target].dependencies, "Unexpected parent migration"
           print("Migration dependency graph validated without database access")
           PY
           test -f plane/db/migrations/0124_izclick_custom_fields.py
