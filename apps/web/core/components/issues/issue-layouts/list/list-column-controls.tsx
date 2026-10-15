@@ -55,7 +55,7 @@ export function ListColumnControls() {
   const [apiAvailable, setApiAvailable] = useState(false);
   const [fieldsLoading, setFieldsLoading] = useState(false);
   const { workspaceSlug } = useParams();
-  const customFieldsUrl = `${(API_BASE_URL || "").replace(/\/$/, "")}/api/v1/workspaces/${String(workspaceSlug || "")}/projects/${scope}/izclick-custom-fields/`;
+  const customFieldsUrl = `${(API_BASE_URL || "").replace(/\/$/, "")}/api/workspaces/${String(workspaceSlug || "")}/projects/${scope}/izclick-custom-fields/`;
   const loadCustomFields = async () => {
     if (!workspaceSlug || !projectId) return;
     setFieldsLoading(true);
