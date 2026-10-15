@@ -37,7 +37,9 @@ jobs:
           set -eu
           test "${{ github.head_ref || github.ref_name }}" = "izclick/clickup-native-list-detail-20261014"
           test "$(git rev-parse HEAD)" = "$QA_CANDIDATE_SHA"
-          test "${{ github.event.pull_request.number }}" = "4"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            test "${{ github.event.pull_request.number }}" = "4"
+          fi
           docker compose -f qa/compose.qa.yml config --quiet
           ! grep -Eq '(izclick\.izango\.com\.pe|209\.145\.60\.238|/opt/iz-click)' qa/compose.qa.yml
           docker compose -f qa/compose.qa.yml pull
