@@ -96,6 +96,39 @@ class IzclickProjectCustomFieldDetailAPI(BaseAPIView):
         return Response(status=204)
 
 
+class IzclickProjectCustomFieldBulkValuesAPI(BaseAPIView):
+    """Retrieve values for visible project issues in one session-authenticated call."""
+
+    def post(self, request, slug, project_id):
+        if not project_access(request, slug, project_id):
+            return Response(status=403)
+        issue_ids = request.data.get("issue_ids")
+        if (
+            not isinstance(issue_ids, list)
+            or not issue_ids
+            or len(issue_ids) > 200
+            or any(not isinstance(item, str) for item in issue_ids)
+        ):
+            return Response({"issue_ids": "Lista de entre 1 y 200 tareas requerida."}, status=400)
+        from uuid import UUID
+
+        try:
+            normalized = [str(UUID(item)) for item in issue_ids]
+        except (ValueError, AttributeError, TypeError):
+            return Response({"issue_ids": "ID de tarea inválido."}, status=400)
+        valid_issue_ids = set(
+            str(item) for item in Issue.objects.filter(
+                project_id=project_id, id__in=normalized
+            ).values_list("id", flat=True)
+        )
+        results = {issue_id: {} for issue_id in normalized if issue_id in valid_issue_ids}
+        for item in IzclickCustomFieldValue.objects.filter(
+            issue_id__in=valid_issue_ids, field__project_id=project_id
+        ).only("issue_id", "field_id", "value"):
+            results[str(item.issue_id)][str(item.field_id)] = item.value
+        return Response(results)
+
+
 class IzclickIssueCustomFieldValuesAPI(BaseAPIView):
     def get(self, request, slug, project_id, issue_id):
         if not project_access(request, slug, project_id):
