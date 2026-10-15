@@ -108,7 +108,7 @@ jobs:
         if: success()
         run: |
           docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell -c \
-            'from plane.db.models import Workspace, Issue; w=Workspace.objects.get(slug="izclick-qa"); assert Issue.objects.filter(workspace=w).count()==8, "Synthetic issue count changed during browser tests"; print("All 8 synthetic work items preserved")'
+            'from plane.db.models import Workspace, Issue; w=Workspace.objects.get(slug="izclick-qa"); assert Issue.objects.filter(workspace=w).count()==8, "Synthetic issue count changed during browser tests"; from plane.db.models import IzclickCustomFieldValue; v=IzclickCustomFieldValue.objects.get(field__project__workspace=w, field__name="Material QA"); assert v.value=="Madera QA guardada", "Custom field value did not persist in PostgreSQL"; print("Eight synthetic loads and edited custom value preserved")'
       - name: Save only fictional QA evidence, never sessions or DB
         if: always()
         uses: actions/upload-artifact@v4
