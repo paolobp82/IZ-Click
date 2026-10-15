@@ -7,6 +7,7 @@ on:
       - 'apps/api/plane/db/models/__init__.py'
       - 'apps/api/plane/api/views/izclick_custom_fields.py'
       - 'apps/api/plane/api/tests/test_izclick_custom_field_validation.py'
+      - 'apps/api/plane/api/tests/test_izclick_custom_field_schema.py'
       - '.github/workflows/izclick-custom-fields-migration.yml'
   pull_request:
     paths:
@@ -75,7 +76,7 @@ jobs:
           REDIS_URL: redis://127.0.0.1:6379/0
           SECRET_KEY: migration-preflight-not-for-production
         run: |
-          python manage.py test plane.api.tests.test_izclick_custom_field_validation --noinput
+          python manage.py test plane.api.tests.test_izclick_custom_field_validation plane.api.tests.test_izclick_custom_field_schema --noinput
       - name: Validate migration against isolated PostgreSQL
         working-directory: apps/api
         env:
