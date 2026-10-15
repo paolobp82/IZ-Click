@@ -21,7 +21,21 @@ permissions:
 jobs:
   migration-preflight:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: izclick_test
+          POSTGRES_PASSWORD: izclick_test
+          POSTGRES_DB: izclick_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U izclick_test -d izclick_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - name: Prepare Python
@@ -61,6 +75,16 @@ jobs:
           REDIS_URL: redis://127.0.0.1:6379/0
           SECRET_KEY: migration-preflight-not-for-production
         run: |
+          python manage.py test plane.api.tests.test_izclick_custom_field_validation --noinput
+      - name: Validate migration against isolated PostgreSQL
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://izclick_test:izclick_test@127.0.0.1:5432/izclick_test
+          REDIS_URL: redis://127.0.0.1:6379/0
+          SECRET_KEY: integration-test-not-for-production
+        run: |
+          python manage.py migrate --noinput
+          python manage.py makemigrations db --check --dry-run --noinput
           python manage.py test plane.api.tests.test_izclick_custom_field_validation --noinput
       - name: Upload migration for inspection; do not apply it
         uses: actions/upload-artifact@v4
