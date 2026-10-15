@@ -275,6 +275,7 @@ export function ListColumnControls({ canManageStates }: { canManageStates: boole
       {LIST_COLUMNS.map((col) => (
         <span
           key={col.id}
+          data-izclick-header={col.id}
           className="relative min-w-0 shrink-0 items-center border-l border-subtle px-2"
           style={{
             display: `var(--izclick-show-${col.id}, flex)`,
@@ -296,7 +297,7 @@ export function ListColumnControls({ canManageStates }: { canManageStates: boole
           />
         </span>
       ))}
-      {customFields.map(field => <span key={field.id} className="relative flex h-9 min-w-0 shrink-0 items-center border-l border-subtle px-2 text-xs" style={{ width: `var(${customWidthVariable(field.id)}, 176px)`, display: `var(${customVisibilityVariable(field.id)}, flex)` }} title={field.name}>
+      {customFields.map(field => <span key={field.id} data-izclick-custom-header={field.id} className="relative flex h-9 min-w-0 shrink-0 items-center border-l border-subtle px-2 text-xs" style={{ width: `var(${customWidthVariable(field.id)}, 176px)`, display: `var(${customVisibilityVariable(field.id)}, flex)` }} title={field.name}>
         <span className="truncate">{field.name}</span>
         <button type="button" aria-label={`Cambiar ancho de ${field.name}`} title={`Arrastrar para cambiar ancho de ${field.name}`}
           className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize hover:bg-accent-primary/30"
