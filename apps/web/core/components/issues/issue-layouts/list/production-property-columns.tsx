@@ -12,7 +12,6 @@ import { PriorityDropdown } from "@/components/dropdowns/priority";
 import { MemberDropdown } from "@/components/dropdowns/member/dropdown";
 import { DateDropdown } from "@/components/dropdowns/date";
 import { useProjectState } from "@/hooks/store/use-project-state";
-import { ProductionStateManager } from "./production-state-manager";
 
 type Props = {
   issue: TIssue;
@@ -50,7 +49,6 @@ export function ProductionListPropertyColumns({ issue, canEdit, updateIssue }: P
           buttonClassName="max-w-full min-w-0 truncate text-left"
         />
         </div>
-        {issue.project_id && <ProductionStateManager projectId={issue.project_id} canEdit={canEdit} />}
       </div>
       <div className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2" style={{ display: "var(--izclick-show-priority, flex)", width: "var(--izclick-col-priority, 150px)", minWidth: "var(--izclick-col-priority, 150px)", maxWidth: "var(--izclick-col-priority, 150px)" }}>
         <PriorityDropdown
