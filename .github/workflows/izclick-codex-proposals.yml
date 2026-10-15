@@ -63,7 +63,7 @@ jobs:
         id: patch
         run: |
           set -euo pipefail
-          git diff --binary }} "$RUNNER_TEMP/proposal.patch"
+          git diff --binary > "$RUNNER_TEMP/proposal.patch"
           if [ -s "$RUNNER_TEMP/proposal.patch" ]; then
             # Reject all edits outside application and isolated QA source.
             if git diff --name-only | grep -Ev '^(apps/web/|apps/api/|qa/)' ; then
