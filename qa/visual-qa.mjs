@@ -24,7 +24,7 @@ function addSession(context, session) {
 }
 async function recordScreenshot(page, filename) {
   try { await page.screenshot({ path: path.join(output, filename), fullPage: true, animations: "disabled" }); }
-  catch (error) { results.push({ step: "screenshot", error: String(error) }); }
+  catch (error) { results.push({ step: "screenshot", status: "failed", error: String(error) }); process.exitCode = 1; }
 }
 async function visibleGrid(page) {
   await page.locator('[aria-label="Columnas de cargas"]').first().waitFor({ state: "visible", timeout: 45000 });
@@ -125,6 +125,15 @@ try {
   const guestContext = await browser.newContext({ viewport: { width: 1366, height: 900 } });
   await addSession(guestContext, fixture.guest_session);
   const guest = await guestContext.newPage();
+  guest.on("pageerror", error => runtimeErrors.push(`[guest] ${error.message}`));
+  guest.on("console", message => {
+    if (message.type() === "error") runtimeErrors.push(`[guest] ${message.text()}`);
+  });
+  guest.on("response", response => {
+    if (response.url().startsWith(`${base}/api/`) && response.status() >= 400) {
+      failedApiResponses.push({ status: response.status(), path: new URL(response.url()).pathname, role: "guest" });
+    }
+  });
   await guest.goto(projectUrl, { waitUntil: "domcontentloaded" });
   try {
     await perform("guest role is read-only", async () => {
