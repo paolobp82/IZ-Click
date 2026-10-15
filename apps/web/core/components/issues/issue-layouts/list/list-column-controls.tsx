@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { API_BASE_URL } from "@plane/constants";
+import { getCustomFields, invalidateCustomFields } from "./izclick-custom-field-api";
 
 export const LIST_COLUMNS = [
   { id: "state", name: "Estado", width: 260 },
@@ -56,10 +57,8 @@ export function ListColumnControls() {
     if (!workspaceSlug || !projectId) return;
     setFieldsLoading(true);
     try {
-      const res = await fetch(customFieldsUrl, { credentials: "include" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const values = await res.json();
-      if (Array.isArray(values)) { setCustomFields(values); setApiAvailable(true); }
+      const values = await getCustomFields(String(workspaceSlug), scope);
+      setCustomFields(values); setApiAvailable(true);
     } catch { setCustomFields([]); setApiAvailable(false); }
     finally { setFieldsLoading(false); }
   };
@@ -71,13 +70,18 @@ export function ListColumnControls() {
       const res = await fetch(customFieldsUrl, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newFieldName.trim(), type: newFieldType, options: [] }) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setNewFieldName("");
+      invalidateCustomFields(String(workspaceSlug), scope);
       await loadCustomFields();
-      window.dispatchEvent(new CustomEvent("izclick-custom-fields-updated", { detail: scope }));
     } catch { setCustomError("No se pudo crear el campo. La API y su migración aún deben habilitarse."); }
     finally { setSavingField(false); }
   };
 
-  useEffect(() => { if (open) void loadCustomFields(); }, [open, scope]);
+  useEffect(() => {
+    void loadCustomFields();
+    const listen = (event: Event) => { if ((event as CustomEvent<string>).detail === scope) void loadCustomFields(); };
+    window.addEventListener("izclick-custom-fields-updated", listen);
+    return () => window.removeEventListener("izclick-custom-fields-updated", listen);
+  }, [scope, workspaceSlug]);
   useEffect(() => {
     const onFieldUpdate = (event: Event) => {
       if ((event as CustomEvent<string>).detail === scope) void loadCustomFields();
@@ -196,6 +200,7 @@ export function ListColumnControls() {
           />
         </span>
       ))}
+      {customFields.map(field => <span key={field.id} className="flex h-9 w-44 shrink-0 items-center border-l border-subtle px-2 text-xs" title={field.name}><span className="truncate">{field.name}</span></span>)}
       <span ref={menuRef} className="relative flex w-11 shrink-0 items-center justify-center border-l border-subtle">
         <button type="button" aria-label="Agregar o quitar columnas" title="Agregar o quitar columnas" className="rounded p-1.5 text-lg hover:bg-layer-1-hover" onClick={() => setOpen((value) => !value)}>+</button>
         {open && <span data-izclick-popover className="absolute right-0 top-full z-[80] w-56 rounded border border-subtle bg-surface-1 p-2 shadow-lg">
