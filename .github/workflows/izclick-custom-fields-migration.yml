@@ -8,6 +8,11 @@ on:
       - 'apps/api/plane/api/views/izclick_custom_fields.py'
       - 'apps/api/plane/api/tests/test_izclick_custom_field_validation.py'
       - '.github/workflows/izclick-custom-fields-migration.yml'
+  pull_request:
+    paths:
+      - "apps/api/plane/db/models/**"
+      - "apps/api/plane/api/views/izclick_custom_fields.py"
+      - ".github/workflows/izclick-custom-fields-migration.yml"
   workflow_dispatch:
 
 permissions:
