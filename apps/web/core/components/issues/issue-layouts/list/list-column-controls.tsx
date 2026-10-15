@@ -16,6 +16,8 @@ export const LIST_COLUMNS = [
 type ColumnId = (typeof LIST_COLUMNS)[number]["id"];
 type Preferences = Record<ColumnId, { width: number; visible: boolean }>;
 const storageKey = (projectId: string) => `izclick-project-list-columns-v4:${projectId}`;
+const customWidthStorageKey = (projectId: string) => `izclick-project-custom-column-widths:${projectId}`;
+const customWidthVariable = (fieldId: string) => `--izclick-custom-width-${fieldId}`;
 const updateEvent = "izclick-list-columns-updated";
 const defaults = (): Preferences =>
   Object.fromEntries(LIST_COLUMNS.map((col) => [col.id, { width: col.width, visible: true }])) as Preferences;
@@ -137,6 +139,49 @@ export function ListColumnControls() {
     return () => window.removeEventListener(updateEvent, sync);
   }, [scope]);
 
+  useEffect(() => {
+    let stored: Record<string, number> = {};
+    try {
+      stored = JSON.parse(localStorage.getItem(customWidthStorageKey(scope)) || "{}");
+    } catch { stored = {}; }
+    for (const field of customFields) {
+      const saved = Number(stored[field.id]);
+      const width = Number.isFinite(saved) && saved >= 96 && saved <= 500 ? saved : 176;
+      document.documentElement.style.setProperty(customWidthVariable(field.id), `${width}px`);
+    }
+  }, [scope, customFields]);
+
+  const resizeCustom = (fieldId: string, startX: number) => {
+    let stored: Record<string, number> = {};
+    try { stored = JSON.parse(localStorage.getItem(customWidthStorageKey(scope)) || "{}"); } catch { stored = {}; }
+    const initial = Number(stored[fieldId]) >= 96 ? Number(stored[fieldId]) : 176;
+    let updated = initial;
+    let moved = false;
+    const move = (event: PointerEvent) => {
+      moved = true;
+      updated = Math.max(96, Math.min(500, initial + event.clientX - startX));
+      document.documentElement.style.setProperty(customWidthVariable(fieldId), `${updated}px`);
+    };
+    const finish = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+      document.body.style.cursor = "";
+      if (moved) localStorage.setItem(customWidthStorageKey(scope), JSON.stringify({ ...stored, [fieldId]: updated }));
+    };
+    const cancel = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+      document.body.style.cursor = "";
+      document.documentElement.style.setProperty(customWidthVariable(fieldId), `${initial}px`);
+    };
+    document.body.style.cursor = "col-resize";
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish, { once: true });
+    window.addEventListener("pointercancel", cancel, { once: true });
+  };
+
   const commit = (next: Preferences) => {
     setPrefs(next);
     apply(next);
@@ -204,7 +249,12 @@ export function ListColumnControls() {
           />
         </span>
       ))}
-      {customFields.map(field => <span key={field.id} className="flex h-9 w-44 shrink-0 items-center border-l border-subtle px-2 text-xs" title={field.name}><span className="truncate">{field.name}</span></span>)}
+      {customFields.map(field => <span key={field.id} className="relative flex h-9 min-w-0 shrink-0 items-center border-l border-subtle px-2 text-xs" style={{ width: `var(${customWidthVariable(field.id)}, 176px)` }} title={field.name}>
+        <span className="truncate">{field.name}</span>
+        <button type="button" aria-label={`Cambiar ancho de ${field.name}`} title={`Arrastrar para cambiar ancho de ${field.name}`}
+          className="absolute right-0 top-0 z-10 h-full w-2 cursor-col-resize hover:bg-accent-primary/30"
+          onPointerDown={event => { event.preventDefault(); event.stopPropagation(); resizeCustom(field.id, event.clientX); }} />
+      </span>)}
       <span ref={menuRef} className="relative flex w-11 shrink-0 items-center justify-center border-l border-subtle">
         <button type="button" aria-label="Agregar o quitar columnas" title="Agregar o quitar columnas" className="rounded p-1.5 text-lg hover:bg-layer-1-hover" onClick={() => setOpen((value) => !value)}>+</button>
         {open && <span data-izclick-popover className="absolute right-0 top-full z-[80] w-56 rounded border border-subtle bg-surface-1 p-2 shadow-lg">
