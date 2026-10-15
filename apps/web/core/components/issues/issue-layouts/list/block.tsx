@@ -25,6 +25,7 @@ import { IssueProperties } from "@/components/issues/issue-layouts/properties";
 import { IssueIdentifier } from "@/components/issues/issue-detail/issue-identifier";
 import { ProductionMetadataCells } from "@/components/issues/issue-layouts/spreadsheet/production-metadata-cells";
 import { ProductionListPropertyColumns } from "./production-property-columns";
+import { IzclickCustomFieldCells } from "./izclick-custom-field-cells";
 // hooks
 import { useAppTheme } from "@/hooks/store/use-app-theme";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
