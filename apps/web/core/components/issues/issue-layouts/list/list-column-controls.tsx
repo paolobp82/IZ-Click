@@ -46,6 +46,9 @@ export function ListColumnControls() {
   const menuRef = useRef<HTMLSpanElement>(null);
   const [newFieldName, setNewFieldName] = useState("");
   const [newFieldType, setNewFieldType] = useState("text");
+  const [newOptionName, setNewOptionName] = useState("");
+  const [newOptionColor, setNewOptionColor] = useState("#3b82f6");
+  const [newOptions, setNewOptions] = useState<{ id: string; name: string; color: string }[]>([]);
   const [customFields, setCustomFields] = useState<{ id: string; name: string; type: string }[]>([]);
   const [customError, setCustomError] = useState("");
   const [savingField, setSavingField] = useState(false);
@@ -62,14 +65,24 @@ export function ListColumnControls() {
     } catch { setCustomFields([]); setApiAvailable(false); }
     finally { setFieldsLoading(false); }
   };
+  const addSelectOption = () => {
+    const name = newOptionName.trim();
+    if (!name) return;
+    if (newOptions.some(option => option.name.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"))) {
+      setCustomError("Esa opción ya existe."); return;
+    }
+    setNewOptions(previous => [...previous, { id: crypto.randomUUID(), name, color: newOptionColor }]);
+    setNewOptionName(""); setCustomError("");
+  };
   const createCustomField = async () => {
-    if (!newFieldName.trim() || savingField) return;
+    if (!newFieldName.trim() || savingField || (newFieldType === "select" && newOptions.length === 0)) return;
     setSavingField(true);
     setCustomError("");
     try {
-      const res = await fetch(customFieldsUrl, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newFieldName.trim(), type: newFieldType, options: [] }) });
+      const res = await fetch(customFieldsUrl, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newFieldName.trim(), type: newFieldType, options: newFieldType === "select" ? newOptions : [] }) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setNewFieldName("");
+      setNewOptions([]);
       invalidateCustomFields(String(workspaceSlug), scope);
       await loadCustomFields();
     } catch { setCustomError("No se pudo crear el campo. La API y su migración aún deben habilitarse."); }
@@ -210,7 +223,12 @@ export function ListColumnControls() {
             <span className="mb-2 block text-xs font-semibold">Crear columna personalizada</span>
             <input aria-label="Nombre de columna" placeholder="Nombre de columna" maxLength={100} value={newFieldName} onChange={e => setNewFieldName(e.target.value)} className="mb-2 w-full rounded border border-subtle bg-surface-1 px-2 py-1.5 text-xs" />
             <select aria-label="Tipo de columna" value={newFieldType} onChange={e => setNewFieldType(e.target.value)} className="mb-2 w-full rounded border border-subtle bg-surface-1 p-1.5 text-xs"><option value="text">Texto</option><option value="number">Número</option><option value="date">Fecha</option><option value="select">Selección</option></select>
-            <button type="button" onClick={() => void createCustomField()} disabled={fieldsLoading || !apiAvailable || savingField || !newFieldName.trim()} className="w-full rounded bg-accent-primary px-2 py-1.5 text-xs text-white disabled:opacity-50">+ Crear campo</button>
+            {newFieldType === "select" && <span className="mb-2 block space-y-2 rounded border border-subtle p-2">
+              <span className="block text-xs font-medium">Opciones y colores</span>
+              {newOptions.map(option => <span key={option.id} className="flex items-center gap-2 text-xs"><span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: option.color }} /><span className="min-w-0 flex-1 truncate">{option.name}</span><button type="button" aria-label={`Eliminar ${option.name}`} onClick={() => setNewOptions(previous => previous.filter(x => x.id !== option.id))}>✕</button></span>)}
+              <span className="flex items-center gap-1"><input value={newOptionName} onChange={e => setNewOptionName(e.target.value)} placeholder="Nueva opción" maxLength={60} className="min-w-0 flex-1 rounded border border-subtle bg-surface-1 px-1 py-1 text-xs" /><input aria-label="Color de opción" type="color" value={newOptionColor} onChange={e => setNewOptionColor(e.target.value)} className="size-6 shrink-0" /><button type="button" disabled={!newOptionName.trim()} onClick={addSelectOption} className="rounded border border-subtle px-2 py-1 text-xs">Añadir</button></span>
+            </span>}
+            <button type="button" onClick={() => void createCustomField()} disabled={fieldsLoading || !apiAvailable || savingField || !newFieldName.trim() || (newFieldType === "select" && newOptions.length === 0)} className="w-full rounded bg-accent-primary px-2 py-1.5 text-xs text-white disabled:opacity-50">+ Crear campo</button>
             {fieldsLoading && <span className="mb-2 block text-xs text-tertiary">Consultando campos del proyecto…</span>}
             {!fieldsLoading && !apiAvailable && <span className="mb-2 block text-xs text-tertiary">Creación no disponible: primero deben habilitarse la API y la migración.</span>}
             {customError && <span role="alert" className="mt-2 block text-xs text-red-500">{customError}</span>}
