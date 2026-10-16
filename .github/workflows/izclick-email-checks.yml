@@ -1,0 +1,32 @@
+name: IZ-Click notification integration checks
+on:
+  push:
+    branches: [preview]
+    paths:
+      - 'apps/api/plane/bgtasks/email_notification_task.py'
+      - 'apps/api/plane/bgtasks/izclick_due_email_task.py'
+      - 'apps/api/plane/celery.py'
+      - 'apps/api/plane/settings/common.py'
+      - 'apps/api/templates/emails/notifications/izclick-*.html'
+      - 'apps/api/plane/tests/unit/bgtasks/test_izclick_email_pipeline.py'
+      - '.github/workflows/izclick-email-checks.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile notification Python modules
+        run: |
+          python -m py_compile apps/api/plane/bgtasks/email_notification_task.py
+          python -m py_compile apps/api/plane/bgtasks/izclick_due_email_task.py
+          python -m py_compile apps/api/plane/celery.py
+          python -m py_compile apps/api/plane/settings/common.py
+      - name: Run notification pipeline regression checks
+        run: python -m unittest discover -s apps/api/plane/tests/unit/bgtasks -p test_izclick_email_pipeline.py -v
