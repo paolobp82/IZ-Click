@@ -36,7 +36,11 @@ if ! "${V[@]}" up -d --no-deps api web; then
   rollback_images
   exit 1
 fi
-sleep 12
+for n in $(seq 1 24); do
+  sleep 5
+  state=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' plane-app-web-1)
+  if [ "$state" = healthy ]; then break; fi
+done
 actual_web=$(docker inspect -f '{{.Image}}' plane-app-web-1)
 actual_api=$(docker inspect -f '{{.Image}}' plane-app-api-1)
 want_web=$(docker image inspect -f '{{.Id}}' "$EXPECTED_WEB")
@@ -62,6 +66,7 @@ if [ "$after" != "$baseline" ]; then
   rollback_images
   exit 1
 fi
+docker exec plane-app-plane-db-1 sh -c 'PGHOST=/var/run/postgresql psql -U "${POSTGRES_USER:-plane}" -d "${POSTGRES_DB:-plane}" -Atc "SELECT name FROM django_migrations WHERE app=chr(100)||chr(98) AND name=chr(48)||chr(49)||chr(50)||chr(52)||chr(95)||chr(105)||chr(122)||chr(99)||chr(108)||chr(105)||chr(99)||chr(107)||chr(95)||chr(99)||chr(117)||chr(115)||chr(116)||chr(111)||chr(109)||chr(95)||chr(102)||chr(105)||chr(101)||chr(108)||chr(100)||chr(115)"' | grep -qx 0124_izclick_custom_fields
 echo "V2_DEPLOYED_BASIC_CHECKS_OK"
 echo "AFTER_COUNTS=$after"
 echo "MANUAL_AUTHENTICATED_SMOKE_TEST_REQUIRED"
