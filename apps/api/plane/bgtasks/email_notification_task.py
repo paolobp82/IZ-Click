@@ -5,6 +5,8 @@
 import logging
 import re
 from datetime import datetime
+from email.utils import formataddr
+from uuid import UUID
 
 from bs4 import BeautifulSoup
 
@@ -17,11 +19,26 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 # Module imports
-from plane.db.models import EmailNotificationLog, Issue, User
+from plane.db.models import EmailNotificationLog, Issue, State, User
 from plane.license.utils.instance_value import get_email_configuration
 from plane.settings.redis import redis_instance
 from plane.utils.email import generate_plain_text_from_html
 from plane.utils.exception_logger import log_exception
+
+
+def _state_name(raw_value, project_id):
+    if not raw_value:
+        return ""
+    raw_value = str(raw_value)
+    try:
+        state_id = UUID(raw_value)
+    except (TypeError, ValueError, AttributeError):
+        return raw_value
+    return (
+        State.objects.filter(pk=state_id, project_id=project_id)
+        .values_list("name", flat=True).first()
+        or raw_value
+    )
 
 
 def remove_unwanted_characters(input_text):
@@ -285,8 +302,8 @@ def send_email_notification(issue_id, notification_data, receiver_id, email_noti
                 "task_url": context["issue_url"],
                 "preferences_url": context["user_preference"],
                 "due_date": issue.target_date.strftime("%d/%m/%Y") if issue.target_date else "",
-                "old_state": (state_change or {}).get("old_value", [""])[0] if state_change else "",
-                "new_state": (state_change or {}).get("new_value", [""])[0] if state_change else "",
+                "old_state": _state_name((state_change or {}).get("old_value", [""])[0], issue.project_id) if state_change else "",
+                "new_state": _state_name((state_change or {}).get("new_value", [""])[0], issue.project_id) if state_change else "",
             })
             subject = f"[IZ-Click] {mail_title}"
             html_content = render_to_string("emails/notifications/izclick-event.html", context)
@@ -305,7 +322,7 @@ def send_email_notification(issue_id, notification_data, receiver_id, email_noti
                 msg = EmailMultiAlternatives(
                     subject=subject,
                     body=text_content,
-                    from_email=EMAIL_FROM,
+                    from_email=formataddr(("IZ-Click | Izango", EMAIL_FROM)),
                     to=[receiver.email],
                     connection=connection,
                 )
