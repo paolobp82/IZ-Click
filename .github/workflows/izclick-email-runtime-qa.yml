@@ -1,0 +1,52 @@
+name: IZ-Click email runtime templates QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [preview]
+    paths:
+      - '.github/workflows/izclick-email-runtime-qa.yml'
+permissions:
+  contents: read
+jobs:
+  templates:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Authenticate GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Render both templates inside built API image
+        run: |
+          set -euo pipefail
+          IMAGE=ghcr.io/paolobp82/izclick-api:email-candidate-b515616cf8e8b453a13b0edb8f79a0b01d5fbfd6
+          docker pull "$IMAGE"
+          docker run --rm --entrypoint python "$IMAGE" -c '
+          from django.conf import settings
+          settings.configure(SECRET_KEY="runtime-template-test-only", TEMPLATES=[{
+              "BACKEND":"django.template.backends.django.DjangoTemplates",
+              "DIRS":["/code/templates"], "APP_DIRS":False,
+              "OPTIONS":{"context_processors":[]}
+          }])
+          from django.template.loader import render_to_string
+          event=render_to_string("emails/notifications/izclick-event.html",{
+              "title":"Prueba IZ-Click", "message":"Se asignó un pendiente",
+              "project_name":"Producción", "list_name":"Pendientes",
+              "task_url":"https://izclick.izango.com.pe/test",
+              "preferences_url":"https://izclick.izango.com.pe/settings",
+              "old_state":"Por cotizar", "new_state":"Enviado a comercial",
+              "due_date":"16/10/2026"
+          })
+          item={"name":"Prueba","project":"Producción","date":"16/10/2026",
+                "url":"https://izclick.izango.com.pe/test","status":"Por cotizar"}
+          digest=render_to_string("emails/notifications/izclick-digest.html",{
+              "report_date":"16/10/2026","today":[item],"tomorrow":[],"overdue":[],
+              "preferences_url":"https://izclick.izango.com.pe/settings"
+          })
+          assert "IZ-Click" in event and "Ver tarea" in event
+          assert "Enviado a comercial" in event and "Por cotizar" in event
+          assert "Vencen hoy" in digest and "Prueba" in digest
+          print("IZCLICK_EMAIL_RUNTIME_TEMPLATES_OK")
+          '
