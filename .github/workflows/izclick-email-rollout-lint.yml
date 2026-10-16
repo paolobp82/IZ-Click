@@ -1,0 +1,24 @@
+name: IZ-Click email rollout script validation
+on:
+  push:
+    branches: [preview]
+    paths:
+      - scripts/izclick-email-deploy.sh
+      - scripts/izclick-email-rollback.sh
+      - .github/workflows/izclick-email-rollout-lint.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deployment and rollback syntax
+        run: |
+          set -euo pipefail
+          bash -n scripts/izclick-email-deploy.sh
+          bash -n scripts/izclick-email-rollback.sh
+          grep -q 'EMAIL_READINESS' scripts/izclick-email-deploy.sh
+          grep -q 'EMAIL_RELEASE_ROLLBACK_START' scripts/izclick-email-deploy.sh
+          echo IZCLICK_EMAIL_ROLLOUT_SHELL_OK
