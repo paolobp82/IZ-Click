@@ -30,6 +30,8 @@ jobs:
               "DIRS":["/code/templates"], "APP_DIRS":False,
               "OPTIONS":{"context_processors":[]}
           }])
+          import django
+          django.setup()
           from django.template.loader import render_to_string
           event=render_to_string("emails/notifications/izclick-event.html",{
               "title":"Prueba IZ-Click", "message":"Se asignó un pendiente",
