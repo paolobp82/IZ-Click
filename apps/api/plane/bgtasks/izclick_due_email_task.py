@@ -92,7 +92,7 @@ def send_izclick_due_notifications():
             "issue__project__workspace", "assignee"
         ).filter(issue__target_date__lt=today, assignee__is_active=True)
         .exclude(issue__state__group__in=EXCLUDED)
-        .filter(issue__archived_at__isnull=True, issue__deleted_at__isnull=True, deleted_at__isnull=True
+        .filter(issue__archived_at__isnull=True, issue__deleted_at__isnull=True, deleted_at__isnull=True)
     )
     sent = 0
     for assignment in tasks.iterator(chunk_size=200):
