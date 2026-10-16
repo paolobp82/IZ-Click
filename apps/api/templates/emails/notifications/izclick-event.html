@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;background:#f6f7fb;font-family:Arial,Helvetica,sans-serif;color:#25252f">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 12px">
+<table role="presentation" width="560" cellspacing="0" cellpadding="0" style="width:100%;max-width:560px;background:#fff;border:1px solid #e8e8ef;border-radius:14px">
+<tr><td style="padding:25px 28px 18px;font-size:23px;font-weight:700;color:#5537d4">IZ-Click <span style="font-size:12px;color:#858594">| Izango</span></td></tr>
+<tr><td style="padding:0 28px 10px;font-size:12px;color:#83838f">{{ project_name }} / {{ list_name }}</td></tr>
+<tr><td style="padding:0 28px 10px;font-size:20px;font-weight:700">{{ title }}</td></tr>
+<tr><td style="padding:2px 28px 20px;font-size:14px;line-height:1.6">{{ message }}</td></tr>
+{% if old_state and new_state %}<tr><td style="padding:0 28px 24px;font-size:14px"><span style="padding:8px 12px;background:#f0f0f3;border-radius:5px">{{ old_state }}</span> &rarr; <span style="padding:8px 12px;background:#f2eaff;border-radius:5px;color:#5a37d4;font-weight:700">{{ new_state }}</span></td></tr>{% endif %}
+{% if due_date %}<tr><td style="padding:0 28px 20px;font-size:13px;color:#b33342">Vencimiento: {{ due_date }}</td></tr>{% endif %}
+<tr><td align="center" style="padding:4px 28px 30px"><a href="{{ task_url }}" style="display:inline-block;background:#5940df;padding:13px 30px;border-radius:6px;color:#fff;text-decoration:none;font-weight:700">Ver tarea</a></td></tr>
+</table>
+<table role="presentation" width="560" style="width:100%;max-width:560px"><tr><td align="center" style="padding:17px;font-size:12px;color:#858594">IZ-Click · Izango · <a style="color:#77728f" href="{{ preferences_url }}">Administrar notificaciones</a></td></tr></table>
+</td></tr></table></body></html>
