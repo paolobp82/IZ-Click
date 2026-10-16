@@ -53,35 +53,30 @@ def stack_email_notification():
 
     # Convert to unique receivers list
     receivers = list(set([str(notification.get("receiver_id")) for notification in email_notifications]))
-    processed_notifications = []
-    # Loop through all the issues to create the emails
+    # Queue one job per issue/receiver with only its own notification IDs.
+    # Keep processed_at unset until SMTP confirms success so failed sends are visible.
     for receiver_id in receivers:
-        # Notification triggered for the receiver
         receiver_notifications = [
-            notification for notification in email_notifications if str(notification.get("receiver_id")) == receiver_id
+            notification
+            for notification in email_notifications
+            if str(notification.get("receiver_id")) == receiver_id
         ]
-        # create payload for all issues
-        payload = {}
-        email_notification_ids = []
-        for receiver_notification in receiver_notifications:
-            payload.setdefault(receiver_notification.get("entity_identifier"), {}).setdefault(
-                str(receiver_notification.get("triggered_by_id")), []
-            ).append(receiver_notification.get("data"))
-            # append processed notifications
-            processed_notifications.append(receiver_notification.get("id"))
-            email_notification_ids.append(receiver_notification.get("id"))
+        by_issue = {}
+        for notification in receiver_notifications:
+            issue_id = notification.get("entity_identifier")
+            bucket = by_issue.setdefault(issue_id, {"actors": {}, "ids": []})
+            bucket["actors"].setdefault(str(notification.get("triggered_by_id")), []).append(
+                notification.get("data")
+            )
+            bucket["ids"].append(notification.get("id"))
 
-        # Create emails for all the issues
-        for issue_id, notification_data in payload.items():
+        for issue_id, bucket in by_issue.items():
             send_email_notification.delay(
                 issue_id=issue_id,
-                notification_data=notification_data,
+                notification_data=bucket["actors"],
                 receiver_id=receiver_id,
-                email_notification_ids=email_notification_ids,
+                email_notification_ids=bucket["ids"],
             )
-
-    # Update the email notification log
-    EmailNotificationLog.objects.filter(pk__in=processed_notifications).update(processed_at=timezone.now())
 
 
 def create_payload(notification_data):
@@ -165,6 +160,7 @@ def send_email_notification(issue_id, notification_data, receiver_id, email_noti
 
             # Skip if base api is not present
             if not base_api:
+                release_lock(lock_id=lock_id)
                 return
 
             data = create_payload(notification_data=notification_data)
@@ -280,11 +276,13 @@ def send_email_notification(issue_id, notification_data, receiver_id, email_noti
                     connection=connection,
                 )
                 msg.attach_alternative(html_content, "text/html")
-                msg.send()
+                delivered = msg.send()
+                if delivered != 1:
+                    raise RuntimeError("SMTP did not confirm email acceptance")
                 logging.getLogger("plane.worker").info("Email Sent Successfully")
 
                 # Update the logs
-                EmailNotificationLog.objects.filter(pk__in=email_notification_ids).update(sent_at=timezone.now())
+                EmailNotificationLog.objects.filter(pk__in=email_notification_ids, sent_at__isnull=True).update(\n                    sent_at=timezone.now(), processed_at=timezone.now()\n                )
 
                 # release the lock
                 release_lock(lock_id=lock_id)
