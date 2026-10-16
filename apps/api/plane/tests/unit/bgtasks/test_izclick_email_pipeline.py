@@ -2,9 +2,9 @@ from pathlib import Path
 import ast
 import unittest
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 SOURCE = ROOT / "plane" / "bgtasks" / "email_notification_task.py"
-TEMPLATE = ROOT.parent / "templates" / "emails" / "notifications" / "izclick-event.html"
+TEMPLATE = ROOT / "templates" / "emails" / "notifications" / "izclick-event.html"
 
 
 class IzclickEmailPipelineTests(unittest.TestCase):
