@@ -1,5 +1,6 @@
 """IZ-Click due reminders and daily summary; no historical backfill."""
 import logging
+from email.utils import formataddr
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
@@ -51,7 +52,7 @@ def _send(receiver, subject, template, context):
     message = EmailMultiAlternatives(
         subject=subject,
         body=generate_plain_text_from_html(html),
-        from_email=sender,
+        from_email=formataddr(("IZ-Click | Izango", sender)),
         to=[receiver.email],
         connection=connection,
     )
