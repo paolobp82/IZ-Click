@@ -37,5 +37,8 @@ case "${1:-}" in
   migration-test)
     exec /usr/local/sbin/izclick-isolated-migration-test
     ;;
+  minio-restore-test)
+    exec /usr/local/sbin/izclick-minio-restore-verify
+    ;;
   *) echo "Operación no permitida" >&2; exit 126;;
 esac
