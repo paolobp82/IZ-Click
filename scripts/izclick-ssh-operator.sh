@@ -27,6 +27,9 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
   izclick-preflight)
     exec sudo -n /usr/local/sbin/izclick-controlled-ops preflight
     ;;
+  izclick-backup)
+    exec sudo -n /usr/local/sbin/izclick-controlled-ops backup
+    ;;
   *)
     echo "Acción SSH no autorizada" >&2
     exit 126
