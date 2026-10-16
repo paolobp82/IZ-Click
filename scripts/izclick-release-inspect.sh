@@ -11,5 +11,5 @@ docker inspect plane-app-web-1 plane-app-api-1 --format '{{.Name}}|{{.Config.Ima
 echo '=== SERVICE LABELS ==='
 docker inspect plane-app-web-1 plane-app-api-1 --format '{{.Name}}|{{index .Config.Labels "com.docker.compose.service"}}|{{index .Config.Labels "com.docker.compose.project"}}'
 echo '=== MIGRATIONS APPLIED ==='
-docker exec plane-app-plane-db-1 sh -c 'PGHOST=/var/run/postgresql psql -U "${POSTGRES_USER:-plane}" -d "${POSTGRES_DB:-plane}" -Atc "SELECT name FROM django_migrations WHERE app=\x27db\x27 AND name LIKE \x27012%\x27 ORDER BY name;"' 
+docker exec plane-app-plane-db-1 sh -c 'PGHOST=/var/run/postgresql psql -U "${POSTGRES_USER:-plane}" -d "${POSTGRES_DB:-plane}" -Atc "SELECT name FROM django_migrations WHERE app = chr(100)||chr(98) AND name LIKE chr(48)||chr(49)||chr(50)||chr(37) ORDER BY name;"'
 echo DEPLOY_READINESS_READONLY_OK
