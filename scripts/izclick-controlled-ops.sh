@@ -46,5 +46,11 @@ case "${1:-}" in
   stage-v2)
     exec /usr/local/sbin/izclick-v2-stage
     ;;
+  deploy-v2)
+    exec /usr/local/sbin/izclick-v2-deploy-controlled
+    ;;
+  rollback-v2)
+    exec /usr/local/sbin/izclick-v2-rollback
+    ;;
   *) echo "Operación no permitida" >&2; exit 126;;
 esac
