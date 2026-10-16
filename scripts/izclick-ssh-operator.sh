@@ -33,6 +33,9 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
   izclick-migration-test)
     exec sudo -n /usr/local/sbin/izclick-controlled-ops migration-test
     ;;
+  izclick-minio-restore-test)
+    exec sudo -n /usr/local/sbin/izclick-controlled-ops minio-restore-test
+    ;;
   *)
     echo "Acción SSH no autorizada" >&2
     exit 126
