@@ -52,5 +52,11 @@ case "${1:-}" in
   rollback-v2)
     exec /usr/local/sbin/izclick-v2-rollback
     ;;
+  deploy-emails)
+    exec /usr/local/sbin/izclick-email-deploy
+    ;;
+  rollback-emails)
+    exec /usr/local/sbin/izclick-email-rollback
+    ;;
   *) echo "Operación no permitida" >&2; exit 126;;
 esac
