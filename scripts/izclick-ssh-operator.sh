@@ -36,6 +36,9 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
   izclick-minio-restore-test)
     exec sudo -n /usr/local/sbin/izclick-controlled-ops minio-restore-test
     ;;
+  izclick-release-inspect)
+    exec sudo -n /usr/local/sbin/izclick-controlled-ops release-inspect
+    ;;
   *)
     echo "Acción SSH no autorizada" >&2
     exit 126
