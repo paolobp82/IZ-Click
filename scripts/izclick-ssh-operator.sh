@@ -48,6 +48,12 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
   izclick-rollback-v2)
     exec sudo -n /usr/local/sbin/izclick-controlled-ops rollback-v2
     ;;
+  izclick-deploy-emails)
+    exec sudo -n /usr/local/sbin/izclick-controlled-ops deploy-emails
+    ;;
+  izclick-rollback-emails)
+    exec sudo -n /usr/local/sbin/izclick-controlled-ops rollback-emails
+    ;;
   *)
     echo "Acción SSH no autorizada" >&2
     exit 126
