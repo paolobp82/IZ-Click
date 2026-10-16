@@ -154,6 +154,11 @@ def send_email_notification(issue_id, notification_data, receiver_id, email_noti
     # acquire the lock for sending emails
     try:
         if acquire_lock(lock_id=lock_id):
+            # Another worker may already have delivered this exact batch.
+            if not EmailNotificationLog.objects.filter(pk__in=email_notification_ids, sent_at__isnull=True).exists():
+                release_lock(lock_id=lock_id)
+                return
+
             # get the redis instance
             ri = redis_instance()
             base_api = ri.get(str(issue_id)).decode() if ri.get(str(issue_id)) else None
