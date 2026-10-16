@@ -40,5 +40,8 @@ case "${1:-}" in
   minio-restore-test)
     exec /usr/local/sbin/izclick-minio-restore-verify
     ;;
+  release-inspect)
+    exec /usr/local/sbin/izclick-release-inspect
+    ;;
   *) echo "Operación no permitida" >&2; exit 126;;
 esac
