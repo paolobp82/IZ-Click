@@ -47,6 +47,16 @@ app.conf.beat_schedule = {
         "task": "plane.bgtasks.email_notification_task.stack_email_notification",
         "schedule": crontab(minute="*/5"),  # Every 5 minutes
     },
+    # 13:00 UTC = 08:00 Lima throughout the year.
+    "izclick-daily-due-summary": {
+        "task": "plane.bgtasks.izclick_due_email_task.send_izclick_daily_digest",
+        "schedule": crontab(hour=13, minute=0),
+    },
+    # 13:10 UTC = 08:10 Lima; separate from daily summary.
+    "izclick-overdue-reminders": {
+        "task": "plane.bgtasks.izclick_due_email_task.send_izclick_due_notifications",
+        "schedule": crontab(hour=13, minute=10),
+    },
     "push-instance-metrics": {
         "task": "plane.license.bgtasks.telemetry_metrics.push_instance_metrics",
         "schedule": schedule(run_every=timedelta(minutes=METRICS_PUSH_INTERVAL_MINUTES)),
