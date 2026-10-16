@@ -1,0 +1,28 @@
+name: IZ-Click production backup
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: izclick-production-maintenance
+  cancel-in-progress: false
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Create database and MinIO backup on Contabo
+        env:
+          SSH_KEY: ${{ secrets.IZCLICK_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.IZCLICK_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS"
+          install -m 700 -d "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$SSH_KEY" > "$RUNNER_TEMP/ssh/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ssh/key" "$RUNNER_TEMP/ssh/known_hosts"
+          ssh -i "$RUNNER_TEMP/ssh/key" -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" \
+            -o ConnectTimeout=12 izango@209.145.60.238 izclick-backup
