@@ -16,7 +16,7 @@ import { ChevronRightIcon } from "@plane/propel/icons";
 // types
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IIssueDisplayProperties, TIssue } from "@plane/types";
-import { EIssueServiceType } from "@plane/types";
+import { EIssueServiceType, EIssuesStoreType } from "@plane/types";
 // ui
 import { ControlLink, Row } from "@plane/ui";
 import { cn, generateWorkItemLink } from "@plane/utils";
@@ -31,6 +31,8 @@ import { useProject } from "@/hooks/store/use-project";
 import useIssuePeekOverviewRedirection from "@/hooks/use-issue-peek-overview-redirection";
 import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 import { usePlatformOS } from "@/hooks/use-platform-os";
+import { useAppRouter } from "@/hooks/use-app-router";
+import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 // local components
 import type { TRenderQuickActions } from "../list/list-view-types";
 import { isIssueNew } from "../utils";
@@ -200,6 +202,8 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
   const { getIsIssuePeeked, peekIssue } = useIssueDetail(isEpic ? EIssueServiceType.EPICS : EIssueServiceType.ISSUES);
   const { handleRedirection } = useIssuePeekOverviewRedirection(isEpic);
   const { isMobile } = usePlatformOS();
+  const router = useAppRouter();
+  const isProjectSpreadsheet = useIssueStoreType() === EIssuesStoreType.PROJECT && !isEpic;
 
   // handlers
   const handleIssuePeekOverview = (issue: TIssue) =>
@@ -267,7 +271,7 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
       >
         <ControlLink
           href={workItemLink}
-          onClick={() => handleIssuePeekOverview(issueDetail)}
+          onClick={() => isProjectSpreadsheet ? router.push(workItemLink) : handleIssuePeekOverview(issueDetail)}
           className="outline-none"
           disabled={!!issueDetail?.tempId}
         >

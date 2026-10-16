@@ -15,7 +15,7 @@ import { ChevronRightIcon } from "@plane/propel/icons";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TIssue, IIssueDisplayProperties, TIssueMap } from "@plane/types";
-import { EIssueServiceType } from "@plane/types";
+import { EIssueServiceType, EIssuesStoreType } from "@plane/types";
 // ui
 import { Spinner, ControlLink, Row } from "@plane/ui";
 import { cn, generateWorkItemLink } from "@plane/utils";
@@ -23,12 +23,17 @@ import { cn, generateWorkItemLink } from "@plane/utils";
 import { MultipleSelectEntityAction } from "@/components/core/multiple-select";
 import { IssueProperties } from "@/components/issues/issue-layouts/properties";
 import { IssueIdentifier } from "@/components/issues/issue-detail/issue-identifier";
+import { ProductionMetadataCells } from "@/components/issues/issue-layouts/spreadsheet/production-metadata-cells";
+import { ProductionListPropertyColumns } from "./production-property-columns";
+import { IzclickCustomFieldCells } from "./izclick-custom-field-cells";
 // hooks
 import { useAppTheme } from "@/hooks/store/use-app-theme";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useProject } from "@/hooks/store/use-project";
 import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 import { usePlatformOS } from "@/hooks/use-platform-os";
+import { useAppRouter } from "@/hooks/use-app-router";
+import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { calculateIdentifierWidth } from "../utils";
 import type { TRenderQuickActions } from "./list-view-types";
 
@@ -107,6 +112,9 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
   const isDraggingAllowed = canDrag && canEditIssueProperties;
 
   const { isMobile } = usePlatformOS();
+  const router = useAppRouter();
+  const storeType = useIssueStoreType();
+  const isProjectList = storeType === EIssuesStoreType.PROJECT && !isEpic;
 
   useEffect(() => {
     const element = issueRef.current;
@@ -169,17 +177,19 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
     isArchived: !!issue?.archived_at,
   });
   return (
+    <div data-izclick-issue-id={isProjectList ? issue.id : undefined} className={cn("relative flex items-stretch border-b border-subtle has-[[data-izclick-popover]]:z-[70]", { "w-max min-w-max": isProjectList })}>
     <ControlLink
       id={`issue-${issue.id}`}
       href={workItemLink}
-      onClick={() => handleIssuePeekOverview(issue)}
-      className="w-full cursor-pointer"
+      onClick={() => isProjectList ? router.push(workItemLink) : handleIssuePeekOverview(issue)}
+      className={isProjectList ? "shrink-0 cursor-pointer" : "min-w-0 flex-1 cursor-pointer"}
+      style={isProjectList ? { width: "var(--izclick-link-width, 1118px)", minWidth: "var(--izclick-link-width, 964px)" } : undefined}
       disabled={!!issue?.tempId || issue?.is_draft}
     >
       <Row
         ref={issueRef}
         className={cn(
-          "group/list-block relative flex min-h-11 flex-col gap-3 bg-layer-transparent py-3 text-13 transition-colors hover:bg-layer-transparent-hover",
+          "group/list-block relative flex min-h-11 flex-col gap-2 border-b border-subtle bg-surface-1 px-3 py-2 text-13 transition-colors hover:bg-layer-1-hover md:flex-row md:items-center md:justify-between",
           {
             "border-accent-strong": getIsIssuePeeked(issue.id) && peekIssue?.nestingLevel === nestingLevel,
             "border-strong-1": isIssueActive,
@@ -190,6 +200,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
             "lg:flex-row lg:items-center": !isSidebarCollapsed,
           }
         )}
+        style={isProjectList ? { width: "var(--izclick-link-width, 964px)", minWidth: "var(--izclick-link-width, 964px)", paddingLeft: 0, paddingRight: 0, gap: 0, justifyContent: "flex-start" } : undefined}
         onDragStart={() => {
           if (!isDraggingAllowed) {
             setToast({
@@ -202,7 +213,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
           }
         }}
       >
-        <div className="flex w-full gap-2 truncate">
+        <div className={isProjectList ? "flex w-[420px] min-w-0 shrink-0 gap-2 overflow-hidden" : "flex min-w-0 flex-1 gap-2 truncate"}>
           <div className="flex flex-grow items-center gap-0.5 truncate">
             <div className="flex items-center gap-1" style={isSubIssue ? { marginLeft } : {}}>
               {/* select checkbox */}
@@ -233,7 +244,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
                   </div>
                 </Tooltip>
               )}
-              {displayProperties && (displayProperties.key || displayProperties.issue_type) && (
+              {!isProjectList && displayProperties && (displayProperties.key || displayProperties.issue_type) && (
                 <div className="flex-shrink-0" style={{ minWidth: `${keyMinWidth}px` }}>
                   {issue.project_id && (
                     <IssueIdentifier
@@ -270,6 +281,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
               )}
             </div>
 
+            {isProjectList && <span className="ml-3 shrink-0 rounded bg-layer-2 px-1.5 py-0.5 text-xs tabular-nums text-tertiary">{projectIdentifier ? `${projectIdentifier}-${issue.sequence_id}` : issue.sequence_id}</span>}
             <Tooltip
               tooltipContent={issue.name}
               isMobile={isMobile}
@@ -294,9 +306,13 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
             </div>
           )}
         </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className={isProjectList ? "flex shrink-0 items-center justify-start gap-0" : "flex flex-shrink-0 items-center justify-end gap-2"}
+          style={isProjectList ? { width: "var(--izclick-properties-width, 698px)" } : undefined}>
           {!issue?.tempId ? (
             <>
+              {isProjectList ? (
+                <ProductionListPropertyColumns issue={issue} canEdit={canEditIssueProperties} updateIssue={updateIssue} />
+              ) : (
               <IssueProperties
                 className={`relative flex flex-wrap ${isSidebarCollapsed ? "md:flex-shrink-0 md:flex-grow" : "lg:flex-shrink-0 lg:flex-grow"} items-center gap-2 whitespace-nowrap`}
                 issue={issue}
@@ -306,6 +322,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
                 activeLayout="List"
                 isEpic={isEpic}
               />
+              )}
               {/* oxlint-disable-next-line jsx_a11y/click-events-have-key-events oxlint-disable-next-line jsx_a11y/no-static-element-interactions */}
               <div
                 className={cn("hidden", {
@@ -331,5 +348,23 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
         </div>
       </Row>
     </ControlLink>
+    {isProjectList && workspaceSlug && projectId && issue.project_id && (
+      <div className="flex shrink-0 items-stretch" style={{ width: "var(--izclick-metadata-width, 480px)" }} onClick={(event) => event.stopPropagation()}>
+        <ProductionMetadataCells
+          asDiv
+          workspaceSlug={workspaceSlug}
+          projectId={issue.project_id}
+          issueId={issue.id}
+          canEdit={canEditIssueProperties}
+          labelIds={issue.label_ids ?? []}
+          onUpdateLabels={async (ids) => {
+            if (!updateIssue) throw new Error("Edición no disponible");
+            await updateIssue(issue.project_id, issue.id, { label_ids: ids });
+          }}
+        />
+      </div>
+    )}
+    {isProjectList && workspaceSlug && issue.project_id && <IzclickCustomFieldCells workspaceSlug={workspaceSlug} projectId={issue.project_id} issueId={issue.id} canEdit={canEditIssueProperties} />}
+    </div>
   );
 });

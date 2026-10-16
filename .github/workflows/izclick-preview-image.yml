@@ -1,0 +1,45 @@
+name: IZ-Click preview web image
+# Immutable preview builds only; no server deployment.
+on:
+  push:
+    branches:
+      - izclick/clickup-native-list-detail-20261014
+    paths:
+      - 'apps/web/**'
+      - 'apps/api/**'
+      - '.github/workflows/izclick-preview-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: izclick-preview-web
+  cancel-in-progress: true
+
+jobs:
+  publish-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish isolated preview image; no production deployment
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile.web
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            IZCLICK_VALIDATE_TYPES=true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/izclick-web:preview-clickup-${{ github.sha }}
+          provenance: false

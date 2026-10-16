@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IssueService } from "@/services/issue";
+import { useLabel } from "@/hooks/store/use-label";
 import { fetchProjectProductionMetadata, invalidateProjectProductionMetadata } from "./production-project-metadata";
 import { validCalendarDate } from "@/app/lib/izclick/production-schedule";
 import { sigLinkPayload, sigProjectAssociation } from "@/app/lib/izclick/production-sig";
@@ -12,6 +13,7 @@ type Props = {
   canEdit: boolean;
   labelIds: string[];
   onUpdateLabels: (ids: string[]) => Promise<void>;
+  asDiv?: boolean;
 };
 const EVENT_KIND = "event-date";
 const dateOf = (links: PlaneExternalLink[]): string => {
@@ -20,8 +22,14 @@ const dateOf = (links: PlaneExternalLink[]): string => {
 };
 
 /** Inline editor on the native spreadsheet; reads and writes Plane IssueLink records. */
-export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit, labelIds, onUpdateLabels }: Props) {
+export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, canEdit, labelIds, onUpdateLabels, asDiv = false }: Props) {
   const service = useMemo(() => new IssueService(), []);
+  const clientEditorRef = useRef<HTMLDivElement>(null);
+  const dateEditorRef = useRef<HTMLDivElement>(null);
+  const sigEditorRef = useRef<HTMLDivElement>(null);
+  const { createLabel } = useLabel();
+  const [newClient, setNewClient] = useState("");
+  const [newClientColor, setNewClientColor] = useState("#3b82f6");
   const [date, setDate] = useState("");
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
@@ -143,6 +151,28 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
   };
 
   const client = clients.find((candidate) => labelIds.includes(candidate.id));
+  const createClient = async () => {
+    const name = newClient.trim();
+    if (!canEdit || !name || clientBusy) return;
+    if (clients.some((item) => item.name.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"))) {
+      setClientError("El cliente ya existe. Selecciónalo de la lista."); return;
+    }
+    setClientBusy(true);
+    setClientError("");
+    try {
+      const created = await createLabel(workspaceSlug, projectId, { name: `Cliente: ${name}`, color: newClientColor });
+      if (!created?.id) throw new Error("No se pudo crear el cliente.");
+      const clientIds = new Set(clients.map((item) => item.id));
+      const untouched = [...new Set(labelIds)].filter((id) => !clientIds.has(id));
+      await onUpdateLabels([...untouched, created.id]);
+      setClients((prev) => [...prev, { id: created.id, name, color: newClientColor }].sort((a, b) => a.name.localeCompare(b.name, "es")));
+      invalidateProjectProductionMetadata(workspaceSlug, projectId);
+      setNewClient("");
+      setEditingClient(false);
+    } catch {
+      setClientError("No se pudo crear o asignar el cliente. Comprueba los permisos.");
+    } finally { setClientBusy(false); }
+  };
   const changeClient = async (clientId: string) => {
     if (!canEdit || clientBusy || loading || loadError) return;
     setClientBusy(true);
@@ -162,17 +192,51 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
     } finally { setClientBusy(false); }
   };
 
+  useEffect(() => {
+    if (!editingClient && !editing && !editingSig) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (editingClient && clientEditorRef.current && !clientEditorRef.current.contains(target) && !clientBusy) setEditingClient(false);
+      if (editing && dateEditorRef.current && !dateEditorRef.current.contains(target) && !busy) { setEditing(false); setDraft(date); }
+      if (editingSig && sigEditorRef.current && !sigEditorRef.current.contains(target) && !busy) setEditingSig(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setEditingClient(false);
+        setEditing(false);
+        setEditingSig(false);
+        setDraft(date);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [editingClient, editing, editingSig, clientBusy, busy, date]);
+
+  const Cell = asDiv ? "div" : "td";
+
   return (
     <>
-      <td className="h-11 min-w-40 border-r border-subtle px-3 text-13">
+      <Cell className="relative h-11 w-40 min-w-0 shrink-0 items-center border-r border-subtle px-3 text-13" style={asDiv ? { display: "var(--izclick-show-client, flex)", width: "var(--izclick-col-client, 160px)" } : undefined}>
         {editingClient ? (
-          <div className="flex flex-col gap-1 py-1">
+          <div data-izclick-popover ref={clientEditorRef} className={asDiv ? "absolute left-0 top-full z-40 flex w-72 flex-col gap-2 rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl" : "flex flex-col gap-1 py-1"}>
             <select aria-label="Seleccionar cliente" value={client?.id ?? ""} disabled={clientBusy}
               onChange={(event) => void changeClient(event.target.value)}
               className="max-w-48 rounded border border-subtle bg-surface-1 p-1 text-xs">
               <option value="">Sin cliente</option>
               {clients.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
+            <div className="flex items-center gap-1">
+              <input aria-label="Nombre del nuevo cliente" value={newClient} onChange={(event) => setNewClient(event.target.value)}
+                placeholder="Nuevo cliente" maxLength={80} className="w-28 min-w-0 rounded border border-subtle bg-surface-1 px-1 py-1 text-xs" />
+              <input aria-label="Color del nuevo cliente" type="color" value={newClientColor}
+                onChange={(event) => setNewClientColor(event.target.value)} className="size-6 shrink-0 cursor-pointer" />
+              <button type="button" disabled={clientBusy || !newClient.trim()} onClick={() => void createClient()}
+                className="whitespace-nowrap rounded border border-subtle px-1 py-1 text-xs">+ Crear</button>
+            </div>
             <button type="button" disabled={clientBusy} className="text-left text-xs underline"
               onClick={() => { setEditingClient(false); setClientError(""); }}>Cancelar</button>
             {clientError && <span role="alert" className="whitespace-normal text-xs text-red-500">{clientError}</span>}
@@ -182,16 +246,16 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
             onClick={() => { setEditingClient(true); setClientError(""); }}
             title="Seleccionar cliente de esta carga"
             className="inline-flex max-w-44 items-center gap-1.5 truncate rounded px-2 py-1 text-left disabled:cursor-default"
-            style={client ? { border: `1px solid ${client.color}` } : undefined}>
+            style={client ? { border: `1px solid ${client.color}`, backgroundColor: `${client.color}18` } : undefined}>
             {client && <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: client.color }} />}
             <span className="truncate">{client?.name ?? (loading ? "…" : "Sin cliente")}</span>
           </button>
         )}
-      </td>
-      <td className="h-11 min-w-40 border-r border-subtle px-2 text-13">
+      </Cell>
+      <Cell className="relative h-11 w-40 min-w-0 shrink-0 items-center border-r border-subtle px-2 text-13" style={asDiv ? { display: "var(--izclick-show-event, flex)", width: "var(--izclick-col-event, 160px)" } : undefined}>
         {editing ? (
-          <div className="flex flex-wrap items-center gap-1">
+          <div data-izclick-popover ref={dateEditorRef} className={asDiv ? "absolute left-0 top-full z-40 flex w-64 flex-wrap items-center gap-2 rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl" : "flex flex-wrap items-center gap-1"}>
             <input type="date" aria-label="Fecha del evento" value={draft} disabled={busy}
               onChange={(event) => setDraft(event.target.value)}
               className="max-w-36 rounded border border-subtle bg-surface-1 px-1 py-1 text-xs" />
@@ -206,10 +270,10 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
             {loading ? "…" : loadError ? "No disponible" : date || "—"}
           </button>
         )}
-      </td>
-      <td className="h-11 min-w-40 border-r border-subtle px-2 text-13">
+      </Cell>
+      <Cell className="relative h-11 w-40 min-w-0 shrink-0 items-center border-r border-subtle px-2 text-13" style={asDiv ? { display: "var(--izclick-show-sig, flex)", width: "var(--izclick-col-sig, 160px)" } : undefined}>
         {editingSig ? (
-          <div className="flex min-w-56 flex-col gap-1 py-1">
+          <div data-izclick-popover ref={sigEditorRef} className={asDiv ? "absolute right-0 top-full z-40 flex w-80 flex-col gap-2 rounded-lg border border-subtle bg-surface-1 p-3 shadow-xl" : "flex min-w-56 flex-col gap-1 py-1"}>
             <input aria-label="Código SIG" maxLength={60} value={sigCodeDraft} disabled={busy}
               onChange={(event) => setSigCodeDraft(event.target.value)}
               placeholder="IZ-26968" className="rounded border border-subtle bg-surface-1 px-2 py-1 text-xs" />
@@ -235,7 +299,7 @@ export function ProductionMetadataCells({ workspaceSlug, projectId, issueId, can
             </button>}
           </div>
         )}
-      </td>
+      </Cell>
     </>
   );
 }

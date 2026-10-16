@@ -92,3 +92,6 @@ from .sticky import Sticky
 from .description import Description, DescriptionVersion
 
 from .izclick_production_status import IzClickProductionStatus, IzClickProductionStatusBinding
+
+# IZ-Click optional project-level custom field models
+from .izclick_custom_field import IzclickCustomField, IzclickCustomFieldValue

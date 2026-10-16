@@ -25,6 +25,7 @@ import { useAppRouter } from "@/hooks/use-app-router";
 // local components
 import { IssuePeekOverview } from "../peek-overview";
 import { IssueMainContent } from "./main-content";
+import { IssueActivity } from "./issue-activity";
 import { IssueDetailsSidebar } from "./sidebar";
 
 export type TIssueOperations = {
@@ -238,8 +239,19 @@ export const IssueDetailRoot = observer(function IssueDetailRoot(props: TIssueDe
           }}
         />
       ) : (
-        <div className="flex h-full w-full overflow-hidden">
-          <div className="h-full w-full space-y-6 overflow-y-auto px-9 py-5">
+        <div className="relative flex h-full w-full overflow-hidden">
+          <div className="min-w-0 flex-1 overflow-y-auto px-6 py-5 xl:px-9">
+            <div className="sticky top-0 z-20 mb-4 flex justify-end bg-surface-1 py-2">
+              <button
+                type="button"
+                aria-label="Cerrar tarea y regresar a la lista"
+                title="Regresar a la lista"
+                onClick={() => router.push(`/${workspaceSlug}/projects/${projectId}/issues`)}
+                className="rounded-md border border-subtle bg-surface-1 px-3 py-1.5 text-sm text-primary shadow-sm hover:bg-layer-1-hover"
+              >
+                ✕ Cerrar
+              </button>
+            </div>
             <IssueMainContent
               workspaceSlug={workspaceSlug}
               projectId={projectId}
@@ -249,9 +261,26 @@ export const IssueDetailRoot = observer(function IssueDetailRoot(props: TIssueDe
               isArchived={is_archived}
             />
           </div>
+          <aside
+            className="hidden h-full w-[min(36%,420px)] min-w-[320px] flex-shrink-0 flex-col border-l border-subtle bg-surface-1 lg:flex"
+            aria-label="Propiedades y actividad de la carga"
+          >
+            <div className="max-h-[48%] flex-shrink-0 overflow-y-auto border-b border-subtle">
+              <IssueDetailsSidebar
+                workspaceSlug={workspaceSlug}
+                projectId={projectId}
+                issueId={issueId}
+                issueOperations={issueOperations}
+                isEditable={!is_archived && isEditable}
+              />
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              <IssueActivity workspaceSlug={workspaceSlug} projectId={projectId} issueId={issueId} disabled={is_archived} />
+            </div>
+          </aside>
           <div
-            className="fixed right-0 z-[5] h-full w-full min-w-[300px] border-l border-subtle bg-surface-1 sm:w-1/2 md:relative md:w-1/4 lg:min-w-80 xl:min-w-96"
-            style={issueDetailSidebarCollapsed ? { right: `-${window?.innerWidth || 0}px` } : {}}
+            className="fixed right-0 z-[5] h-full w-full min-w-[300px] border-l border-subtle bg-surface-1 sm:w-1/2 lg:hidden"
+            style={issueDetailSidebarCollapsed ? { right: "-100vw" } : {}}
           >
             <IssueDetailsSidebar
               workspaceSlug={workspaceSlug}

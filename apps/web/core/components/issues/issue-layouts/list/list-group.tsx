@@ -6,6 +6,7 @@
 
 import type { MutableRefObject } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { observer } from "mobx-react";
@@ -22,7 +23,7 @@ import type {
   IIssueDisplayProperties,
   TIssueKanbanFilters,
 } from "@plane/types";
-import { EIssueLayoutTypes } from "@plane/types";
+import { EIssueLayoutTypes, EIssuesStoreType } from "@plane/types";
 import { Row } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
@@ -31,7 +32,7 @@ import { useWorkFlowFDragNDrop } from "@/components/workflow";
 // hooks
 import { useProjectState } from "@/hooks/store/use-project-state";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
-import { useIssuesStore } from "@/hooks/use-issue-layout-store";
+import { useIssueStoreType, useIssuesStore } from "@/hooks/use-issue-layout-store";
 import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 // local imports
 import { GroupDragOverlay } from "../group-drag-overlay";
@@ -46,6 +47,7 @@ import {
 import { IssueBlocksList } from "./blocks-list";
 import { HeaderGroupByCard } from "./headers/group-by-card";
 import type { TRenderQuickActions } from "./list-view-types";
+import { ListColumnControls } from "./list-column-controls";
 
 interface Props {
   groupIssueIds: string[] | undefined;
@@ -106,6 +108,8 @@ export const ListGroup = observer(function ListGroup(props: Props) {
   const groupRef = useRef<HTMLDivElement | null>(null);
   const { t } = useTranslation();
   const projectState = useProjectState();
+  const isProjectList = useIssueStoreType() === EIssuesStoreType.PROJECT && !isEpic;
+  const { projectId: routedProjectId } = useParams();
 
   const {
     issues: { getGroupIssueCount, getPaginationData, getIssueLoader },
@@ -258,7 +262,7 @@ export const ListGroup = observer(function ListGroup(props: Props) {
   return validateEmptyIssueGroups(groupIssueCount) ? (
     <div
       ref={groupRef}
-      className={cn(`relative flex flex-shrink-0 flex-col`, {
+      className={cn(`relative flex flex-shrink-0 flex-col has-[[data-izclick-popover]]:z-[60]`, {
         "border-accent-strong": isDraggingOverColumn,
         "border-danger-subtle": isDraggingOverColumn && isDropDisabled,
       })}
@@ -287,6 +291,11 @@ export const ListGroup = observer(function ListGroup(props: Props) {
       </Row>
       {shouldExpand && (
         <div className="relative">
+          {isProjectList && (
+            <div className="sticky top-9 z-[2] flex min-h-9 w-max min-w-max items-center border-b border-subtle bg-layer-1 text-xs font-medium text-tertiary" aria-label="Columnas de cargas">
+              <ListColumnControls canManageStates={canEditProperties(routedProjectId?.toString())} />
+            </div>
+          )}
           <GroupDragOverlay
             dragColumnOrientation={dragColumnOrientation}
             canOverlayBeVisible={canOverlayBeVisible}

@@ -1,0 +1,97 @@
+name: IZ-Click custom fields migration artifact
+on:
+  push:
+    branches: [izclick/clickup-native-list-detail-20261014]
+    paths:
+      - 'apps/api/plane/db/models/izclick_custom_field.py'
+      - 'apps/api/plane/db/models/__init__.py'
+      - 'apps/api/plane/api/views/izclick_custom_fields.py'
+      - 'apps/api/plane/api/tests/test_izclick_custom_field_validation.py'
+      - 'apps/api/plane/api/tests/test_izclick_custom_field_schema.py'
+      - 'apps/api/plane/api/tests/test_izclick_custom_field_endpoints.py'
+      - 'apps/api/plane/app/urls/project.py'
+      - '.github/workflows/izclick-custom-fields-migration.yml'
+  pull_request:
+    paths:
+      - "apps/api/plane/db/models/**"
+      - "apps/api/plane/api/views/izclick_custom_fields.py"
+      - ".github/workflows/izclick-custom-fields-migration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migration-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: izclick_test
+          POSTGRES_PASSWORD: izclick_test
+          POSTGRES_DB: izclick_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U izclick_test -d izclick_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        working-directory: apps/api
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/production.txt
+      - name: Generate migration WITHOUT database access
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://unused:unused@127.0.0.1:5432/unused
+          REDIS_URL: redis://127.0.0.1:6379/0
+          SECRET_KEY: migration-preflight-not-for-production
+        run: |
+          python manage.py makemigrations db --check --dry-run --noinput
+          python - <<'PY'
+          import os
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "plane.settings.production")
+          import django
+          django.setup()
+          from django.db.migrations.loader import MigrationLoader
+          loader = MigrationLoader(None)
+          target = ("db", "0124_izclick_custom_fields")
+          assert target in loader.graph.nodes, "Custom field migration is missing"
+          assert ("db", "0123_izclick_production_workspace_statuses") in loader.disk_migrations[target].dependencies, "Unexpected parent migration"
+          print("Migration dependency graph validated without database access")
+          PY
+          test -f plane/db/migrations/0124_izclick_custom_fields.py
+      - name: Validate custom field options and types without modifying production
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://unused:unused@127.0.0.1:5432/unused
+          REDIS_URL: redis://127.0.0.1:6379/0
+          SECRET_KEY: migration-preflight-not-for-production
+        run: |
+          python manage.py test plane.api.tests.test_izclick_custom_field_validation --noinput
+      - name: Validate migration against isolated PostgreSQL
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://izclick_test:izclick_test@127.0.0.1:5432/izclick_test
+          REDIS_URL: redis://127.0.0.1:6379/0
+          SECRET_KEY: integration-test-not-for-production
+        run: |
+          python manage.py migrate --noinput
+          python manage.py makemigrations db --check --dry-run --noinput
+          python manage.py test plane.api.tests.test_izclick_custom_field_validation plane.api.tests.test_izclick_custom_field_schema plane.api.tests.test_izclick_custom_field_endpoints --noinput
+      - name: Upload migration for inspection; do not apply it
+        uses: actions/upload-artifact@v4
+        with:
+          name: izclick-custom-field-migration
+          path: apps/api/plane/db/migrations/*izclick_custom_fields.py
+          if-no-files-found: error
