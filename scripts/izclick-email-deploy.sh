@@ -37,20 +37,31 @@ rollback() {
 ROLLBACK_NEEDED=1
 trap 'if [ "$ROLLBACK_NEEDED" = 1 ]; then rollback; fi' ERR
 "${D[@]}" up -d --no-deps api worker beat-worker
-for n in $(seq 1 30); do
-  sleep 5
-  API_RUNNING=$(docker inspect -f '{{.State.Running}}' plane-app-api-1)
-  WORKER_RUNNING=$(docker inspect -f '{{.State.Running}}' plane-app-worker-1)
-  BEAT_RUNNING=$(docker inspect -f '{{.State.Running}}' plane-app-beat-worker-1)
-  CODE=$(curl -sSL --max-time 10 -o /dev/null -w '%{http_code}' https://izclick.izango.com.pe/api/instances/ || true)
+# Plane runs migrations/configuration/cache/static initialization before Gunicorn.
+# Allow up to 12 minutes, then check a sustained healthy window.
+deadline=$((SECONDS + 720))
+stable=0
+while (( SECONDS < deadline )); do
+  sleep 10
+  API_RUNNING=$(docker inspect -f '{{.State.Running}}' plane-app-api-1 2>/dev/null || echo false)
+  WORKER_RUNNING=$(docker inspect -f '{{.State.Running}}' plane-app-worker-1 2>/dev/null || echo false)
+  BEAT_RUNNING=$(docker inspect -f '{{.State.Running}}' plane-app-beat-worker-1 2>/dev/null || echo false)
+  CODE=$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' https://izclick.izango.com.pe/api/instances/ 2>/dev/null || true)
+  printf 'EMAIL_READINESS elapsed=%ss api=%s worker=%s beat=%s http=%s stable=%s\\n' "$SECONDS" "$API_RUNNING" "$WORKER_RUNNING" "$BEAT_RUNNING" "$CODE" "$stable"
   if [ "$API_RUNNING" = true ] && [ "$WORKER_RUNNING" = true ] && [ "$BEAT_RUNNING" = true ] && [ "$CODE" = 200 ]; then
-    break
+    stable=$((stable + 1))
+    if [ "$stable" -ge 3 ]; then break; fi
+  else
+    stable=0
   fi
 done
-test "$API_RUNNING" = true
-test "$WORKER_RUNNING" = true
-test "$BEAT_RUNNING" = true
-test "$CODE" = 200
+if [ "$stable" -lt 3 ]; then
+  echo "EMAIL_RELEASE_NOT_READY: Inspecting last API/worker/beat logs before rollback" >&2
+  docker logs --tail 45 plane-app-api-1 >&2 || true
+  docker logs --tail 30 plane-app-worker-1 >&2 || true
+  docker logs --tail 30 plane-app-beat-worker-1 >&2 || true
+  false
+fi
 NEW_ID=$(docker image inspect -f '{{.Id}}' "$NEW")
 for container in plane-app-api-1 plane-app-worker-1 plane-app-beat-worker-1; do
   test "$(docker inspect -f '{{.Image}}' "$container")" = "$NEW_ID"
