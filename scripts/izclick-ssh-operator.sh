@@ -24,6 +24,9 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
       fi
     fi
     ;;
+  izclick-preflight)
+    exec sudo -n /usr/local/sbin/izclick-controlled-ops preflight
+    ;;
   *)
     echo "Acción SSH no autorizada" >&2
     exit 126
