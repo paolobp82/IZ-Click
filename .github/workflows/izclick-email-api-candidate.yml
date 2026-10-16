@@ -45,8 +45,8 @@ jobs:
       - name: Build and publish API only (never deploy)
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: apps/api/Dockerfile.api
+          context: ./apps/api
+          file: ./apps/api/Dockerfile.api
           platforms: linux/amd64
           push: true
           tags: ghcr.io/paolobp82/izclick-api:email-candidate-${{ github.sha }}
