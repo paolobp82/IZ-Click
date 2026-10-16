@@ -34,5 +34,8 @@ case "${1:-}" in
     echo "BACKUP_OK"
     echo "BACKUP_DIRECTORY=$DEST"
     ;;
+  migration-test)
+    exec /usr/local/sbin/izclick-isolated-migration-test
+    ;;
   *) echo "Operación no permitida" >&2; exit 126;;
 esac
