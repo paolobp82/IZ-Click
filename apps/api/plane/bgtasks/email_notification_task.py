@@ -260,7 +260,36 @@ def send_email_notification(issue_id, notification_data, receiver_id, email_noti
                 "comments": comments,
                 "entity_type": "issue",
             }
-            html_content = render_to_string("emails/notifications/issue-updates.html", context)
+            # IZ-Click email presentation; preserve the existing Plane event routing.
+            changed_fields = {
+                field for entry in template_data for field in entry.get("changes", {}).keys()
+            }
+            if "state" in changed_fields:
+                mail_title = f"Cambio de estado · {issue.name}"
+                mail_message = "Se actualizó el estado de este pendiente."
+            elif "assignees" in changed_fields or "assignee" in changed_fields:
+                mail_title = f"Te asignaron un pendiente · {issue.name}"
+                mail_message = "Se actualizó la asignación de responsables."
+            else:
+                mail_title = f"Actualización de pendiente · {issue.name}"
+                mail_message = "Se registraron cambios en este pendiente."
+            state_change = next(
+                (entry.get("changes", {}).get("state") for entry in template_data
+                 if entry.get("changes", {}).get("state")), None
+            )
+            context.update({
+                "title": mail_title,
+                "message": mail_message,
+                "project_name": issue.project.name,
+                "list_name": "Pendientes",
+                "task_url": context["issue_url"],
+                "preferences_url": context["user_preference"],
+                "due_date": issue.target_date.strftime("%d/%m/%Y") if issue.target_date else "",
+                "old_state": (state_change or {}).get("old_value", [""])[0] if state_change else "",
+                "new_state": (state_change or {}).get("new_value", [""])[0] if state_change else "",
+            })
+            subject = f"[IZ-Click] {mail_title}"
+            html_content = render_to_string("emails/notifications/izclick-event.html", context)
             text_content = generate_plain_text_from_html(html_content)
 
             try:
