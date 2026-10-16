@@ -30,6 +30,9 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
   izclick-backup)
     exec sudo -n /usr/local/sbin/izclick-controlled-ops backup
     ;;
+  izclick-migration-test)
+    exec sudo -n /usr/local/sbin/izclick-controlled-ops migration-test
+    ;;
   *)
     echo "Acción SSH no autorizada" >&2
     exit 126
