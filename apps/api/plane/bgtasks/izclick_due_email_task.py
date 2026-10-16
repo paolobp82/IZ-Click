@@ -8,7 +8,7 @@ from django.core.mail import EmailMultiAlternatives, get_connection
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from plane.db.models import Issue, IssueAssignee, User
+from plane.db.models import IssueAssignee, UserNotificationPreference
 from plane.license.utils.instance_value import get_email_configuration
 from plane.settings.redis import redis_instance
 from plane.utils.email import generate_plain_text_from_html
@@ -24,6 +24,19 @@ def issue_link(issue):
         f"{BASE_URL}/{issue.project.workspace.slug}/projects/"
         f"{issue.project_id}/issues/{issue.id}"
     )
+
+
+def _reminders_allowed(user_id, workspace_id):
+    # Reuse Plane's existing general email preference until a dedicated
+    # reminder/digest preference control is introduced.
+    preference = UserNotificationPreference.objects.filter(
+        user_id=user_id, workspace_id=workspace_id, project__isnull=True,
+    ).first()
+    if preference is None:
+        preference = UserNotificationPreference.objects.filter(
+            user_id=user_id, workspace__isnull=True, project__isnull=True,
+        ).first()
+    return preference is None or preference.property_change
 
 
 def _send(receiver, subject, template, context):
@@ -78,12 +91,14 @@ def send_izclick_due_notifications():
             "issue__project__workspace", "assignee"
         ).filter(issue__target_date__lt=today, assignee__is_active=True)
         .exclude(issue__state__group__in=EXCLUDED)
-        .filter(issue__archived_at__isnull=True, issue__deleted_at__isnull=True)
+        .filter(issue__archived_at__isnull=True, issue__deleted_at__isnull=True, deleted_at__isnull=True
     )
     sent = 0
     for assignment in tasks.iterator(chunk_size=200):
         issue = assignment.issue
         receiver = assignment.assignee
+        if not _reminders_allowed(receiver.id, issue.project.workspace_id):
+            continue
         key = f"overdue:{issue.id}:{receiver.id}:{issue.target_date.isoformat()}"
         ctx = {
             "project_name": issue.project.name, "list_name": "Pendientes",
@@ -122,7 +137,7 @@ def send_izclick_daily_digest():
     grouped = {}
     for assignment in assignments.iterator(chunk_size=200):
         issue = assignment.issue
-        if not assignment.assignee.email:
+        if not assignment.assignee.email or not _reminders_allowed(assignment.assignee_id, issue.project.workspace_id):
             continue
         group = grouped.setdefault(assignment.assignee_id, {
             "receiver": assignment.assignee, "today": [], "tomorrow": [], "overdue": [],
