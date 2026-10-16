@@ -333,7 +333,9 @@ def send_email_notification(issue_id, notification_data, receiver_id, email_noti
                 logging.getLogger("plane.worker").info("Email Sent Successfully")
 
                 # Update the logs
-                EmailNotificationLog.objects.filter(pk__in=email_notification_ids, sent_at__isnull=True).update(\n                    sent_at=timezone.now(), processed_at=timezone.now()\n                )
+                EmailNotificationLog.objects.filter(pk__in=email_notification_ids, sent_at__isnull=True).update(
+                    sent_at=timezone.now(), processed_at=timezone.now()
+                )
 
                 # release the lock
                 release_lock(lock_id=lock_id)
