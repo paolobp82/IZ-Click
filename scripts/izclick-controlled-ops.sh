@@ -43,5 +43,8 @@ case "${1:-}" in
   release-inspect)
     exec /usr/local/sbin/izclick-release-inspect
     ;;
+  stage-v2)
+    exec /usr/local/sbin/izclick-v2-stage
+    ;;
   *) echo "Operación no permitida" >&2; exit 126;;
 esac
