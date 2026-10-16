@@ -1,0 +1,34 @@
+name: IZ-Click email notifications production release
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Escribe PUBLICAR-CORREOS-IZCLICK para actualizar API y Celery'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: izclick-production-maintenance
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: ${{ inputs.confirmation == 'PUBLICAR-CORREOS-IZCLICK' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Update only API, worker and beat
+        env:
+          SSH_KEY: ${{ secrets.IZCLICK_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.IZCLICK_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS"
+          install -m 700 -d "$RUNNER_TEMP/ssh"
+          printf '%s\n' "$SSH_KEY" > "$RUNNER_TEMP/ssh/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/ssh/known_hosts"
+          chmod 600 "$RUNNER_TEMP/ssh/key" "$RUNNER_TEMP/ssh/known_hosts"
+          ssh -i "$RUNNER_TEMP/ssh/key" -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" \
+            -o ConnectTimeout=12 -o ServerAliveInterval=15 -o ServerAliveCountMax=5 \
+            izango@209.145.60.238 izclick-deploy-emails
