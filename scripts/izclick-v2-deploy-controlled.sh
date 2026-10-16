@@ -30,10 +30,12 @@ rollback_images() {
   echo "RESTORING_PREVIOUS_IMAGES"
   "${C[@]}" up -d --no-deps --force-recreate api web || true
 }
+# On any error after changing containers, revert the image configuration (not the additive DB migration).
+ROLLBACK_NEEDED=1
+trap 'if [ "$ROLLBACK_NEEDED" = 1 ]; then rollback_images; fi' ERR
 # Recreate API and Web only. No down, no volume flags.
 if ! "${V[@]}" up -d --no-deps api web; then
   echo "UPDATE_FAILED attempting image rollback" >&2
-  rollback_images
   exit 1
 fi
 for n in $(seq 1 24); do
@@ -66,7 +68,9 @@ if [ "$after" != "$baseline" ]; then
   rollback_images
   exit 1
 fi
-docker exec plane-app-plane-db-1 sh -c 'PGHOST=/var/run/postgresql psql -U "${POSTGRES_USER:-plane}" -d "${POSTGRES_DB:-plane}" -Atc "SELECT name FROM django_migrations WHERE app=chr(100)||chr(98) AND name=chr(48)||chr(49)||chr(50)||chr(52)||chr(95)||chr(105)||chr(122)||chr(99)||chr(108)||chr(105)||chr(99)||chr(107)||chr(95)||chr(99)||chr(117)||chr(115)||chr(116)||chr(111)||chr(109)||chr(95)||chr(102)||chr(105)||chr(101)||chr(108)||chr(100)||chr(115)"' | grep -qx 0124_izclick_custom_fields
+docker exec plane-app-plane-db-1 sh -c 'PGHOST=/var/run/postgresql psql -U "${POSTGRES_USER:-plane}" -d "${POSTGRES_DB:-plane}" -Atc "SELECT count(*) FROM django_migrations WHERE app=chr(100)||chr(98) AND name LIKE chr(48)||chr(49)||chr(50)||chr(52)||chr(95)||chr(37)"' | grep -qx 1
+ROLLBACK_NEEDED=0
+trap - ERR
 echo "V2_DEPLOYED_BASIC_CHECKS_OK"
 echo "AFTER_COUNTS=$after"
 echo "MANUAL_AUTHENTICATED_SMOKE_TEST_REQUIRED"
