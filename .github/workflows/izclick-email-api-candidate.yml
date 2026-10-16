@@ -1,0 +1,53 @@
+name: IZ-Click email API candidate
+on:
+  workflow_dispatch:
+  push:
+    branches: [preview]
+    paths:
+      - 'apps/api/plane/bgtasks/email_notification_task.py'
+      - 'apps/api/plane/bgtasks/izclick_due_email_task.py'
+      - 'apps/api/plane/celery.py'
+      - 'apps/api/plane/settings/common.py'
+      - 'apps/api/templates/emails/notifications/izclick-*.html'
+      - 'apps/api/plane/tests/unit/bgtasks/test_izclick_email_pipeline.py'
+      - '.github/workflows/izclick-email-api-candidate.yml'
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: izclick-email-candidate-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate syntax and notification contract
+        run: |
+          python -m compileall -q apps/api/plane/bgtasks/email_notification_task.py apps/api/plane/bgtasks/izclick_due_email_task.py apps/api/plane/celery.py apps/api/plane/settings/common.py
+          python -m unittest discover -s apps/api/plane/tests/unit/bgtasks -p test_izclick_email_pipeline.py -v
+  image:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish API only (never deploy)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile.api
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/paolobp82/izclick-api:email-candidate-${{ github.sha }}
+          provenance: false
