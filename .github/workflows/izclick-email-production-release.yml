@@ -1,11 +1,6 @@
 name: IZ-Click email notifications production release
 on:
   workflow_dispatch:
-    inputs:
-      confirmation:
-        description: 'Escribe PUBLICAR-CORREOS-IZCLICK para actualizar API y Celery'
-        required: true
-        type: string
 permissions:
   contents: read
 concurrency:
@@ -13,7 +8,6 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    if: ${{ inputs.confirmation == 'PUBLICAR-CORREOS-IZCLICK' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
