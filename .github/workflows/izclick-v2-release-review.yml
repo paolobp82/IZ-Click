@@ -1,0 +1,13 @@
+name: IZ-Click V2 release review
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display next release gate
+        run: |
+          echo "V2 candidate staged. No production deploy is executed."
+          echo "Approval required before enabling production deployment."
