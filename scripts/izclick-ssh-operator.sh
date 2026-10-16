@@ -39,6 +39,9 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
   izclick-release-inspect)
     exec sudo -n /usr/local/sbin/izclick-controlled-ops release-inspect
     ;;
+  izclick-stage-v2)
+    exec sudo -n /usr/local/sbin/izclick-controlled-ops stage-v2
+    ;;
   *)
     echo "Acción SSH no autorizada" >&2
     exit 126
