@@ -1,0 +1,38 @@
+name: IZ-Click state backend static checks
+on:
+  pull_request:
+    paths:
+      - 'apps/api/plane/api/views/state.py'
+      - 'apps/api/plane/api/serializers/state.py'
+      - 'apps/api/plane/api/tests/test_izclick_state_validation.py'
+      - '.github/workflows/izclick-state-static-checks.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse Python sources and enforce no writes inside state serializer validate
+        run: |
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          paths = [
+              Path('apps/api/plane/api/views/state.py'),
+              Path('apps/api/plane/api/serializers/state.py'),
+              Path('apps/api/plane/api/tests/test_izclick_state_validation.py'),
+          ]
+          for p in paths:
+              ast.parse(p.read_text(), filename=str(p))
+              print(f'PYTHON_PARSE_OK: {p}')
+          serializer = ast.parse(paths[1].read_text())
+          cls = next(n for n in serializer.body if isinstance(n, ast.ClassDef) and n.name == 'StateSerializer')
+          validate = next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == 'validate')
+          assert not any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr in ('update', 'delete', 'save', 'create', 'bulk_update') for n in ast.walk(validate)), 'StateSerializer.validate must not write to DB'
+          views = ast.parse(paths[0].read_text())
+          assert any(isinstance(n, ast.With) and any(isinstance(x.context_expr, ast.Call) and isinstance(x.context_expr.func, ast.Attribute) and x.context_expr.func.attr == 'atomic' for x in n.items) for n in ast.walk(views)), 'Missing atomic transaction'
+          print('STATE_STATIC_CHECKS_OK')
+          PY
