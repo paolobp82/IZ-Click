@@ -61,6 +61,7 @@ jobs:
         run: |
           uv run python -m unittest discover -s izclick_contract_tests -v
           uv run python -m unittest discover -s plane/tests/unit/bgtasks -p test_izclick_email_pipeline.py -v
+          uv run python -m unittest discover -s ../../ops/tests -v
   image:
     needs: test
     runs-on: ubuntu-24.04
@@ -79,8 +80,8 @@ jobs:
           set -euo pipefail
           BASE=ghcr.io/paolobp82/izclick-api:email-candidate-b515616cf8e8b453a13b0edb8f79a0b01d5fbfd6
           docker pull "$BASE"
-          test "$(docker image inspect --format '{{.Id}}' "$BASE")" = 'sha256:31e7edf9ad2185ff91a27d01514cf444af697b6d9f156493ed1adacf0a97efbf'
           PINNED=$(docker image inspect --format '{{index .RepoDigests 0}}' "$BASE")
+          test "$PINNED" = 'ghcr.io/paolobp82/izclick-api@sha256:31e7edf9ad2185ff91a27d01514cf444af697b6d9f156493ed1adacf0a97efbf'
           echo "image=$PINNED" >> "$GITHUB_OUTPUT"
       - name: Build and publish repaired API only; never deploy
         id: candidate

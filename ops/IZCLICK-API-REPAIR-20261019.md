@@ -29,7 +29,7 @@ by deployment. The two migration files are restored byte-for-byte from the
 original revision; no new live migration is part of the procedure.
 
 The candidate image overlays only application source onto the exact production
-dependency image after CI verifies its image ID and resolves its registry digest.
+dependency image after CI verifies its registry digest against production.
 Compile application Python bytecode during the image build. This removes source
 compilation from cold imports; it is a mitigation pending runtime measurement.
 

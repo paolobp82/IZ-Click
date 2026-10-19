@@ -117,3 +117,24 @@ def test_failed_binding_rolls_back_new_catalogue_and_native_state(production):
     assert not IzClickProductionStatus.objects.exists()
     assert State.objects.filter(project=project).count() == 1
     assert_unchanged(original, issue)
+
+
+def test_native_project_state_creation_still_works(production):
+    client, workspace, project, original, issue, url = production
+    native_url = f"/api/workspaces/{workspace.slug}/projects/{project.id}/states/"
+    response = client.post(native_url, {"name": "Native review", "color": "#123456", "group": "started"}, format="json")
+    assert response.status_code == 200, response.data
+    native_id = response.data["id"]
+    listing = client.get(native_url)
+    assert listing.status_code == 200
+    assert any(str(row["id"]) == str(native_id) for row in listing.data)
+    assert_unchanged(original, issue)
+
+
+def test_native_duplicate_keeps_existing_state_and_issue(production):
+    client, workspace, project, original, issue, url = production
+    native_url = f"/api/workspaces/{workspace.slug}/projects/{project.id}/states/"
+    response = client.post(native_url, {"name": "Existente", "color": "#abcdef", "group": "started"}, format="json")
+    assert response.status_code == 400, response.data
+    assert State.objects.filter(project=project).count() == 1
+    assert_unchanged(original, issue)
