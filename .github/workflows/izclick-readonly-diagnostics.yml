@@ -15,16 +15,16 @@ jobs:
         uses: actions/checkout@v4
       - name: Run read-only commands through preconfigured SSH
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          SSH_HOST: ${{ vars.IZCLICK_SSH_HOST || '209.145.60.238' }}
+          SSH_USER: ${{ vars.IZCLICK_SSH_USER || 'izango' }}
+          SSH_PRIVATE_KEY: ${{ secrets.IZCLICK_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.IZCLICK_SSH_KNOWN_HOSTS }}
         shell: bash
         run: |
           set -Eeuo pipefail
           for v in SSH_HOST SSH_USER SSH_PRIVATE_KEY SSH_KNOWN_HOSTS; do
             if [[ -z "${!v}" ]]; then
-              echo "::error::SSH connection secret $v is not configured; no remote commands executed"
+              echo "::error::Required SSH connection setting $v is not configured; no remote commands executed"
               exit 1
             fi
           done
