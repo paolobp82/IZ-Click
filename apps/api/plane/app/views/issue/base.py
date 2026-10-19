@@ -1183,6 +1183,93 @@ class IssueBulkUpdateDateEndpoint(BaseAPIView):
         return Response({"message": "Issues updated successfully"}, status=status.HTTP_200_OK)
 
 
+
+
+from plane.utils.izclick_production import valid_event_date, valid_sig_code_url
+
+
+class ProductionSigLinksEndpoint(BaseAPIView):
+    """Read SIG project link references for permitted IZ-Click project issues."""
+
+    @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
+    def get(self, request, slug, project_id):
+        project = Project.objects.get(id=project_id, workspace__slug=slug)
+        links = IssueLink.objects.filter(
+            workspace__slug=slug,
+            project_id=project_id,
+            deleted_at__isnull=True,
+            issue__deleted_at__isnull=True,
+        ).filter(
+            Q(metadata__izclick_kind="sig-project") | Q(title__startswith="SIG Izango 360 | ")
+        ).order_by("-created_at")
+
+        guest_restricted = ProjectMember.objects.filter(
+            workspace__slug=slug,
+            project_id=project_id,
+            member=request.user,
+            role=ROLE.GUEST.value,
+            is_active=True,
+        ).exists() and not project.guest_view_all_features
+        if guest_restricted:
+            links = links.filter(issue__created_by=request.user)
+
+        associations = {}
+        for link in links.values("issue_id", "title", "url", "metadata"):
+            issue_id = str(link["issue_id"])
+            if issue_id in associations:
+                continue
+            metadata = link["metadata"] if isinstance(link["metadata"], dict) else {}
+            stored_code = metadata.get("izclick_sig_code") if metadata.get("izclick_kind") == "sig-project" else None
+            title = link["title"] if isinstance(link["title"], str) else ""
+            code = stored_code if isinstance(stored_code, str) else title.removeprefix("SIG Izango 360 | ")
+            code = code.strip()
+            if not valid_sig_code_url(code, link["url"]):
+                continue
+            associations[issue_id] = {"code": code, "url": link["url"]}
+        return Response(associations, status=status.HTTP_200_OK)
+
+
+class ProductionEventDatesEndpoint(BaseAPIView):
+    """Read IZ-Click event dates stored as metadata on native Plane issue links.
+
+    Only project members can read this endpoint; guests without full issue
+    visibility are restricted to their own work items.
+    """
+
+    @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
+    def get(self, request, slug, project_id):
+        project = Project.objects.get(id=project_id, workspace__slug=slug)
+        links = IssueLink.objects.filter(
+            workspace__slug=slug,
+            project_id=project_id,
+            deleted_at__isnull=True,
+            metadata__izclick_kind="event-date",
+            issue__deleted_at__isnull=True,
+        ).order_by("-created_at")
+
+        guest_restricted = ProjectMember.objects.filter(
+            workspace__slug=slug,
+            project_id=project_id,
+            member=request.user,
+            role=ROLE.GUEST.value,
+            is_active=True,
+        ).exists() and not project.guest_view_all_features
+        if guest_restricted:
+            links = links.filter(issue__created_by=request.user)
+
+        dates = {}
+        for link in links.values("issue_id", "metadata"):
+            issue_id = str(link["issue_id"])
+            if issue_id in dates:
+                continue
+            metadata = link["metadata"] if isinstance(link["metadata"], dict) else {}
+            parsed_date = valid_event_date(metadata.get("izclick_event_date"))
+            if parsed_date:
+                dates[issue_id] = parsed_date
+
+        return Response(dates, status=status.HTTP_200_OK)
+
+
 class IssueMetaEndpoint(BaseAPIView):
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
     def get(self, request, slug, project_id, issue_id):

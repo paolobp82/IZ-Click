@@ -1,39 +1,70 @@
 name: IZ-Click email API candidate
 on:
   workflow_dispatch:
-  push:
-    branches: [preview]
-    paths:
-      - 'apps/api/plane/bgtasks/email_notification_task.py'
-      - 'apps/api/plane/bgtasks/izclick_due_email_task.py'
-      - 'apps/api/plane/celery.py'
-      - 'apps/api/plane/settings/common.py'
-      - 'apps/api/templates/emails/notifications/izclick-*.html'
-      - 'apps/api/plane/tests/unit/bgtasks/test_izclick_email_pipeline.py'
-      - '.github/workflows/izclick-email-api-candidate.yml'
 permissions:
   contents: read
   packages: write
 concurrency:
-  group: izclick-email-candidate-${{ github.ref }}
+  group: izclick-repair-candidate-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   test:
+    if: github.ref == 'refs/heads/izclick/repair-production-20261019'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:15.7-alpine
+        env:
+          POSTGRES_USER: plane
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: plane
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U plane -d plane'
+          --health-interval 5s --health-timeout 3s --health-retries 12
+      redis:
+        image: valkey/valkey:7.2.11-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd 'valkey-cli ping'
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://plane:isolated-test-only@localhost:5432/plane
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: isolated-izclick-repair-ci-only-not-production
+      DJANGO_SETTINGS_MODULE: plane.settings.test
+      DEBUG: '0'
+    defaults:
+      run:
+        working-directory: apps/api
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v7
         with:
+          version: '0.12.21'
           python-version: '3.12'
-      - name: Validate syntax and notification contract
+      - name: Install exact locked test dependencies
+        run: uv sync --locked
+      - name: Check restored migration compatibility
         run: |
-          python -m compileall -q apps/api/plane/bgtasks/email_notification_task.py apps/api/plane/bgtasks/izclick_due_email_task.py apps/api/plane/celery.py apps/api/plane/settings/common.py
-          python -m unittest discover -s apps/api/plane/tests/unit/bgtasks -p test_izclick_email_pipeline.py -v
+          uv run python manage.py migrate --noinput
+          uv run python manage.py makemigrations --check --dry-run
+      - name: Run isolated catalogue and custom-field regression tests
+        run: >-
+          uv run pytest --migrations
+          plane/tests/contract/app/test_izclick_production_statuses.py
+          plane/api/tests/test_izclick_custom_field_endpoints.py
+          plane/api/tests/test_izclick_custom_field_schema.py
+          plane/api/tests/test_izclick_custom_field_validation.py
+      - name: Preserve email behavior and metadata contracts
+        run: |
+          uv run python -m unittest discover -s izclick_contract_tests -v
+          uv run python -m unittest discover -s plane/tests/unit/bgtasks -p test_izclick_email_pipeline.py -v
   image:
     needs: test
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -42,12 +73,33 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and publish API only (never deploy)
+      - name: Pin and verify the current production base image
+        id: base
+        run: |
+          set -euo pipefail
+          BASE=ghcr.io/paolobp82/izclick-api:email-candidate-b515616cf8e8b453a13b0edb8f79a0b01d5fbfd6
+          docker pull "$BASE"
+          test "$(docker image inspect --format '{{.Id}}' "$BASE")" = 'sha256:31e7edf9ad2185ff91a27d01514cf444af697b6d9f156493ed1adacf0a97efbf'
+          PINNED=$(docker image inspect --format '{{index .RepoDigests 0}}' "$BASE")
+          echo "image=$PINNED" >> "$GITHUB_OUTPUT"
+      - name: Build and publish repaired API only; never deploy
+        id: candidate
         uses: docker/build-push-action@v6
         with:
           context: ./apps/api
-          file: ./apps/api/Dockerfile.api
+          file: ./apps/api/Dockerfile.repair
+          build-args: |
+            BASE_IMAGE=${{ steps.base.outputs.image }}
+            SOURCE_REVISION=${{ github.sha }}
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/paolobp82/izclick-api:email-candidate-${{ github.sha }}
+          tags: ghcr.io/paolobp82/izclick-api:repair-${{ github.sha }}
           provenance: false
+      - name: Record immutable candidate identity
+        env:
+          CANDIDATE_DIGEST: ${{ steps.candidate.outputs.digest }}
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          echo "API=ghcr.io/paolobp82/izclick-api@$CANDIDATE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source=$SOURCE_REVISION" >> "$GITHUB_STEP_SUMMARY"
+          echo 'No production services or databases were accessed.' >> "$GITHUB_STEP_SUMMARY"
