@@ -3,7 +3,7 @@
 # See the LICENSE file for details.
 
 # Django imports
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 # Third party imports
 from rest_framework import status
@@ -110,7 +110,10 @@ class StateListCreateAPIEndpoint(BaseAPIView):
                         status=status.HTTP_409_CONFLICT,
                     )
 
-                serializer.save(project_id=project_id)
+                with transaction.atomic():
+                    if serializer.validated_data.get("default", False):
+                        State.objects.filter(project_id=project_id).update(default=False)
+                    serializer.save(project_id=project_id)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except IntegrityError:
@@ -295,6 +298,9 @@ class StateDetailAPIEndpoint(BaseAPIView):
                     },
                     status=status.HTTP_409_CONFLICT,
                 )
-            serializer.save()
+            with transaction.atomic():
+                if serializer.validated_data.get("default", False):
+                    State.objects.filter(project_id=project_id).exclude(pk=state.pk).update(default=False)
+                serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
