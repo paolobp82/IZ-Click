@@ -18,19 +18,23 @@ def get_configuration_value(keys):
     environment_list = []
     if settings.SKIP_ENV_VAR:
         # Get the configurations
-        instance_configuration = InstanceConfiguration.objects.values("key", "value", "is_encrypted")
+        # Fetch only requested keys, once. Preserve first-match behavior and
+        # decrypt only values that are actually requested.
+        requested_keys = {item.get("key") for item in keys}
+        configurations = {}
+        for item in InstanceConfiguration.objects.filter(
+            key__in=requested_keys
+        ).values("key", "value", "is_encrypted"):
+            configurations.setdefault(item["key"], item)
 
         for key in keys:
-            for item in instance_configuration:
-                if key.get("key") == item.get("key"):
-                    if item.get("is_encrypted", False):
-                        environment_list.append(decrypt_data(item.get("value")))
-                    else:
-                        environment_list.append(item.get("value"))
-
-                    break
-            else:
+            item = configurations.get(key.get("key"))
+            if item is None:
                 environment_list.append(key.get("default"))
+            elif item.get("is_encrypted", False):
+                environment_list.append(decrypt_data(item.get("value")))
+            else:
+                environment_list.append(item.get("value"))
     else:
         # Get the configuration from os
         for key in keys:
