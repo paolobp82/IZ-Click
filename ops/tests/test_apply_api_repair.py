@@ -103,6 +103,8 @@ class ApplyRepairTests(unittest.TestCase):
                     return json.dumps([web]).encode()
                 if 'pg_dump' in ' '.join(argv):
                     kwargs['output'].write(b'fake-test-archive')
+                if 'psql' in ' '.join(argv):
+                    return b'{"state_count":10,"issue_count":10,"state_hash":"test","issue_state_hash":"test"}'
                 return b''
             def fake_inspect(name):
                 if name == 'plane-app-api-1':

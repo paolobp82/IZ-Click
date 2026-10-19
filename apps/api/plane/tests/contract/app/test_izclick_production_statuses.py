@@ -2,6 +2,7 @@
 from unittest.mock import patch
 
 import pytest
+from django.db import transaction
 
 from plane.db.models import (
     Issue, IzClickProductionStatus, IzClickProductionStatusBinding,
@@ -134,7 +135,10 @@ def test_native_project_state_creation_still_works(production):
 def test_native_duplicate_keeps_existing_state_and_issue(production):
     client, workspace, project, original, issue, url = production
     native_url = f"/api/workspaces/{workspace.slug}/projects/{project.id}/states/"
-    response = client.post(native_url, {"name": "Existente", "color": "#abcdef", "group": "started"}, format="json")
+    # The endpoint runs in autocommit in production. Keep its handled database
+    # error inside a savepoint so pytest's outer transaction remains queryable.
+    with transaction.atomic():
+        response = client.post(native_url, {"name": "Existente", "color": "#abcdef", "group": "started"}, format="json")
     assert response.status_code == 400, response.data
     assert State.objects.filter(project=project).count() == 1
     assert_unchanged(original, issue)

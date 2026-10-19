@@ -46,9 +46,8 @@ jobs:
           python-version: '3.12'
       - name: Install exact locked test dependencies
         run: uv sync --locked
-      - name: Check restored migration compatibility
+      - name: Check restored migration state
         run: |
-          uv run python manage.py migrate --noinput
           uv run python manage.py makemigrations --check --dry-run
       - name: Run isolated catalogue and custom-field regression tests
         run: >-

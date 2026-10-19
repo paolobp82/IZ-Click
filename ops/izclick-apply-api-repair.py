@@ -91,6 +91,22 @@ def http_sample():
         return {'status': 0}
 
 
+def core_data_fingerprint():
+    sql = b'''BEGIN READ ONLY;
+SET LOCAL statement_timeout = '3000ms';
+SELECT json_build_object(
+  'state_count', (SELECT count(*) FROM public.states),
+  'issue_count', (SELECT count(*) FROM public.issues),
+  'state_hash', (SELECT md5(coalesce(string_agg(row(id, project_id, name, color, "group", "default", sequence, deleted_at)::text, ',' ORDER BY id), '')) FROM public.states),
+  'issue_state_hash', (SELECT md5(coalesce(string_agg(row(id, project_id, state_id, deleted_at)::text, ',' ORDER BY id), '')) FROM public.issues)
+);
+ROLLBACK;
+'''
+    argv = ['docker', 'exec', '-i', 'plane-app-plane-db-1', 'sh', '-c',
+            'PGHOST=/var/run/postgresql exec psql -X -qAt -v ON_ERROR_STOP=1 -U "${POSTGRES_USER:-plane}" -d "${POSTGRES_DB:-plane}"']
+    return json.loads(run(argv, source=sql, timeout=15))
+
+
 SMOKE = r'''
 import json, os, signal, time, uuid
 def emit(check, **fields):
@@ -246,6 +262,8 @@ def apply(args):
             raise RuntimeError('Database backup archive validation failed; no deployment')
     rollback = compose + ['-f', str(rollback_file), 'up', '-d', '--no-deps', '--no-build', '--pull', 'never', 'api']
     private_json(backup / 'rollback-command.json', rollback)
+    data_before = core_data_fingerprint()
+    private_json(backup / 'core-data-before.json', data_before)
     report('backup_ready', directory=str(backup), archive_valid=True)
     other_names = run(['docker', 'ps', '-q', '--filter', 'label=com.docker.compose.project=' + labels['com.docker.compose.project']]).decode().split()
     other_ids = {item['Name']: item['Id'] for item in json.loads(run(['docker', 'inspect'] + other_names)) if item['Name'] != '/plane-app-api-1'}
@@ -280,6 +298,14 @@ def apply(args):
             report('http_after', sample=sample + 1, **measured)
             if measured['status'] != 200:
                 raise RuntimeError('API failed a post-repair HTTP verification')
+        data_after = core_data_fingerprint()
+        private_json(backup / 'core-data-after.json', data_after)
+        # Concurrent user edits may legitimately change these hashes. Never
+        # restore a database or undo a working API merely because users worked.
+        report('core_data_comparison', unchanged=data_before == data_after,
+               requires_concurrent_change_review=data_before != data_after,
+               states_before=data_before['state_count'], states_after=data_after['state_count'],
+               issues_before=data_before['issue_count'], issues_after=data_after['issue_count'])
         report('api_repair_applied', image=args.image, frontend_unchanged=True, other_services_unchanged=True,
                active_override=str(final_file), backup=str(backup), sustained_performance_verification_pending=True)
     except Exception:
