@@ -192,7 +192,10 @@ def apply(args):
     files = [Path(path).resolve() for path in labels['com.docker.compose.project.config_files'].split(',')]
     if any(not path.is_relative_to(ROOT) or not path.is_file() for path in files):
         raise RuntimeError('Compose files must exist inside the installation directory')
-    compose = ['docker', 'compose', '--project-directory', str(ROOT), '-p', labels['com.docker.compose.project']]
+    env_file = ROOT / 'plane.env'
+    if not env_file.is_file():
+        raise RuntimeError('Expected plane.env is missing; no deployment')
+    compose = ['docker', 'compose', '--env-file', str(env_file), '--project-directory', str(ROOT), '-p', labels['com.docker.compose.project']]
     for path in files:
         compose.extend(['-f', str(path)])
     config = json.loads(run(compose + ['config', '--format', 'json']))
@@ -211,6 +214,7 @@ def apply(args):
     backup.mkdir(mode=0o700)
     private_json(backup / 'api-before.json', api)
     private_json(backup / 'compose-before.json', config)
+    (backup / 'plane.env').write_bytes(env_file.read_bytes())
     for index, path in enumerate(files):
         target = backup / f'compose-{index}.yaml'
         target.write_bytes(path.read_bytes())
@@ -242,12 +246,20 @@ def apply(args):
     try:
         run(compose + ['-f', str(final_file), 'up', '-d', '--no-deps', '--no-build', '--pull', 'never', 'api'], timeout=180)
         healthy = False
-        for attempt in range(10):
+        readiness_started = time.monotonic()
+        readiness_deadline = readiness_started + 720
+        stable = 0
+        while time.monotonic() < readiness_deadline:
             sample = http_sample()
+            report('api_readiness', elapsed=int(time.monotonic() - readiness_started), http=sample['status'], stable=stable)
             if sample['status'] == 200:
-                healthy = True
-                break
-            time.sleep(2)
+                stable += 1
+                if stable >= 3:
+                    healthy = True
+                    break
+            else:
+                stable = 0
+            time.sleep(5)
         if not healthy:
             raise RuntimeError('API readiness did not recover')
         live = inspect('plane-app-api-1')

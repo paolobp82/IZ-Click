@@ -75,6 +75,7 @@ class ApplyRepairTests(unittest.TestCase):
             root = Path(folder).resolve()
             compose_file = root / 'compose.yaml'
             compose_file.write_text('services: {}')
+            (root / 'plane.env').write_text('TEST_ONLY=value')
             api = api_fixture()
             api['Config']['Labels'] = {
                 'com.docker.compose.project.working_dir': str(root),
@@ -108,6 +109,7 @@ class ApplyRepairTests(unittest.TestCase):
             with patch.object(repair, 'ROOT', root), patch.object(repair, 'run', side_effect=fake_run), \
                  patch.object(repair, 'inspect', side_effect=fake_inspect), \
                  patch.object(repair, 'http_sample', return_value={'status': 200}), \
+                 patch.object(repair.time, 'sleep'), \
                  patch.object(repair, 'smoke', side_effect=RuntimeError('test failure')), \
                  patch.object(repair.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0)), \
                  contextlib.redirect_stdout(io.StringIO()):

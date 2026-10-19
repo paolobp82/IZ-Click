@@ -38,7 +38,8 @@ compilation from cold imports; it is a mitigation pending runtime measurement.
 Use the exact image digest and source revision produced by the passing candidate
 workflow. Review ops/izclick-apply-api-repair.py before running with sudo.
 
-The script reads the real Compose file list from the running API labels. It checks
+The script reads the real Compose file list from the running API labels and uses
+the installation's plane.env, as the existing deployment scripts do. It checks
 the current Web/API image identities, mounts and networks. It snapshots the
 running environment privately rather than assuming old Compose values are current.
 It validates the final merged environment before changing a service.
