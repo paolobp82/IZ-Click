@@ -125,7 +125,7 @@ class StateListCreateAPIEndpoint(BaseAPIView):
             return Response(
                 {
                     "error": "State with the same name already exists in the project",
-                    "id": str(state.id),
+                    "id": str(state.id) if state else None,
                 },
                 status=status.HTTP_409_CONFLICT,
             )
