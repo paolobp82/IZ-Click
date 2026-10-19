@@ -18,7 +18,7 @@ SPEC.loader.exec_module(repair)
 def api_fixture():
     return {
         'Image': repair.OLD_API, 'Id': 'old-api-id', 'Name': '/plane-app-api-1',
-        'Config': {'Env': ['SECRET_KEY=keep-existing-test-key', 'GUNICORN_WORKERS=1', 'PORT=8000'],
+        'Config': {'Env': ['SECRET_KEY=keep-existing-test-key', 'GUNICORN_WORKERS=1', 'PORT=8000', 'TEST_LITERAL=keep$literal'],
                    'Cmd': ['./bin/docker-entrypoint-api.sh'], 'Entrypoint': None, 'Labels': {}},
         'Mounts': [{'Type': 'volume', 'Name': 'plane-app_uploads', 'Destination': '/code/uploads', 'RW': True}],
         'NetworkSettings': {'Networks': {'plane-app_default': {}}},
@@ -30,7 +30,7 @@ def config_fixture(api):
         'services': {'api': {
             'volumes': [{'type': 'volume', 'source': 'uploads', 'target': '/code/uploads'}],
             'networks': {'default': {}},
-            'environment': repair.override(api, 'candidate', 2)['services']['api']['environment'],
+            'environment': repair.runtime_environment(api, 2),
         }},
         'volumes': {'uploads': {'name': 'plane-app_uploads'}},
         'networks': {'default': {'name': 'plane-app_default'}},
@@ -43,6 +43,8 @@ class ApplyRepairTests(unittest.TestCase):
         item = repair.override(api, 'candidate', 2)['services']['api']
         self.assertEqual(item['environment']['SECRET_KEY'], 'keep-existing-test-key')
         self.assertEqual(item['environment']['GUNICORN_WORKERS'], '2')
+        self.assertEqual(item['environment']['TEST_LITERAL'], 'keep$$literal')
+        self.assertEqual(repair.runtime_environment(api, 2)['TEST_LITERAL'], 'keep$literal')
         self.assertEqual(item['command'], api['Config']['Cmd'])
         self.assertIsNone(item['entrypoint'])
         self.assertIn('GUNICORN_WORKERS=1', api['Config']['Env'])

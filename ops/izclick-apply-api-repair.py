@@ -42,9 +42,15 @@ def private_json(path, value):
         json.dump(value, stream)
 
 
-def override(api, image, workers):
+def runtime_environment(api, workers):
     environment = dict(item.split('=', 1) for item in api['Config']['Env'])
     environment['GUNICORN_WORKERS'] = str(workers)
+    return environment
+
+
+def override(api, image, workers):
+    # Compose must not reinterpret literal dollar signs in existing credentials.
+    environment = {key: value.replace('$', '$$') for key, value in runtime_environment(api, workers).items()}
     return {'services': {'api': {
         'image': image, 'environment': environment,
         'command': api['Config']['Cmd'], 'entrypoint': api['Config']['Entrypoint'],
@@ -226,7 +232,7 @@ def apply(args):
     private_json(final_file, override(api, args.image, 2))
     desired = json.loads(run(compose + ['-f', str(final_file), 'config', '--format', 'json']))
     validate_layout(desired, api)
-    expected_environment = override(api, args.image, 2)['services']['api']['environment']
+    expected_environment = runtime_environment(api, 2)
     if desired['services']['api'].get('environment') != expected_environment:
         raise RuntimeError('Compose introduces unexpected environment changes; no deployment')
     dump_command = ['docker', 'exec', 'plane-app-plane-db-1', 'sh', '-c',
