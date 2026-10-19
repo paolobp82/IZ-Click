@@ -4,7 +4,7 @@
 
 # Module imports
 from .base import BaseSerializer
-from plane.db.models import StateGroup
+from plane.db.models import State, StateGroup
 from rest_framework import serializers
 
 
