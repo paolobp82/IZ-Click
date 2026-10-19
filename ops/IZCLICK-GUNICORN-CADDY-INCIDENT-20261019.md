@@ -26,3 +26,12 @@
 - Do not publish raw request logs, URLs with query values, cookies, authorization headers or environment.
 - SSH enforced command permits only explicit operations; second-generation telemetry requires an administrator-reviewed root-owned script and sudoers entry. The GitHub connector cannot bypass it.
 - Protect all UX/personalization changes by comparing deployed image tag against target commits and verifying rollback artifacts.
+
+## Code-path review — next investigation
+
+- `InstanceEndpoint.get` is synchronous and uses `@cache_response(7200, user=False)`.
+- `plane.utils.cache.cache_response` performs a synchronous `django.core.cache.cache.get`, then `cache.set` on misses. `settings/common.py` configures `django_redis.cache.RedisCache` using `REDIS_URL`. A slow Redis read may stall a request before any database queries. This is a hypothesis only.
+- Cache misses call `Instance.objects.first()`, `InstanceSerializer(instance)` (includes related `primary_owner_details`), `get_configuration_value` and `Workspace.objects.count()`.
+- `get_configuration_value` uses `InstanceConfiguration.objects.values('key','value','is_encrypted')` when `SKIP_ENV_VAR` is true (the source default), iterating over 13 requested keys and decrypting encrypted values. This is not inherently a 30-second operation and must not be optimized speculatively.
+- For a trustworthy root cause obtain bounded, sanitized latency measurements for cache GET, cache SET, Instance lookup, configuration lookup, serialization, and workspace count; additionally PostgreSQL lock/wait sampling and Redis ping latency. Do not print configuration values, user identifiers, or raw query text.
+- No production source, database or service settings were changed in this review. Do not assume current VPS image is built from the latest `preview` branch.
