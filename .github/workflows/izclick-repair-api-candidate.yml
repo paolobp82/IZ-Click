@@ -113,6 +113,8 @@ jobs:
           docker run --rm --network none --entrypoint python \
             -e DJANGO_SETTINGS_MODULE=plane.settings.production \
             -e SECRET_KEY=isolated-runtime-image-check-not-a-production-secret \
+            -e REDIS_URL=redis://127.0.0.1:1/0 \
+            -e DATABASE_URL=postgresql://unused:unused@127.0.0.1:1/unused \
             "$IMAGE" -c '
           import os, time
           started = time.perf_counter()
