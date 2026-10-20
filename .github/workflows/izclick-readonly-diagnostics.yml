@@ -34,4 +34,4 @@ jobs:
           chmod 600 ~/.ssh/id_izclick
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
-          ssh -i ~/.ssh/id_izclick -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 "$SSH_USER@$SSH_HOST" izclick-latency-v2
+          ssh -i ~/.ssh/id_izclick -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=12 "$SSH_USER@$SSH_HOST" izclick-diagnostics
