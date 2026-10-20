@@ -88,5 +88,28 @@ This candidate intentionally retains the key; rotation is a separate required ta
   not a production latency measurement.
 - Later branch commits only adjust operations/workflow documentation; the API
   source and application script are identical to the tested candidate revision.
-- Production application and sustained performance verification remain pending
-  administrator-console execution. Do not describe this artifact as deployed.
+- Production application completed successfully through the administrator console
+  on 20 October at 00:04 UTC (19 October in Lima). Backup:
+  /opt/iz-click/plane-app/repair-backup-20261020T000407Z.
+- Active Compose override:
+  /opt/iz-click/plane-app/docker-compose.izclick-repair-20261020T000407Z.json.
+  Preserve it when preparing subsequent deployments. Do not rerun the repair
+  script against the now-changed baseline.
+- The transaction smoke test passed creation, listing, duplicate handling and
+  editing, with all test changes rolled back. Before/after hashes matched for
+  the 10 existing states, 10 issues and their state relationships. Web and all
+  other service container identities were unchanged.
+- Initial startup returned 502 responses before three successful readiness
+  samples at approximately 307, 313 and 318 seconds. Subsequent local HTTPS
+  samples took 5.798, 0.142 and 0.704 seconds.
+- Read-only diagnostics at 00:13:57 UTC found two API workers, zero new worker
+  timeouts, zero worker exits, zero container restarts and no OOM events:
+  https://github.com/paolobp82/IZ-Click/actions/runs/39346386308.
+  Proxy counters cover six hours, including startup, and cannot establish a
+  steady-state error rate. Sustained performance remains to be verified.
+- Browser verification is blocked by ERR_NAME_NOT_RESOLVED on the user's
+  connection. Google, Cloudflare and both authoritative nameservers return
+  209.145.60.238; HTTPS requests using that address return valid instance/config
+  JSON. Clearing the local DNS cache did not fix the connection's resolver.
+  The user chose to test another connection; no persistent local DNS setting
+  was changed. Real state creation and persistence in the browser remain pending.
