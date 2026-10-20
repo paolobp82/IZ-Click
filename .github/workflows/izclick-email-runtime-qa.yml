@@ -1,29 +1,54 @@
-name: IZ-Click immutable repair runtime verification
+name: IZ-Click email runtime templates QA
 on:
   workflow_dispatch:
+  push:
+    branches: [preview]
+    paths:
+      - '.github/workflows/izclick-email-runtime-qa.yml'
 permissions:
   contents: read
-  packages: read
 jobs:
-  verify:
+  templates:
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
+      - name: Authenticate GHCR
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Verify the already-tested candidate without rebuilding or deploying
+      - name: Render both templates inside built API image
         run: |
           set -euo pipefail
-          IMAGE=ghcr.io/paolobp82/izclick-api@sha256:50919c1c42ffcb3e289b6fec1b5617e9745894bdf73bcb5ca8e84b7d173c8df0
+          IMAGE=ghcr.io/paolobp82/izclick-api:email-candidate-b515616cf8e8b453a13b0edb8f79a0b01d5fbfd6
           docker pull "$IMAGE"
-          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$IMAGE")" = '8d64f2f1fb50fc3691c79427c9cd93d6c3d75d41'
-          docker run -i --rm --network none --entrypoint python \
-            -e DJANGO_SETTINGS_MODULE=plane.settings.production \
-            -e SECRET_KEY=isolated-runtime-image-check-not-a-production-secret \
-            -e REDIS_URL=redis://127.0.0.1:1/0 \
-            -e DATABASE_URL=postgresql://unused:unused@127.0.0.1:1/unused \
-            "$IMAGE" - < ops/izclick-image-route-check.py
+          docker run --rm --entrypoint python "$IMAGE" -c '
+          from django.conf import settings
+          settings.configure(SECRET_KEY="runtime-template-test-only", TEMPLATES=[{
+              "BACKEND":"django.template.backends.django.DjangoTemplates",
+              "DIRS":["/code/templates"], "APP_DIRS":False,
+              "OPTIONS":{"context_processors":[]}
+          }])
+          import django
+          django.setup()
+          from django.template.loader import render_to_string
+          event=render_to_string("emails/notifications/izclick-event.html",{
+              "title":"Prueba IZ-Click", "message":"Se asignó un pendiente",
+              "project_name":"Producción", "list_name":"Pendientes",
+              "task_url":"https://izclick.izango.com.pe/test",
+              "preferences_url":"https://izclick.izango.com.pe/settings",
+              "old_state":"Por cotizar", "new_state":"Enviado a comercial",
+              "due_date":"16/10/2026"
+          })
+          item={"name":"Prueba","project":"Producción","date":"16/10/2026",
+                "url":"https://izclick.izango.com.pe/test","status":"Por cotizar"}
+          digest=render_to_string("emails/notifications/izclick-digest.html",{
+              "report_date":"16/10/2026","today":[item],"tomorrow":[],"overdue":[],
+              "preferences_url":"https://izclick.izango.com.pe/settings"
+          })
+          assert "IZ-Click" in event and "Ver tarea" in event
+          assert "Enviado a comercial" in event and "Por cotizar" in event
+          assert "Vencen hoy" in digest and "Prueba" in digest
+          print("IZCLICK_EMAIL_RUNTIME_TEMPLATES_OK")
+          '

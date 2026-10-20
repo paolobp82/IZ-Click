@@ -72,3 +72,21 @@ do not claim sustained performance recovery from one sample.
 SECRET_KEY is a confirmed insecure placeholder. It also encrypts saved instance
 configuration, so rotation must preserve decryption access and account for sessions.
 This candidate intentionally retains the key; rotation is a separate required task.
+
+## Verified release artifact
+
+- Candidate source: 8d64f2f1fb50fc3691c79427c9cd93d6c3d75d41.
+- Immutable API: ghcr.io/paolobp82/izclick-api@sha256:50919c1c42ffcb3e289b6fec1b5617e9745894bdf73bcb5ca8e84b7d173c8df0.
+- 33 PostgreSQL contract tests, 7 metadata contracts, 6 email contracts and 8
+  operations tests passed: https://github.com/paolobp82/IZ-Click/actions/runs/39344603900.
+  This run built the artifact but its first image check lacked REDIS_URL in the
+  isolated test environment. No source or image repair was required for that test.
+- The same immutable image passed the corrected network-isolated runtime check:
+  https://github.com/paolobp82/IZ-Click/actions/runs/39345094921.
+  All four restored routes, model imports, serializer and application bytecode
+  were verified. Django plus route loading took 1.744 s on the CI host; this is
+  not a production latency measurement.
+- Later branch commits only adjust operations/workflow documentation; the API
+  source and application script are identical to the tested candidate revision.
+- Production application and sustained performance verification remain pending
+  administrator-console execution. Do not describe this artifact as deployed.
