@@ -42,6 +42,21 @@ class SafeOutputTests(unittest.TestCase):
         self.assertNotIn('hidden', output.getvalue())
         self.assertEqual(json.loads(output.getvalue().splitlines()[0])['status'], 200)
 
+    def test_direct_api_measurement_is_labelled_separately(self):
+        result = subprocess.CompletedProcess([], 0, '200 0.02 0.03', '')
+        output = io.StringIO()
+        with patch.object(probe.subprocess, 'run', return_value=result), contextlib.redirect_stdout(output):
+            probe.run('direct_api', ['curl'], 1)
+        self.assertEqual(json.loads(output.getvalue().splitlines()[0])['check'], 'direct_api_http')
+
+    def test_comparison_rejects_non_private_destination(self):
+        result = subprocess.CompletedProcess([], 0, '8.8.8.8', '')
+        output = io.StringIO()
+        with patch.object(probe.subprocess, 'run', return_value=result) as command, contextlib.redirect_stdout(output):
+            probe.http_comparison()
+        self.assertEqual(command.call_count, 1)
+        self.assertEqual(json.loads(output.getvalue().splitlines()[-1])['check'], 'api_address_unavailable')
+
 
 if __name__ == '__main__':
     unittest.main()

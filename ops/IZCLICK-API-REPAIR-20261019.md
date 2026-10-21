@@ -162,3 +162,12 @@ cgroup CPU limits for the API, Docker and their ancestors directly from /proc
 and /sys. It does not invoke Docker, attach to processes or change quotas. This
 checks whether a parent quota or affinity restriction explains contention that
 the earlier container-only cpu.max inspection would miss.
+
+Administrator CPU-limit output subsequently confirmed all inspected processes
+can use CPUs 0-3 with normal scheduler policy/nice and no throttling or finite
+CPU quota on the inspected cgroup ancestors. Host PSI remained approximately
+40-48% over the reported windows; API PSI was lower (roughly 8-12%). These data
+do not establish a provider-side cause. The --http-only mode of the latency
+probe now compares the same fixed public GET directly to the private API IPv4
+and through local HTTPS/Caddy. It alternates measurement order and does not
+start Python inside containers. Execution and interpretation remain pending.

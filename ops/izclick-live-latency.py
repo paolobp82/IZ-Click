@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Bounded administrator-console read-only latency probes; no configuration changes."""
 import json
+import ipaddress
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
 
 
@@ -40,7 +42,7 @@ def run(label, argv, timeout, source=None):
         fields = result.stdout.strip().split()
         if len(fields) == 3:
             try:
-                emit('proxy_http', status=int(fields[0]), ttfb=float(fields[1]), total=float(fields[2]))
+                emit(label + '_http', status=int(fields[0]), ttfb=float(fields[1]), total=float(fields[2]))
             except ValueError:
                 pass
     emit(label, exit_code=result.returncode, seconds=round(time.monotonic() - started, 4))
@@ -116,7 +118,44 @@ signal.alarm(0)
 '''
 
 
+def http_comparison():
+    emit('http_comparison_version', version=1)
+    started = time.monotonic()
+    try:
+        result = subprocess.run(['docker', 'inspect', '--format',
+                                 '{{range .NetworkSettings.Networks}}{{println .IPAddress}}{{end}}',
+                                 'plane-app-api-1'], capture_output=True, text=True, timeout=45)
+        addresses = [ipaddress.ip_address(value) for value in result.stdout.split()]
+        if result.returncode or len(addresses) != 1 or addresses[0].version != 4 or not addresses[0].is_private:
+            emit('api_address_unavailable')
+            return
+    except (subprocess.TimeoutExpired, ValueError):
+        emit('api_address_unavailable')
+        return
+    emit('address_lookup', seconds=round(time.monotonic()-started, 4))
+    # Fixed public GET only: no cookies, credentials, response bodies or Docker exec.
+    base = ['curl', '-q', '-sS', '--noproxy', '*', '--connect-timeout', '2',
+            '--max-time', '12', '-o', '/dev/null', '-w',
+            '%{http_code} %{time_starttransfer} %{time_total}']
+    direct = base + ['-H', 'Host: izclick.izango.com.pe', '-H', 'X-Forwarded-Proto: https',
+                     f'http://{addresses[0]}:8000/api/instances/']
+    proxy = base + ['--resolve', 'izclick.izango.com.pe:443:127.0.0.1',
+                    'https://izclick.izango.com.pe/api/instances/']
+    for sample in range(1, 4):
+        emit('http_pair', sample=sample, cpu_pressure=Path('/proc/pressure/cpu').read_text().strip())
+        # Alternate order to avoid systematically assigning cold-request delay to one path.
+        paths = [('direct_api', direct), ('proxy', proxy)]
+        if sample == 2:
+            paths.reverse()
+        for label, argv in paths:
+            run(label, argv, 18)
+    emit('http_comparison_done')
+
+
 def main():
+    if '--http-only' in sys.argv:
+        http_comparison()
+        return
     emit('live_latency_version', version=1)
     emit('host_cpu', visible=os.cpu_count(), affinity=len(os.sched_getaffinity(0)))
     wall, cpu = time.monotonic(), time.process_time()
