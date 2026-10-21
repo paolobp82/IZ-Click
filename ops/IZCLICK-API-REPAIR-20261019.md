@@ -149,3 +149,16 @@ nonblocking JSON stack capture, strips process info and locals, bounds each
 capture and removes the temporary tool afterward. Administrator execution and
 interpretation of the resulting stacks remain pending. No permanent profiler
 installation or API restart is required.
+
+Administrator stack capture subsequently succeeded for workers 129924 and
+591081, three samples each. Main threads were in the asyncio selector/time
+loop; the older worker's executor threads waited in concurrent.futures._worker.
+No captured frame identified a blocked application function or database query.
+These snapshots were not synchronized with a failed request and do not prove
+that intermittent blocking is absent. No root cause has yet been established.
+
+ops/izclick-cpu-limits.py reads affinities, scheduler policy, host PSI and unified
+cgroup CPU limits for the API, Docker and their ancestors directly from /proc
+and /sys. It does not invoke Docker, attach to processes or change quotas. This
+checks whether a parent quota or affinity restriction explains contention that
+the earlier container-only cpu.max inspection would miss.
