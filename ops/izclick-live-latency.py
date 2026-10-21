@@ -11,22 +11,31 @@ def emit(check, **values):
     print(json.dumps(dict(check=check, **values)), flush=True)
 
 
+def container_records(output):
+    # TimeoutExpired may contain bytes even when subprocess.run uses text=True.
+    if isinstance(output, bytes):
+        output = output.decode('utf-8', errors='replace')
+    for line in (output or '').splitlines():
+        try:
+            row = json.loads(line)
+            if isinstance(row, dict) and str(row.get('check', '')).startswith('probe_'):
+                print(json.dumps(row), flush=True)
+        except ValueError:
+            pass
+
+
 def run(label, argv, timeout, source=None):
     started = time.monotonic()
     try:
         result = subprocess.run(argv, input=source, text=True, capture_output=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
+        if label == 'container':
+            container_records(exc.stdout)
         emit(label, timed_out=True, seconds=round(time.monotonic() - started, 4))
         return
     # Never expose subprocess stderr, environment, connection URLs or response bodies.
     if label == 'container':
-        for line in result.stdout.splitlines():
-            try:
-                row = json.loads(line)
-                if isinstance(row, dict) and str(row.get('check', '')).startswith('probe_'):
-                    print(json.dumps(row), flush=True)
-            except ValueError:
-                pass
+        container_records(result.stdout)
     elif result.returncode == 0:
         fields = result.stdout.strip().split()
         if len(fields) == 3:

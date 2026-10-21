@@ -24,13 +24,15 @@ class SafeOutputTests(unittest.TestCase):
         self.assertEqual(rows[0]['check'], 'probe_api_http_1')
         self.assertEqual(rows[1]['exit_code'], 0)
 
-    def test_timeout_does_not_print_partial_output(self):
-        error = subprocess.TimeoutExpired(['docker'], 1, output='SECRET=hidden', stderr='password=hidden')
+    def test_timeout_preserves_controlled_records_but_not_raw_output(self):
+        error = subprocess.TimeoutExpired(['docker'], 1, output=b'SECRET=hidden\n{"check":"probe_cpu","visible":4}\n', stderr='password=hidden')
         output = io.StringIO()
         with patch.object(probe.subprocess, 'run', side_effect=error), contextlib.redirect_stdout(output):
             probe.run('container', ['docker'], 1)
         self.assertNotIn('hidden', output.getvalue())
-        self.assertTrue(json.loads(output.getvalue())['timed_out'])
+        rows = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(rows[0]['check'], 'probe_cpu')
+        self.assertTrue(rows[1]['timed_out'])
 
     def test_proxy_emits_only_numeric_response_metadata(self):
         result = subprocess.CompletedProcess([], 0, '200 0.05 0.1', 'password=hidden')

@@ -113,3 +113,39 @@ This candidate intentionally retains the key; rotation is a separate required ta
   JSON. Clearing the local DNS cache did not fix the connection's resolver.
   The user chose to test another connection; no persistent local DNS setting
   was changed. Real state creation and persistence in the browser remain pending.
+
+## 21 October follow-up: performance repair remains incomplete
+
+The administrator changed only the izclick A record TTL from 600 to 3600 in
+GoDaddy. Both authoritative servers then returned 209.145.60.238, as did Google
+and Cloudflare. The existing account pbastianelli@izango.com.pe was recognized;
+the different Gmail address entered initially was not. No account was created
+or password changed by these checks. Browser loading still fails intermittently.
+
+Diagnostics https://github.com/paolobp82/IZ-Click/actions/runs/39644883089
+found seven worker timeouts and nine proxy 502/EOF events in the last six hours,
+with no container restarts or OOM. Subsequent administrator logs showed an eighth
+timeout at 17:38 UTC. One worker remained alive while the other was repeatedly
+replaced after varying lifetimes. This is not exclusively a cold-start failure.
+
+The short vmstat sample showed mostly idle CPU and free memory, but a later
+host PSI sample showed CPU some avg10=70.63, avg60=57.18 and avg300=50.83.
+These measurements do not rule out scheduling contention. The local host loop
+took 1.0095 s wall / 0.8484 s process CPU; there is no identical-machine baseline.
+Local HTTPS samples took 6.398 s and 0.157 s. A docker-exec probe exceeded 100 s;
+its initial version discarded partial stdout on timeout, so that result cannot
+locate the internal step. The probe now preserves only its controlled JSON
+records on timeout. Raw stderr remains suppressed.
+
+Dependency diagnostics https://github.com/paolobp82/IZ-Click/actions/runs/39645520678
+reported 6.07 s for PostgreSQL CLI execution including Docker overhead; the
+Redis CLI execution exceeded its deadline. Neither measurement isolates the
+dependency operation. No production timeout, CPU allocation, data, worker count
+or service has been changed during this investigation.
+
+ops/izclick-worker-stacks.py prepares a root-private, checksum-verified temporary
+py-spy 0.4.2 binary and samples only children of the current API master. It uses
+nonblocking JSON stack capture, strips process info and locals, bounds each
+capture and removes the temporary tool afterward. Administrator execution and
+interpretation of the resulting stacks remain pending. No permanent profiler
+installation or API restart is required.
