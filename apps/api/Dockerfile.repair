@@ -1,0 +1,10 @@
+# Overlay the repaired source onto the exact production dependency image.
+# CI resolves BASE_IMAGE to the verified production registry digest.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+ARG SOURCE_REVISION
+LABEL org.opencontainers.image.revision=${SOURCE_REVISION}
+WORKDIR /code
+COPY plane plane/
+# Compile during the build instead of on the first application request.
+RUN python -m compileall -q /code/plane

@@ -36,6 +36,8 @@ from plane.db.models import (
     ProjectUserProperty,
     State,
     DEFAULT_STATES,
+    IzClickProductionStatus,
+    IzClickProductionStatusBinding,
     Workspace,
     WorkspaceMember,
 )
@@ -278,21 +280,53 @@ class ProjectViewSet(BaseViewSet):
                     role=ROLE.ADMIN.value,
                 )
 
-            State.objects.bulk_create(
-                [
-                    State(
-                        name=state["name"],
-                        color=state["color"],
+            # A workspace Production catalogue replaces, rather than supplements,
+            # Plane's starter states for newly created projects. Existing projects
+            # and their issue/state identifiers are never changed by this path.
+            templates = list(
+                IzClickProductionStatus.objects.filter(
+                    workspace=workspace, is_active=True
+                ).order_by("sequence", "created_at")
+            )
+            if templates:
+                # Keep exactly one default state so new work items have a valid
+                # initial state, even when the catalogue has no backlog entry.
+                default_template = next(
+                    (item for item in templates if item.group == "backlog"),
+                    templates[0],
+                )
+                for template in templates:
+                    native = State.objects.create(
+                        workspace=workspace,
                         project=serializer.instance,
-                        sequence=state["sequence"],
-                        workspace=serializer.instance.workspace,
-                        group=state["group"],
-                        default=state.get("default", False),
+                        name=template.name,
+                        color=template.color,
+                        group=template.group,
+                        sequence=template.sequence,
+                        default=template.pk == default_template.pk,
                         created_by=request.user,
                     )
-                    for state in DEFAULT_STATES
-                ]
-            )
+                    IzClickProductionStatusBinding.objects.create(
+                        status=template, project=serializer.instance, plane_state=native
+                    )
+            else:
+                # Spaces that have not configured Producción retain Plane's
+                # standard project initialization behavior.
+                State.objects.bulk_create(
+                    [
+                        State(
+                            name=state["name"],
+                            color=state["color"],
+                            project=serializer.instance,
+                            sequence=state["sequence"],
+                            workspace=serializer.instance.workspace,
+                            group=state["group"],
+                            default=state.get("default", False),
+                            created_by=request.user,
+                        )
+                        for state in DEFAULT_STATES
+                    ]
+                )
 
             project = self.get_queryset().filter(pk=serializer.data["id"]).first()
 
