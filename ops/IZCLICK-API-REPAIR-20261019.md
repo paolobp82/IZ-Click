@@ -171,3 +171,12 @@ do not establish a provider-side cause. The --http-only mode of the latency
 probe now compares the same fixed public GET directly to the private API IPv4
 and through local HTTPS/Caddy. It alternates measurement order and does not
 start Python inside containers. Execution and interpretation remain pending.
+
+Administrator HTTP comparison subsequently returned direct API times of 4.794,
+0.778 and 0.333 s; local HTTPS/proxy returned 3.056 s, a timeout at 12 s, and
+0.488 s. Address lookup via docker inspect took 16.4004 s. Host CPU PSI some
+avg10 ranged from 52.56 to 66.76%. The direct path is also slow, and command
+execution overhead is sometimes significant; Caddy is not the sole demonstrated
+source of delay. Sequential samples cannot isolate proxy overhead by subtraction.
+The user has Contabo panel access. Provider review evidence is prepared in
+ops/IZCLICK-VPS-PERFORMANCE-20261021.md; no ticket has been sent automatically.
