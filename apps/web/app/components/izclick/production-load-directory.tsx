@@ -17,7 +17,10 @@ const priorityNames: Record<string, string> = {
   urgent: "Urgente", high: "Alta", medium: "Media", low: "Baja", none: "Sin prioridad",
 };
 
-export function ProductionLoadDirectory({ issues, states, projects, clients = [], members = [], workspaceSlug }: Props) {
+const EMPTY_CLIENTS: NonNullable<Props["clients"]> = [];
+const EMPTY_MEMBERS: NonNullable<Props["members"]> = [];
+
+export function ProductionLoadDirectory({ issues, states, projects, clients = EMPTY_CLIENTS, members = EMPTY_MEMBERS, workspaceSlug }: Props) {
   const [query, setQuery] = useState("");
   const [view, setView] = useState<"estados" | "tabla" | "productores">("estados");
   const [page, setPage] = useState(0);

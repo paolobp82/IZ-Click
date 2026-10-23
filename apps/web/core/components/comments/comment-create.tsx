@@ -4,7 +4,7 @@
  * See the LICENSE file for details.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { BaseSyntheticEvent } from "react";
 import { observer } from "mobx-react";
 import { useForm, Controller } from "react-hook-form";
@@ -98,11 +98,13 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
   // The editor keyboard extension retains its initial callback. Read the latest
   // submit handler through a stable ref, and lock before async form validation so
   // the editor Enter handler and its bubbling event cannot submit twice.
-  submitLatestRef.current = (event) => {
-    if (submittingRef.current || isCommentEmpty(getValues("comment_html") ?? undefined) || !editorRef.current?.isEditorReadyToDiscard()) return;
-    submittingRef.current = true;
-    void handleSubmit(onSubmit)(event).finally(() => { submittingRef.current = false; });
-  };
+  useEffect(() => {
+    submitLatestRef.current = (event) => {
+      if (submittingRef.current || isCommentEmpty(getValues("comment_html") ?? undefined) || !editorRef.current?.isEditorReadyToDiscard()) return;
+      submittingRef.current = true;
+      void handleSubmit(onSubmit)(event).finally(() => { submittingRef.current = false; });
+    };
+  });
 
   const commentHTML = watch("comment_html");
   const isEmpty = isCommentEmpty(commentHTML ?? undefined);

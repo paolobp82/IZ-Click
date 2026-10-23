@@ -25,10 +25,11 @@ export const IssueClientSelect = observer(function IssueClientSelect({ projectId
   return <Controller control={control} name="label_ids" render={({ field }) => {
     const values = field.value ?? [];
     const clientIds = new Set(clients.map(client => client.id));
+    const selectedIds = new Set(values);
     return <label className="flex items-center gap-2 text-xs">Cliente
       <select aria-label="Cliente de la nueva tarea" disabled={!projectId || isSubmitting || loading || error}
         className="h-8 max-w-60 rounded border border-subtle bg-surface-1 px-2"
-        value={clients.find(client => values.includes(client.id))?.id ?? ""}
+        value={clients.find(client => selectedIds.has(client.id))?.id ?? ""}
         onChange={event => {
           field.onChange([...values.filter(id => !clientIds.has(id)), ...(event.target.value ? [event.target.value] : [])]);
           onChange();
