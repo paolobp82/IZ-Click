@@ -100,6 +100,27 @@ try {
     await request("patch", `${api}/issues/${f.issue_id}/production-commercial/`, { member_id: null });
     await page.screenshot({ path: "qa/artifacts/sprint2-commercial.png" });
   });
+  await step("Create an assignment column and save a project member", async () => {
+    await page.goto(route); await row().waitFor();
+    await page.getByRole("button", { name: "Agregar o quitar columnas", exact: true }).first().click();
+    const menu = page.locator("[data-izclick-popover]").filter({ hasText: "Crear columna personalizada" }).first();
+    await menu.getByLabel("Nombre de columna", { exact: true }).fill("Supervisor Sprint 2 QA");
+    await menu.getByLabel("Tipo de columna", { exact: true }).selectOption("member");
+    await menu.getByRole("button", { name: "+ Crear campo", exact: true }).click();
+    const field = (await request("get", `${api}/izclick-custom-fields/`)).find(field => field.name === "Supervisor Sprint 2 QA");
+    assert.ok(field);
+    await page.locator('[data-izclick-header="state"]').first().click();
+    const cell = row().locator(`[data-izclick-custom-cell="${field.id}"]`);
+    await cell.getByRole("button").click();
+    const popup = page.getByRole("dialog", { name: "Editar Supervisor Sprint 2 QA", exact: true });
+    await popup.getByRole("button", { name: /Seleccionar miembro/ }).click();
+    await page.getByRole("option").filter({ hasText: /Tú|You|QA Editor|qa-admin/i }).first().click();
+    await popup.getByRole("button", { name: "Guardar", exact: true }).click();
+    const saved = await request("get", `${api}/issues/${f.issue_id}/izclick-custom-field-values/`);
+    assert.equal(saved[field.id], memberId);
+    await page.reload(); await row().waitFor();
+    assert.notEqual(await row().locator(`[data-izclick-custom-cell="${field.id}"] button`).innerText(), "—");
+  });
   await step("Create and retire a project state through the UI", async () => {
     await page.goto(route); await row().waitFor();
     await page.getByRole("button", { name: "Administrar estados del proyecto", exact: true }).first().click();

@@ -69,6 +69,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
     };
     updatePosition();
     const outside = (e: PointerEvent) => {
+      if (e.target instanceof Element && e.target.closest("[data-prevent-outside-click]")) return;
       const node = e.target as Node;
       if (!popupRef.current?.contains(node) && !anchor.contains(node) && !busy) setActive(null);
     };
@@ -124,7 +125,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
       >
         <span className="mb-2 block font-medium">{activeField.name}</span>
         {activeField.type === "member" ? (
-          <MemberDropdown projectId={projectId} multiple={false} value={draft || null} onChange={id => setDraft(id ?? "")} placeholder="Seleccionar miembro" buttonVariant="border-with-text" showUserDetails />
+          <MemberDropdown optionsClassName="!z-[1100]" projectId={projectId} multiple={false} value={draft || null} onChange={id => setDraft(id ?? "")} placeholder="Seleccionar miembro" buttonVariant="border-with-text" showUserDetails />
         ) : activeField.type === "select" ? (
           <select aria-label={activeField.name} className="w-full rounded border border-subtle bg-surface-1 p-2" value={draft} onChange={event => setDraft(event.target.value)}>
             <option value="">Sin valor</option>
