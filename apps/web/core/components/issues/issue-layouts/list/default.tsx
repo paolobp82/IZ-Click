@@ -34,6 +34,7 @@ import { useBulkOperationStatus } from "@/hooks/use-bulk-operation-status";
 import type { GroupDropLocation } from "../utils";
 import { getGroupByColumns, isWorkspaceLevel, isSubGrouped } from "../utils";
 import { ListGroup } from "./list-group";
+import { rootIssueIds } from "@/app/lib/izclick/production-hierarchy";
 import type { TRenderQuickActions } from "./list-view-types";
 
 export interface IList {
@@ -128,6 +129,10 @@ export const List = observer(function List(props: IList) {
   } else {
     entities = orderedGroups;
   }
+  if (!isEpic) {
+    entities = Object.fromEntries(Object.entries(entities).map(([key, ids]) => [key, rootIssueIds(ids, issuesMap)]));
+  }
+
   return (
     <div className="relative flex size-full flex-col">
       {groups && (

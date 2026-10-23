@@ -7,6 +7,7 @@ export const LIST_COLUMNS = [
   { id: "priority", name: "Prioridad", width: 150 },
   { id: "assignee", name: "Responsable", width: 144 },
   { id: "due", name: "Vencimiento", width: 144 },
+  { id: "attachments", name: "Adjuntos", width: 144 },
   { id: "client", name: "Cliente", width: 160 },
   { id: "event", name: "Fecha del evento", width: 160 },
   { id: "sig", name: "Código SIG", width: 160 },

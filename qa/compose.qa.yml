@@ -67,6 +67,11 @@ services:
       qa-s3:
         condition: service_started
 
+  qa-worker:
+    extends:
+      service: qa-api
+    command: ["celery", "-A", "plane", "--result-backend=redis://qa-redis:6379/1", "worker", "-l", "warning", "--concurrency=1"]
+
   qa-web:
     image: ${IZCLICK_QA_WEB_IMAGE:?The matching immutable QA Web image tag is required}
 

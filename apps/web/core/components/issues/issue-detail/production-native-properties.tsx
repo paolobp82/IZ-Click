@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { invalidateProjectProductionMetadata } from "@/components/issues/issue-layouts/spreadsheet/production-project-metadata";
 import { IssueService } from "@/services/issue";
 import { validCalendarDate } from "@/app/lib/izclick/production-schedule";
 import { sigLinkPayload, sigProjectAssociation } from "@/app/lib/izclick/production-sig";
@@ -119,10 +120,12 @@ export function ProductionNativeProperties({ workspaceSlug, projectId, issueId, 
       if (!Array.isArray(after)) throw new Error("No se pudo verificar el guardado.");
       const updated = after as NativeLink[];
       const sig = readSig(updated);
+      if (readEventDate(updated) !== date) throw new Error("No se pudo verificar la fecha guardada. Vuelve a intentarlo.");
       setLinks(updated);
       setDate(readEventDate(updated));
       setCode(sig.code);
       setUrl(sig.url);
+      invalidateProjectProductionMetadata(workspaceSlug, projectId);
       setMessage("Campos guardados.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudieron guardar los campos.");

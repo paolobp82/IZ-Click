@@ -19,7 +19,7 @@ from plane.app.serializers import IssueLinkSerializer
 from plane.app.permissions import ProjectEntityPermission
 from plane.db.models import IssueLink
 from plane.bgtasks.issue_activities_task import issue_activity
-from plane.bgtasks.work_item_link_task import crawl_work_item_link_title
+from plane.bgtasks.work_item_link_task import crawl_work_item_link_title, is_production_link
 from plane.utils.host import base_host
 
 
@@ -49,7 +49,8 @@ class IssueLinkViewSet(BaseViewSet):
         serializer = IssueLinkSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(project_id=project_id, issue_id=issue_id)
-            crawl_work_item_link_title.delay(serializer.data.get("id"), serializer.data.get("url"))
+            if not is_production_link(serializer.data.get("metadata")):
+                crawl_work_item_link_title.delay(serializer.data.get("id"), serializer.data.get("url"))
             issue_activity.delay(
                 type="link.activity.created",
                 requested_data=json.dumps(serializer.data, cls=DjangoJSONEncoder),
@@ -73,10 +74,14 @@ class IssueLinkViewSet(BaseViewSet):
         requested_data = json.dumps(request.data, cls=DjangoJSONEncoder)
         current_instance = json.dumps(IssueLinkSerializer(issue_link).data, cls=DjangoJSONEncoder)
 
+        previous_url = issue_link.url
+
         serializer = IssueLinkSerializer(issue_link, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            crawl_work_item_link_title.delay(serializer.data.get("id"), serializer.data.get("url"))
+            updated_url = serializer.data.get("url")
+            if updated_url and updated_url != previous_url and not is_production_link(serializer.data.get("metadata")):
+                crawl_work_item_link_title.delay(serializer.data.get("id"), updated_url)
 
             issue_activity.delay(
                 type="link.activity.updated",

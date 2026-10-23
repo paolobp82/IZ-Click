@@ -11,6 +11,7 @@ import { StateDropdown } from "@/components/dropdowns/state/dropdown";
 import { PriorityDropdown } from "@/components/dropdowns/priority";
 import { MemberDropdown } from "@/components/dropdowns/member/dropdown";
 import { DateDropdown } from "@/components/dropdowns/date";
+import { IssueAttachmentCell } from "@/components/issues/attachment/attachment-cell";
 import { useProjectState } from "@/hooks/store/use-project-state";
 
 type Props = {
@@ -84,6 +85,10 @@ export function ProductionListPropertyColumns({ issue, canEdit, updateIssue }: P
           buttonContainerClassName="w-full min-w-0"
           buttonClassName="w-full truncate text-left"
         />
+      </div>
+      <div data-izclick-cell="attachments" className="flex min-h-11 min-w-0 shrink-0 items-center border-l border-subtle"
+        style={{ display: "var(--izclick-show-attachments, flex)", width: "var(--izclick-col-attachments, 144px)" }}>
+        <IssueAttachmentCell issue={issue} />
       </div>
     </div>
   );

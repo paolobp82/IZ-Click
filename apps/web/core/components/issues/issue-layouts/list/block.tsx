@@ -183,7 +183,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
       href={workItemLink}
       onClick={() => isProjectList ? router.push(workItemLink) : handleIssuePeekOverview(issue)}
       className={isProjectList ? "shrink-0 cursor-pointer" : "min-w-0 flex-1 cursor-pointer"}
-      style={isProjectList ? { width: "var(--izclick-link-width, 1118px)", minWidth: "var(--izclick-link-width, 964px)" } : undefined}
+      style={isProjectList ? { width: "var(--izclick-link-width, 1262px)", minWidth: "var(--izclick-link-width, 1262px)" } : undefined}
       disabled={!!issue?.tempId || issue?.is_draft}
     >
       <Row
@@ -200,7 +200,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
             "lg:flex-row lg:items-center": !isSidebarCollapsed,
           }
         )}
-        style={isProjectList ? { width: "var(--izclick-link-width, 964px)", minWidth: "var(--izclick-link-width, 964px)", paddingLeft: 0, paddingRight: 0, gap: 0, justifyContent: "flex-start" } : undefined}
+        style={isProjectList ? { width: "var(--izclick-link-width, 1262px)", minWidth: "var(--izclick-link-width, 1262px)", paddingLeft: 0, paddingRight: 0, gap: 0, justifyContent: "flex-start" } : undefined}
         onDragStart={() => {
           if (!isDraggingAllowed) {
             setToast({
@@ -264,6 +264,8 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
                   <button
                     type="button"
                     className="grid size-4 place-items-center rounded-xs text-placeholder hover:text-tertiary"
+                    aria-label={`${isExpanded ? "Contraer" : "Ver"} subtareas de ${issue.name}`}
+                    aria-expanded={isExpanded}
                     onClick={handleToggleExpand}
                   >
                     <ChevronRightIcon
@@ -307,7 +309,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
           )}
         </div>
         <div className={isProjectList ? "flex shrink-0 items-center justify-start gap-0" : "flex flex-shrink-0 items-center justify-end gap-2"}
-          style={isProjectList ? { width: "var(--izclick-properties-width, 698px)" } : undefined}>
+          style={isProjectList ? { width: "var(--izclick-properties-width, 842px)" } : undefined}>
           {!issue?.tempId ? (
             <>
               {isProjectList ? (

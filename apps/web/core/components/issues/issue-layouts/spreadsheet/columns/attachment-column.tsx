@@ -4,11 +4,12 @@
  * See the LICENSE file for details.
  */
 
-import React from "react";
 import { observer } from "mobx-react";
 // types
+import { EIssueServiceType, EIssuesStoreType } from "@plane/types";
+import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import type { TIssue } from "@plane/types";
-import { Row } from "@plane/ui";
+import { IssueAttachmentCell } from "@/components/issues/attachment/attachment-cell";
 
 type Props = {
   issue: TIssue;
@@ -17,9 +18,6 @@ type Props = {
 export const SpreadsheetAttachmentColumn = observer(function SpreadsheetAttachmentColumn(props: Props) {
   const { issue } = props;
 
-  return (
-    <Row className="flex h-11 w-full items-center border-b-[0.5px] border-subtle py-1 text-11 group-[.selected-issue-row]:bg-accent-primary/5 hover:bg-layer-1 group-[.selected-issue-row]:hover:bg-accent-primary/10">
-      {issue?.attachment_count ?? 0} {issue?.attachment_count === 1 ? "attachment" : "attachments"}
-    </Row>
-  );
+  const storeType = useIssueStoreType();
+  return <IssueAttachmentCell issue={issue} serviceType={storeType === EIssuesStoreType.EPIC ? EIssueServiceType.EPICS : EIssueServiceType.ISSUES} />;
 });

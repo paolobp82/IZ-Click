@@ -12,7 +12,7 @@ test("encabezados y filas comparten el mismo ancho total de la Lista", () => {
   const sum = LIST_COLUMNS.reduce((total, column) => total + column.width, 0);
   assert.equal(layout.rowWidth, LIST_NAME_WIDTH + sum);
   assert.equal(layout.linkWidth + layout.metadataWidth, layout.rowWidth);
-  assert.equal(layout.propertiesWidth, 260 + 150 + 144 + 144);
+  assert.equal(layout.propertiesWidth, 260 + 150 + 144 + 144 + 144);
   assert.equal(layout.metadataWidth, 160 + 160 + 160);
 });
 
@@ -23,7 +23,7 @@ test("ocultar una columna resta su ancho tanto al encabezado como a las filas", 
   const layout = getListColumnLayout(prefs);
   assert.equal(layout.widths.priority, 0);
   assert.equal(layout.widths.client, 0);
-  assert.equal(layout.propertiesWidth, 260 + 144 + 144);
+  assert.equal(layout.propertiesWidth, 260 + 144 + 144 + 144);
   assert.equal(layout.metadataWidth, 160 + 160);
   assert.equal(layout.rowWidth, layout.linkWidth + layout.metadataWidth);
 });
@@ -35,7 +35,7 @@ test("redimensionar estado y fecha actualiza exactamente el ancho de ambas regio
   const layout = getListColumnLayout(prefs);
   assert.equal(layout.widths.state, 340);
   assert.equal(layout.widths.event, 230);
-  assert.equal(layout.linkWidth, LIST_NAME_WIDTH + 340 + 150 + 144 + 144);
+  assert.equal(layout.linkWidth, LIST_NAME_WIDTH + 340 + 150 + 144 + 144 + 144);
   assert.equal(layout.rowWidth, layout.linkWidth + 160 + 230 + 160);
 });
 
@@ -45,7 +45,7 @@ test("columnas ocultas no incrementan el ancho aunque conserven su tamaño confi
   prefs.due.width = 450;
   const layout = getListColumnLayout(prefs);
   assert.equal(layout.widths.due, 0);
-  assert.equal(layout.propertiesWidth, 260 + 150 + 144);
+  assert.equal(layout.propertiesWidth, 260 + 150 + 144 + 144);
 });
 
 test("ocultar todas las columnas mantiene exactamente el ancho fijo de Carga", () => {

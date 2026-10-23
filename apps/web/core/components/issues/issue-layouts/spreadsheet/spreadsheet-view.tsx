@@ -15,6 +15,8 @@ import { EIssueLayoutTypes } from "@plane/types";
 import { MultipleSelectGroup } from "@/components/core/multiple-select";
 import { IssueBulkOperationsRoot } from "@/components/issues/bulk-operations";
 // hooks
+import { useIssues } from "@/hooks/store/use-issues";
+import { rootIssueIds } from "@/app/lib/izclick/production-hierarchy";
 import { useProject } from "@/hooks/store/use-project";
 import { useBulkOperationStatus } from "@/hooks/use-bulk-operation-status";
 // local imports
@@ -75,7 +77,8 @@ export const SpreadsheetView = observer(function SpreadsheetView(props: Props) {
         return true;
       });
 
-  const visibleIssueIds = issueIds ?? [];
+  const { issueMap } = useIssues();
+  const visibleIssueIds = isEpic ? (issueIds ?? []) : rootIssueIds(issueIds ?? [], issueMap);
   return (
     <div className="relative flex h-full w-full flex-col overflow-x-hidden bg-layer-1 whitespace-nowrap text-secondary">
       <div ref={portalRef} className="spreadsheet-menu-portal" />
