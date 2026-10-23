@@ -107,8 +107,8 @@ export const ProductionStateManager = observer(function ProductionStateManager({
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ replacement_id: replacementId }),
       });
       if (!response.ok) { const data = await response.json(); throw new Error(data.error || "No se pudo eliminar el estado."); }
-      await fetchProjectStates(slug, projectId);
-      setEditingId(null);
+      // Refresh both task rows and state maps after the atomic reassignment.
+      window.location.reload();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo eliminar."); }
     finally { setBusy(false); }
   };

@@ -77,9 +77,8 @@ export function ProductionStatusesMenu() {
     setSaving(true); setError("");
     try {
       await service.remove(workspaceSlug, retiring, replacementId);
-      setStatuses(await service.list(workspaceSlug));
-      setRetiring(null); setEditing(null);
-      if (projectId) await fetchProjectStates(workspaceSlug, projectId);
+      // The removal may touch several projects; discard all stale task/state maps.
+      window.location.reload();
     } catch (cause) {
       const response = cause as { response?: { data?: { error?: string } } };
       setError(response.response?.data?.error || "No se pudo eliminar. Ninguna tarea debe quedar sin destino.");

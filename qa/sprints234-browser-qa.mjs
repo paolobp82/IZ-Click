@@ -78,7 +78,7 @@ try {
     await page.locator("[data-izclick-create-task]").click();
     const form = page.locator("[data-izclick-task-form]");
     await form.getByLabel("Título de la tarea", { exact: true }).fill("Tarea Sprint 2 QA");
-    await form.getByRole("button", { name: /Asignar miembros/ }).click();
+    await form.getByRole("button", { name: /Asignar miembros/ }).first().click();
     await page.getByRole("option").filter({ hasText: /Tú|You|QA Editor|qa-admin/i }).first().click();
     await form.getByLabel("Título de la tarea", { exact: true }).click();
     const select = form.getByLabel("Cliente de la nueva tarea");
@@ -98,7 +98,7 @@ try {
   await step("Assign a commercial member from its column and persist it", async () => {
     await page.goto(route);
     const commercial = row().locator("[data-izclick-commercial]");
-    await commercial.getByRole("button").click();
+    await commercial.getByRole("button").first().click();
     await clickAndSave(page.getByRole("option").filter({ hasText: /Tú|You|QA Editor|qa-admin/i }).first(), "/production-commercial/");
     await page.reload();
     await row().waitFor();
@@ -124,7 +124,7 @@ try {
     const cell = row().locator(`[data-izclick-custom-cell="${field.id}"]`);
     await cell.getByRole("button").click();
     const popup = page.getByRole("dialog", { name: "Editar Supervisor Sprint 2 QA", exact: true });
-    await popup.getByRole("button", { name: /Seleccionar miembro/ }).click();
+    await popup.getByRole("button", { name: /Seleccionar miembro/ }).first().click();
     await page.getByRole("option").filter({ hasText: /Tú|You|QA Editor|qa-admin/i }).first().click();
     await clickAndSave(popup.getByRole("button", { name: "Guardar", exact: true }), "/izclick-custom-field-values/");
     const saved = await request("get", `${api}/issues/${f.issue_id}/izclick-custom-field-values/`);
@@ -141,9 +141,11 @@ try {
     await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
     await dialog.getByRole("button", { name: /Temporal Sprint 3 QA/ }).click();
     await dialog.getByLabel("Estado de destino", { exact: true }).selectOption(initial.state_id);
-    await dialog.getByRole("button", { name: "Eliminar estado y mover tareas", exact: true }).click();
-    await dialog.getByRole("button", { name: "+ Crear estado", exact: true }).waitFor();
+    await Promise.all([page.waitForEvent("load"), dialog.getByRole("button", { name: "Eliminar estado y mover tareas", exact: true }).click()]);
+    await row().waitFor();
     assert.equal((await request("get", `${api}/states/`)).some(s => s.name === "Temporal Sprint 3 QA"), false);
+    await page.getByRole("button", { name: "Administrar estados del proyecto", exact: true }).first().click();
+    assert.equal(await dialog.getByRole("button", { name: /Temporal Sprint 3 QA/ }).count(), 0);
     await dialog.getByRole("button", { name: "Cerrar", exact: true }).click();
   });
   await step("States and producer loads are reachable from the task bar", async () => {
@@ -157,6 +159,8 @@ try {
     await row().waitFor();
     assert.equal(await page.getByRole("link", { name: /^(Modules|Módulos|Cycles|Ciclos)$/ }).count(), 0);
     assert.ok(await page.getByText("N.º · Tarea", { exact: true }).count());
+    assert.ok(await page.getByText("Todas las tareas", { exact: true }).count());
+    assert.match(await row().locator('[data-izclick-cell="priority"]').innerText(), /Urgente/);
     await page.screenshot({ path: "qa/artifacts/sprint4-list-es.png" });
   });
   await step("Comments composer and activity have independent scroll containers", async () => {
