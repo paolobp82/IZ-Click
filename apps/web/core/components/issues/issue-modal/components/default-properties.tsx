@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { IssueClientSelect } from "./client-select";
 import { observer } from "mobx-react";
 import type { Control } from "react-hook-form";
 import { Controller } from "react-hook-form";
@@ -85,6 +86,7 @@ export const IssueDefaultProperties = observer(function IssueDefaultProperties(p
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      <IssueClientSelect projectId={projectId} onChange={handleFormChange} />
       <Controller
         control={control}
         name="state_id"
@@ -133,29 +135,11 @@ export const IssueDefaultProperties = observer(function IssueDefaultProperties(p
                 onChange(assigneeIds);
                 handleFormChange();
               }}
-              buttonVariant={value?.length > 0 ? "transparent-without-text" : "border-with-text"}
+              buttonVariant="border-with-text"
               buttonClassName={value?.length > 0 ? "hover:bg-transparent" : ""}
-              placeholder={t("assignees")}
+              placeholder="Asignar miembros"
               multiple
               tabIndex={getIndex("assignee_ids")}
-            />
-          </div>
-        )}
-      />
-      <Controller
-        control={control}
-        name="label_ids"
-        render={({ field: { value, onChange } }) => (
-          <div className="h-7">
-            <IssueLabelSelect
-              value={value}
-              onChange={(labelIds) => {
-                onChange(labelIds);
-                handleFormChange();
-              }}
-              projectId={projectId ?? undefined}
-              tabIndex={getIndex("label_ids")}
-              createLabelEnabled={!!canCreateLabel}
             />
           </div>
         )}
@@ -198,50 +182,6 @@ export const IssueDefaultProperties = observer(function IssueDefaultProperties(p
           </div>
         )}
       />
-      {projectDetails?.cycle_view && (
-        <Controller
-          control={control}
-          name="cycle_id"
-          render={({ field: { value, onChange } }) => (
-            <div className="h-7">
-              <CycleDropdown
-                projectId={projectId ?? undefined}
-                onChange={(cycleId) => {
-                  onChange(cycleId);
-                  handleFormChange();
-                }}
-                placeholder={t("cycle.label", { count: 1 })}
-                value={value}
-                buttonVariant="border-with-text"
-                tabIndex={getIndex("cycle_id")}
-              />
-            </div>
-          )}
-        />
-      )}
-      {projectDetails?.module_view && workspaceSlug && (
-        <Controller
-          control={control}
-          name="module_ids"
-          render={({ field: { value, onChange } }) => (
-            <div className="h-7">
-              <ModuleDropdown
-                projectId={projectId ?? undefined}
-                value={value ?? []}
-                onChange={(moduleIds) => {
-                  onChange(moduleIds);
-                  handleFormChange();
-                }}
-                placeholder={t("modules")}
-                buttonVariant="border-with-text"
-                tabIndex={getIndex("module_ids")}
-                multiple
-                showCount
-              />
-            </div>
-          )}
-        />
-      )}
       {projectId && areEstimateEnabledByProjectId(projectId) && (
         <Controller
           control={control}

@@ -356,6 +356,7 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
         <div className="w-full rounded-lg">
           <form
             ref={formRef}
+            data-izclick-task-form
             onSubmit={handleSubmit((data) => handleFormSubmit(data))}
             className="flex w-full flex-col"
           >

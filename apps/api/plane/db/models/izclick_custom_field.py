@@ -15,11 +15,13 @@ class IzclickCustomField(BaseModel):
     TYPE_NUMBER = "number"
     TYPE_DATE = "date"
     TYPE_SELECT = "select"
+    TYPE_MEMBER = "member"
     TYPES = (
         (TYPE_TEXT, "Texto"),
         (TYPE_NUMBER, "Número"),
         (TYPE_DATE, "Fecha"),
         (TYPE_SELECT, "Selección"),
+        (TYPE_MEMBER, "Asignación"),
     )
 
     project = models.ForeignKey("db.Project", on_delete=models.CASCADE, related_name="izclick_custom_fields")
@@ -75,6 +77,17 @@ class IzclickCustomFieldValue(BaseModel):
         if self.value is None:
             return
         kind = self.field.field_type
+        if kind == IzclickCustomField.TYPE_MEMBER:
+            from uuid import UUID
+            from plane.db.models import ProjectMember
+            try:
+                member_id = UUID(self.value) if isinstance(self.value, str) else None
+            except (ValueError, TypeError, AttributeError):
+                member_id = None
+            if member_id is None or not ProjectMember.objects.filter(
+                project_id=self.field.project_id, member_id=member_id, is_active=True
+            ).exists():
+                raise ValidationError({"value": "Selecciona un miembro activo de este proyecto."})
         if kind == IzclickCustomField.TYPE_TEXT and not isinstance(self.value, str):
             raise ValidationError({"value": "Se esperaba texto."})
         if kind == IzclickCustomField.TYPE_NUMBER and (not isinstance(self.value, (int, float)) or isinstance(self.value, bool)):

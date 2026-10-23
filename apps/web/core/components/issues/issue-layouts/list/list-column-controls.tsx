@@ -61,7 +61,7 @@ export function ListColumnControls({ canManageStates }: { canManageStates: boole
     setFieldsLoading(true);
     try {
       const values = await getCustomFields(String(workspaceSlug), scope);
-      setCustomFields(values); setApiAvailable(true);
+      setCustomFields(values.filter(field => !(field.type === "member" && field.name === "Comercial asignado"))); setApiAvailable(true);
     } catch { setCustomFields([]); setApiAvailable(false); }
     finally { setFieldsLoading(false); }
   };
@@ -271,7 +271,7 @@ export function ListColumnControls({ canManageStates }: { canManageStates: boole
 
   return (
     <>
-      <span className="flex w-[420px] shrink-0 items-center px-3">Carga</span>
+      <span className="flex w-[420px] shrink-0 items-center px-3">N.º · Tarea</span>
       {LIST_COLUMNS.map((col) => (
         <span
           key={col.id}
@@ -319,7 +319,7 @@ export function ListColumnControls({ canManageStates }: { canManageStates: boole
           <span className="mt-3 block border-t border-subtle pt-3">
             <span className="mb-2 block text-xs font-semibold">Crear columna personalizada</span>
             <input aria-label="Nombre de columna" placeholder="Nombre de columna" maxLength={100} value={newFieldName} onChange={e => setNewFieldName(e.target.value)} className="mb-2 w-full rounded border border-subtle bg-surface-1 px-2 py-1.5 text-xs" />
-            <select aria-label="Tipo de columna" value={newFieldType} onChange={e => setNewFieldType(e.target.value)} className="mb-2 w-full rounded border border-subtle bg-surface-1 p-1.5 text-xs"><option value="text">Texto</option><option value="number">Número</option><option value="date">Fecha</option><option value="select">Selección</option></select>
+            <select aria-label="Tipo de columna" value={newFieldType} onChange={e => setNewFieldType(e.target.value)} className="mb-2 w-full rounded border border-subtle bg-surface-1 p-1.5 text-xs"><option value="text">Texto</option><option value="number">Número</option><option value="date">Fecha</option><option value="select">Selección</option><option value="member">Asignación a miembro</option></select>
             {newFieldType === "select" && <span className="mb-2 block space-y-2 rounded border border-subtle p-2">
               <span className="block text-xs font-medium">Opciones y colores</span>
               {newOptions.map(option => <span key={option.id} className="flex items-center gap-2 text-xs"><span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: option.color }} /><span className="min-w-0 flex-1 truncate">{option.name}</span><button type="button" aria-label={`Eliminar ${option.name}`} onClick={() => setNewOptions(previous => previous.filter(x => x.id !== option.id))}>✕</button></span>)}

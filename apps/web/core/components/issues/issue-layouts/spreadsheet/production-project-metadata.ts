@@ -6,6 +6,7 @@ import type { ProductionClient } from "@/app/lib/izclick/production-clients";
 
 export type ProjectProductionMetadata = {
   dates: Record<string, string>;
+  commercial: Record<string, string | null>;
   sigLinks: Record<string, { code: string; url: string }>;
   clients: ProductionClient[];
 };
@@ -40,7 +41,9 @@ export function fetchProjectProductionMetadata(workspaceSlug: string, projectId:
     read("production-event-dates"),
     read("production-sig-links"),
     read("issue-labels"),
-  ]).then(([dates, links, labels]) => ({
+    read("production-commercial"),
+  ]).then(([dates, links, labels, commercial]) => ({
+    commercial: commercial as Record<string, string | null>,
     dates: normalizeEventDateMap(dates),
     sigLinks: normalizeSigLinkMap(links),
     clients: clientsFromPlaneLabels(labels),

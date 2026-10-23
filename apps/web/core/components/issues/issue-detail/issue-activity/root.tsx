@@ -4,7 +4,7 @@
  * See the LICENSE file for details.
  */
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import uniq from "lodash-es/uniq";
 import { observer } from "mobx-react";
 // plane package imports
@@ -42,6 +42,18 @@ export type TActivityOperations = {
 
 export const IssueActivity = observer(function IssueActivity(props: TIssueActivity) {
   const { workspaceSlug, projectId, issueId, disabled = false, isIntakeIssue = false } = props;
+  const chatRef = useRef<HTMLDivElement>(null);
+  const chatContentsRef = useRef<HTMLDivElement>(null);
+  const followLatest = useRef(true);
+  useEffect(() => {
+    followLatest.current = true;
+    const observer = new ResizeObserver(() => {
+      const feed = chatRef.current;
+      if (feed && followLatest.current) feed.scrollTop = feed.scrollHeight;
+    });
+    if (chatContentsRef.current) observer.observe(chatContentsRef.current);
+    return () => observer.disconnect();
+  }, [issueId]);
   // i18n
   const { t } = useTranslation();
   // hooks
@@ -81,6 +93,7 @@ export const IssueActivity = observer(function IssueActivity(props: TIssueActivi
         workspaceSlug={workspaceSlug}
         entityId={issueId}
         activityOperations={activityOperations}
+        onSubmitCallback={() => { followLatest.current = true; }}
         showToolbarInitially
         projectId={projectId}
       />
@@ -90,41 +103,33 @@ export const IssueActivity = observer(function IssueActivity(props: TIssueActivi
   if (!project) return <></>;
 
   return (
-    <div className="space-y-4">
-      {/* header */}
-      <div className="flex items-center justify-between">
-        <div className="text-h5-medium text-primary">{t("common.activity")}</div>
-        <div className="flex items-center gap-2">
-          <ActivitySortRoot sortOrder={sortOrder || E_SORT_ORDER.ASC} toggleSort={toggleSortOrder} />
-          <ActivityFilterRoot
-            selectedFilters={selectedFilters || defaultActivityFilters}
-            toggleFilter={toggleFilter}
-            isIntakeIssue={isIntakeIssue}
-            projectId={projectId}
-          />
-        </div>
-      </div>
-
-      {/* rendering activity */}
-      <div className="space-y-3">
-        <div className="min-h-[200px]">
-          <div className="space-y-3">
-            {!disabled && sortOrder === E_SORT_ORDER.DESC && renderCommentCreationBox}
-            <IssueActivityCommentRoot
-              projectId={projectId}
-              workspaceSlug={workspaceSlug}
-              isIntakeIssue={isIntakeIssue}
-              issueId={issueId}
-              selectedFilters={selectedFilters || defaultActivityFilters}
-              activityOperations={activityOperations}
-              showAccessSpecifier={!!project.anchor}
-              disabled={disabled}
-              sortOrder={sortOrder || E_SORT_ORDER.ASC}
-            />
-            {!disabled && sortOrder === E_SORT_ORDER.ASC && renderCommentCreationBox}
+    <div className="grid h-[680px] min-h-0 grid-rows-[minmax(0,2fr)_minmax(0,1fr)] gap-3 lg:h-full">
+      <section aria-label="Comentarios de la tarea" className="flex min-h-0 flex-col rounded border border-subtle">
+        <h3 className="shrink-0 border-b border-subtle px-3 py-2 text-sm font-semibold">Comentarios</h3>
+        <div ref={chatRef} data-izclick-chat-feed className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2"
+          onScroll={() => { const feed = chatRef.current; if (feed) followLatest.current = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 48; }}>
+          <div ref={chatContentsRef}>
+            <IssueActivityCommentRoot projectId={projectId} workspaceSlug={workspaceSlug} isIntakeIssue={isIntakeIssue}
+              issueId={issueId} selectedFilters={defaultActivityFilters} kind="comments" activityOperations={activityOperations}
+              showAccessSpecifier={!!project.anchor} disabled={disabled} sortOrder={E_SORT_ORDER.ASC} />
           </div>
         </div>
-      </div>
+        {!disabled && <div data-izclick-chat-composer className="max-h-[45%] shrink-0 overflow-y-auto border-t border-subtle bg-surface-1 p-2">{renderCommentCreationBox}</div>}
+      </section>
+      <section aria-label="Actividad de la tarea" className="flex min-h-0 flex-col rounded border border-subtle">
+        <header className="flex shrink-0 items-center justify-between border-b border-subtle px-3 py-2">
+          <h3 className="text-sm font-semibold">Actividad</h3>
+          <div className="flex items-center gap-2">
+            <ActivitySortRoot sortOrder={sortOrder || E_SORT_ORDER.ASC} toggleSort={toggleSortOrder} />
+            <ActivityFilterRoot selectedFilters={selectedFilters || defaultActivityFilters} toggleFilter={toggleFilter} isIntakeIssue={isIntakeIssue} projectId={projectId} />
+          </div>
+        </header>
+        <div data-izclick-activity-feed className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2">
+          <IssueActivityCommentRoot projectId={projectId} workspaceSlug={workspaceSlug} isIntakeIssue={isIntakeIssue}
+            issueId={issueId} selectedFilters={selectedFilters || defaultActivityFilters} kind="activity"
+            activityOperations={activityOperations} showAccessSpecifier={!!project.anchor} disabled={disabled} sortOrder={sortOrder || E_SORT_ORDER.ASC} />
+        </div>
+      </section>
     </div>
   );
 });

@@ -1,9 +1,9 @@
-name: IZCLICK Sprint 1 authenticated browser QA
+name: IZCLICK Sprints 2-4 authenticated browser QA
 # Dedicated PR QA. No SSH, production credentials, public staging host,
 # shared volumes or production data. Uses an ephemeral GitHub runner.
 on:
   pull_request:
-    branches: [izclick/clickup-native-list-detail-20261014]
+    branches: [sprint/izclick-1-operacion-20261023]
     paths:
       - 'apps/web/**'
       - 'apps/api/**'
@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   isolated-browser-qa:
-    if: github.head_ref == 'sprint/izclick-1-operacion-20261023' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.head_ref == 'sprint/izclick-2-4-usabilidad-20261023' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     env:
@@ -43,15 +43,15 @@ jobs:
         run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build matching API and Web images for isolated QA
         run: |
-          docker build --label "org.opencontainers.image.revision=$QA_CANDIDATE_SHA" --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" -f qa/Dockerfile.api-sprint1 -t "$IZCLICK_QA_API_IMAGE" .
+          docker build --label "org.opencontainers.image.revision=$QA_CANDIDATE_SHA" --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" -f qa/Dockerfile.api-sprints234 -t "$IZCLICK_QA_API_IMAGE" .
           docker build --label "org.opencontainers.image.revision=$QA_CANDIDATE_SHA" --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" -f apps/web/Dockerfile.web -t "$IZCLICK_QA_WEB_IMAGE" .
       - name: Guard against unintended deployment or shared volumes
         run: |
           set -eu
-          test "${{ github.head_ref }}" = "sprint/izclick-1-operacion-20261023"
+          test "${{ github.head_ref }}" = "sprint/izclick-2-4-usabilidad-20261023"
           test "$(git rev-parse HEAD)" = "$QA_CANDIDATE_SHA"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            test "${{ github.event.pull_request.number }}" = "8"
+            test "${{ github.head_ref }}" = "sprint/izclick-2-4-usabilidad-20261023"
           fi
           docker compose -f qa/compose.qa.yml config --quiet
           ! grep -Eq '(izclick\.izango\.com\.pe|209\.145\.60\.238|/opt/iz-click)' qa/compose.qa.yml
@@ -61,6 +61,8 @@ jobs:
       - name: Apply migration to QA-only database
         run: |
           docker compose -f qa/compose.qa.yml run --rm --no-deps -T qa-api python manage.py migrate --noinput
+      - name: Verify assignments and state retirement on the production-compatible API
+        run: docker compose -f qa/compose.qa.yml run --rm --no-deps -T qa-api python manage.py test plane.api.tests.test_izclick_sprints234 --noinput
       - name: Start isolated backend, frontend and localhost proxy
         run: |
           docker compose -f qa/compose.qa.yml up -d qa-api qa-web qa-proxy
@@ -151,6 +153,8 @@ jobs:
         run: docker run --rm --network host -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.56.1-noble node qa/visual-qa.mjs
       - name: Test event dates, nested subtasks and real attachment preview/download
         run: docker run --rm --network host -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.56.1-noble node qa/sprint1-browser-qa.mjs
+      - name: Test creation, completion, assignments, producer view and chat
+        run: docker run --rm --network host -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.56.1-noble node qa/sprints234-browser-qa.mjs
       - name: Confirm queued crawler preserves saved date in isolated database
         run: |
           docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell <<'PYTHON'

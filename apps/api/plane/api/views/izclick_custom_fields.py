@@ -23,6 +23,14 @@ def project_access(request, slug, project_id, write=False, schema=False):
     return project if member.role >= minimum_role else None
 
 
+def visible_project_issues(request, project_id):
+    issues = Issue.objects.filter(project_id=project_id)
+    if ProjectMember.objects.filter(project_id=project_id, member=request.user, is_active=True,
+                                    role=5, project__guest_view_all_features=False).exists():
+        issues = issues.filter(created_by=request.user)
+    return issues
+
+
 def field_payload(field):
     return {
         "id": str(field.id), "project_id": str(field.project_id),
@@ -117,9 +125,7 @@ class IzclickProjectCustomFieldBulkValuesAPI(BaseAPIView):
         except (ValueError, AttributeError, TypeError):
             return Response({"issue_ids": "ID de tarea inválido."}, status=400)
         valid_issue_ids = set(
-            str(item) for item in Issue.objects.filter(
-                project_id=project_id, id__in=normalized
-            ).values_list("id", flat=True)
+            str(item) for item in visible_project_issues(request, project_id).filter(id__in=normalized).values_list("id", flat=True)
         )
         results = {issue_id: {} for issue_id in normalized if issue_id in valid_issue_ids}
         for item in IzclickCustomFieldValue.objects.filter(
@@ -133,7 +139,7 @@ class IzclickIssueCustomFieldValuesAPI(BaseAPIView):
     def get(self, request, slug, project_id, issue_id):
         if not project_access(request, slug, project_id):
             return Response(status=403)
-        if not Issue.objects.filter(id=issue_id, project_id=project_id).exists():
+        if not visible_project_issues(request, project_id).filter(id=issue_id).exists():
             return Response(status=404)
         values = IzclickCustomFieldValue.objects.filter(
             issue_id=issue_id, field__project_id=project_id
@@ -143,7 +149,7 @@ class IzclickIssueCustomFieldValuesAPI(BaseAPIView):
     def patch(self, request, slug, project_id, issue_id):
         if not project_access(request, slug, project_id, write=True):
             return Response(status=403)
-        if not Issue.objects.filter(id=issue_id, project_id=project_id).exists():
+        if not visible_project_issues(request, project_id).filter(id=issue_id).exists():
             return Response(status=404)
         values = request.data.get("values")
         if not isinstance(values, dict):
@@ -169,3 +175,50 @@ class IzclickIssueCustomFieldValuesAPI(BaseAPIView):
         except (IzclickCustomField.DoesNotExist, ValidationError, ValueError, TypeError, IntegrityError) as exc:
             return Response({"error": str(exc)}, status=400)
         return self.get(request, slug, project_id, issue_id)
+
+
+COMMERCIAL_FIELD_NAME = "Comercial asignado"
+
+
+class IzclickCommercialAssignmentsAPI(BaseAPIView):
+    def get(self, request, slug, project_id):
+        if not project_access(request, slug, project_id):
+            return Response(status=403)
+        rows = IzclickCustomFieldValue.objects.filter(
+            field__project_id=project_id, field__name=COMMERCIAL_FIELD_NAME,
+            field__field_type=IzclickCustomField.TYPE_MEMBER,
+            issue_id__in=visible_project_issues(request, project_id).values("id"),
+        ).values_list("issue_id", "value")
+        return Response({str(issue_id): value for issue_id, value in rows})
+
+
+class IzclickIssueCommercialAPI(BaseAPIView):
+    def patch(self, request, slug, project_id, issue_id):
+        project = project_access(request, slug, project_id, write=True)
+        if not project:
+            return Response(status=403)
+        try:
+            with transaction.atomic():
+                # Serialize creation of the built-in field without changing IDs.
+                Project.objects.select_for_update().get(pk=project.pk)
+                issue = Issue.objects.filter(id=issue_id, project_id=project_id).first()
+                if not issue:
+                    return Response(status=404)
+                field, _ = IzclickCustomField.objects.get_or_create(
+                    project=project, name=COMMERCIAL_FIELD_NAME,
+                    defaults={"field_type": IzclickCustomField.TYPE_MEMBER,
+                              "created_by": request.user, "updated_by": request.user},
+                )
+                if field.field_type != IzclickCustomField.TYPE_MEMBER:
+                    raise ValidationError("Ya existe un campo con ese nombre y otro tipo. Revisa su configuración.")
+                if "member_id" not in request.data:
+                    raise ValidationError("Se requiere member_id, o null para quitar la asignación.")
+                record = IzclickCustomFieldValue.objects.select_for_update().filter(field=field, issue=issue).first()
+                record = record or IzclickCustomFieldValue(field=field, issue=issue, created_by=request.user)
+                record.value = request.data["member_id"]
+                record.updated_by = request.user
+                record.full_clean()
+                record.save(disable_auto_set_user=True)
+        except (ValidationError, IntegrityError) as exc:
+            return Response({"error": str(exc)}, status=400)
+        return Response({"member_id": record.value})

@@ -1,3 +1,5 @@
+import { CompletionCheckbox } from "@/components/issues/completion-checkbox";
+import { useProjectState } from "@/hooks/store/use-project-state";
 // oxlint-disable no-shadow
 /**
  * Copyright (c) 2023-present Plane Software, Inc. and contributors
@@ -61,6 +63,7 @@ export const IssueMainContent = observer(function IssueMainContent(props: Props)
   const { setShowAlert } = useReloadConfirmations(isSubmitting === "submitting");
   // derived values
   const issue = issueId ? getIssueById(issueId) : undefined;
+  const { getStateById } = useProjectState();
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
@@ -95,6 +98,9 @@ export const IssueMainContent = observer(function IssueMainContent(props: Props)
           </div>
         </div>
 
+        <div className="flex items-start gap-3">
+        <CompletionCheckbox issue={issue} disabled={isArchived || !isEditable} update={data => issueOperations.update(workspaceSlug, projectId, issue.id, data)} />
+        <div className={getStateById(issue.state_id)?.group === "completed" ? "min-w-0 flex-1 line-through opacity-60" : "min-w-0 flex-1"}>
         <IssueTitleInput
           workspaceSlug={workspaceSlug}
           projectId={issue.project_id}
@@ -107,6 +113,7 @@ export const IssueMainContent = observer(function IssueMainContent(props: Props)
           containerClassName="-ml-3"
         />
 
+        </div></div>
         <DescriptionInput
           issueSequenceId={issue.sequence_id}
           containerClassName="-ml-6 border-none p-0! pl-6!"

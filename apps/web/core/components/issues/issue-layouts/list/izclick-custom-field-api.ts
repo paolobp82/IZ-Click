@@ -3,7 +3,7 @@ import { API_BASE_URL } from "@plane/constants";
 export type IzclickCustomField = {
   id: string;
   name: string;
-  type: "text" | "number" | "date" | "select";
+  type: "text" | "number" | "date" | "select" | "member";
   options: { id: string; name: string; color?: string }[];
   position: number;
 };
@@ -35,7 +35,7 @@ export async function getCustomFields(slug: string, projectId: string): Promise<
     if (!response.ok) throw new Error(`Custom fields API HTTP ${response.status}`);
     const value = await response.json();
     if (!Array.isArray(value)) throw new Error("Respuesta de campos inválida");
-    const fields = value.filter((item): item is IzclickCustomField => Boolean(item && typeof item.id === "string" && typeof item.name === "string" && ["text", "number", "date", "select"].includes(item.type)));
+    const fields = value.filter((item): item is IzclickCustomField => Boolean(item && typeof item.id === "string" && typeof item.name === "string" && ["text", "number", "date", "select", "member"].includes(item.type)));
     if ((generations.get(key) ?? 0) === generation) memo.set(key, { until: Date.now() + 15000, fields });
     return fields;
   })().finally(() => { if (pending.get(key) === request) pending.delete(key); });

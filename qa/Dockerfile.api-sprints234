@@ -1,0 +1,11 @@
+# Preserve the exact Sprint 1 production API, including mail/security fixes.
+FROM ghcr.io/paolobp82/izclick-api@sha256:34958845a91dd29e09cb70a26b57f9389b0a6084520100cfa9007c3bc81a1f09
+COPY apps/api/plane/db/models/izclick_custom_field.py /code/plane/db/models/izclick_custom_field.py
+COPY apps/api/plane/api/views/izclick_custom_fields.py /code/plane/api/views/izclick_custom_fields.py
+COPY apps/api/plane/api/views/izclick_state_retirement.py /code/plane/api/views/izclick_state_retirement.py
+COPY apps/api/plane/utils/izclick_state_retirement.py /code/plane/utils/izclick_state_retirement.py
+COPY apps/api/plane/app/urls/project.py /code/plane/app/urls/project.py
+COPY apps/api/plane/app/views/workspace/izclick_production_status.py /code/plane/app/views/workspace/izclick_production_status.py
+COPY apps/api/plane/db/migrations/0125_izclick_assignment_fields.py /code/plane/db/migrations/0125_izclick_assignment_fields.py
+COPY apps/api/plane/api/tests/test_izclick_sprints234.py /code/plane/api/tests/test_izclick_sprints234.py
+RUN python -m compileall -q /code/plane/api/views/izclick_custom_fields.py /code/plane/api/views/izclick_state_retirement.py /code/plane/utils/izclick_state_retirement.py /code/plane/app/views/workspace/izclick_production_status.py

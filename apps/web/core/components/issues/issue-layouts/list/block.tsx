@@ -1,3 +1,6 @@
+import { CommercialAssignment } from "@/components/issues/commercial-assignment";
+import { CompletionCheckbox } from "@/components/issues/completion-checkbox";
+import { useProjectState } from "@/hooks/store/use-project-state";
 /**
  * Copyright (c) 2023-present Plane Software, Inc. and contributors
  * SPDX-License-Identifier: AGPL-3.0-only
@@ -39,6 +42,7 @@ import type { TRenderQuickActions } from "./list-view-types";
 
 interface IssueBlockProps {
   issueId: string;
+  rowNumber?: string;
   issuesMap: TIssueMap;
   groupId: string;
   updateIssue: ((projectId: string | null, issueId: string, data: Partial<TIssue>) => Promise<void>) | undefined;
@@ -60,6 +64,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
   const {
     issuesMap,
     issueId,
+    rowNumber,
     groupId,
     updateIssue,
     quickActions,
@@ -107,6 +112,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
 
   // derived values
   const issue = issuesMap[issueId];
+  const { getStateById } = useProjectState();
   const subIssuesCount = issue?.sub_issues_count ?? 0;
   const canEditIssueProperties = canEditProperties(issue?.project_id ?? undefined);
   const isDraggingAllowed = canDrag && canEditIssueProperties;
@@ -283,7 +289,8 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
               )}
             </div>
 
-            {isProjectList && <span className="ml-3 shrink-0 rounded bg-layer-2 px-1.5 py-0.5 text-xs tabular-nums text-tertiary">{projectIdentifier ? `${projectIdentifier}-${issue.sequence_id}` : issue.sequence_id}</span>}
+            {!isEpic && <CompletionCheckbox issue={issue} disabled={!canEditIssueProperties || !updateIssue || Boolean(issue.archived_at)} update={async data => { if (updateIssue) await updateIssue(issue.project_id, issue.id, data); }} />}
+            {isProjectList && <span className="ml-3 shrink-0 rounded bg-layer-2 px-1.5 py-0.5 text-xs tabular-nums text-tertiary">{rowNumber ?? issue.sequence_id}</span>}
             <Tooltip
               tooltipContent={issue.name}
               isMobile={isMobile}
@@ -291,7 +298,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
               disabled={isCurrentBlockDragging}
               renderByDefault={false}
             >
-              <p className="cursor-pointer truncate text-body-xs-medium text-primary">{issue.name}</p>
+              <p className={cn("cursor-pointer truncate text-body-xs-medium", getStateById(issue.state_id)?.group === "completed" ? "text-tertiary line-through opacity-60" : "text-primary")}>{issue.name}</p>
             </Tooltip>
           </div>
           {!issue?.tempId && (
@@ -352,6 +359,9 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
     </ControlLink>
     {isProjectList && workspaceSlug && projectId && issue.project_id && (
       <div className="flex shrink-0 items-stretch" style={{ width: "var(--izclick-metadata-width, 480px)" }} onClick={(event) => event.stopPropagation()}>
+        <div className="flex shrink-0 items-center border-r border-subtle px-2" style={{ display: "var(--izclick-show-commercial, flex)", width: "var(--izclick-col-commercial, 184px)" }}>
+          <CommercialAssignment workspaceSlug={workspaceSlug} projectId={issue.project_id} issueId={issue.id} canEdit={canEditIssueProperties} />
+        </div>
         <ProductionMetadataCells
           asDiv
           workspaceSlug={workspaceSlug}
