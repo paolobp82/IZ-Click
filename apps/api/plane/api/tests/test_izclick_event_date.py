@@ -127,6 +127,9 @@ class IzclickEventDateEndpointTests(TestCase):
         listed = self.request("get", "list")
         self.assertEqual(listed.status_code, 200)
         self.assertEqual(listed.data[0]["metadata"]["izclick_event_date"], "2026-11-02")
-        self.assertEqual(self.request("delete", "destroy", pk=link_id).status_code, 204)
+        # Deletion persists locally; related-object cleanup is a separate queued task.
+        with patch("plane.db.mixins.soft_delete_related_objects.delay") as cleanup:
+            self.assertEqual(self.request("delete", "destroy", pk=link_id).status_code, 204)
+        cleanup.assert_called_once()
         self.assertFalse(IssueLink.objects.filter(id=link_id).exists())
         crawler.assert_not_called()
