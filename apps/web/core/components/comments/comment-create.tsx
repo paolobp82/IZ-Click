@@ -24,6 +24,7 @@ type TCommentCreate = {
   workspaceSlug: string;
   activityOperations: TCommentsOperations;
   showToolbarInitially?: boolean;
+  compact?: boolean;
   projectId?: string;
   onSubmitCallback?: (elementId: string) => void;
 };
@@ -37,6 +38,7 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
     entityId,
     activityOperations,
     showToolbarInitially = false,
+    compact = false,
     projectId,
     onSubmitCallback,
   } = props;
@@ -62,8 +64,10 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
   });
 
   const onSubmit = async (formData: Partial<TIssueComment>) => {
+    let submitted = false;
     try {
       const comment = await activityOperations.createComment(formData);
+      submitted = Boolean(comment?.id);
       if (comment?.id) onSubmitCallback?.(comment.id);
       if (uploadedAssetIds.length > 0) {
         if (projectId) {
@@ -80,10 +84,10 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
     } catch (error) {
       console.error(error);
     } finally {
-      reset({
-        comment_html: "<p></p>",
-      });
-      editorRef.current?.clearEditor();
+      if (!compact || submitted) {
+        reset({ comment_html: "<p></p>" });
+        editorRef.current?.clearEditor();
+      }
     }
   };
 
@@ -94,6 +98,8 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
     <div
       className={cn("sticky bottom-0 z-[4] bg-surface-1 sm:static")}
       onKeyDown={(e) => {
+        // Compact chat is submitted by the editor Enter extension only.
+        if (compact) return;
         if (
           e.key === "Enter" &&
           !e.shiftKey &&
@@ -115,6 +121,7 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
             control={control}
             render={({ field: { value, onChange } }) => (
               <LiteTextEditor
+                variant={compact ? "lite" : "full"}
                 editable
                 workspaceId={workspaceId}
                 id={"add_comment_" + entityId}
@@ -122,7 +129,7 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
                 workspaceSlug={workspaceSlug}
                 projectId={projectId}
                 onEnterKeyPress={(e) => {
-                  if (!isEmpty && !isSubmitting) {
+                  if (!isEmpty && !isSubmitting && editorRef.current?.isEditorReadyToDiscard()) {
                     handleSubmit(onSubmit)(e);
                   }
                 }}

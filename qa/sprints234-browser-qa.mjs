@@ -170,6 +170,30 @@ try {
       assert.equal(await page.locator(selector).evaluate(el => getComputedStyle(el).overflowY), "auto");
     }
     const composer = page.locator("[data-izclick-chat-composer]");
+    const editor = composer.locator('[contenteditable="true"]').first();
+    await editor.fill("Mensaje de chat Sprint 4 QA");
+    const send = composer.getByRole("button", { name: "Enviar comentario", exact: true });
+    const sendBox = await send.boundingBox();
+    const composerBox = await composer.boundingBox();
+    assert.ok(sendBox && composerBox && sendBox.x >= composerBox.x && sendBox.x + sendBox.width <= composerBox.x + composerBox.width, "Send button fits inside composer");
+    const [posted] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "POST" && response.url().includes("comment")),
+      send.click(),
+    ]);
+    assert.ok(posted.ok());
+    await page.locator("[data-izclick-chat-feed]").getByText("Mensaje de chat Sprint 4 QA", { exact: true }).waitFor();
+    await page.reload();
+    await page.locator("[data-izclick-chat-feed]").getByText("Mensaje de chat Sprint 4 QA", { exact: true }).waitFor();
+    await editor.fill("Mensaje con Enter Sprint 4 QA");
+    const [entered] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "POST" && response.url().includes("comment")),
+      editor.press("Enter"),
+    ]);
+    assert.ok(entered.ok());
+    await page.locator("[data-izclick-chat-feed]").getByText("Mensaje con Enter Sprint 4 QA", { exact: true }).waitFor();
+    await page.reload();
+    await page.locator("[data-izclick-chat-feed]").getByText("Mensaje con Enter Sprint 4 QA", { exact: true }).waitFor();
+    assert.equal(await page.locator("[data-izclick-chat-feed]").getByText("Mensaje con Enter Sprint 4 QA", { exact: true }).count(), 1);
     const before = await composer.boundingBox();
     await page.locator("[data-izclick-activity-feed]").evaluate(el => { el.scrollTop = el.scrollHeight; });
     assert.deepEqual(await composer.boundingBox(), before);

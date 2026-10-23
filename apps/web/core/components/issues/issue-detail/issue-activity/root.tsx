@@ -94,6 +94,7 @@ export const IssueActivity = observer(function IssueActivity(props: TIssueActivi
         entityId={issueId}
         activityOperations={activityOperations}
         onSubmitCallback={() => { followLatest.current = true; }}
+        compact
         showToolbarInitially
         projectId={projectId}
       />
@@ -103,20 +104,20 @@ export const IssueActivity = observer(function IssueActivity(props: TIssueActivi
   if (!project) return <></>;
 
   return (
-    <div className="grid h-[680px] min-h-0 grid-rows-[minmax(0,2fr)_minmax(0,1fr)] gap-3 lg:h-full">
-      <section aria-label="Comentarios de la tarea" className="flex min-h-0 flex-col rounded border border-subtle">
+    <div className="grid h-[680px] min-h-0 min-w-0 grid-rows-[minmax(0,2fr)_minmax(0,1fr)] gap-3 lg:h-full">
+      <section aria-label="Comentarios de la tarea" className="flex min-h-0 min-w-0 flex-col rounded border border-subtle">
         <h3 className="shrink-0 border-b border-subtle px-3 py-2 text-sm font-semibold">Comentarios</h3>
         <div ref={chatRef} data-izclick-chat-feed className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2"
           onScroll={() => { const feed = chatRef.current; if (feed) followLatest.current = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 48; }}>
-          <div ref={chatContentsRef}>
+          <div ref={chatContentsRef} className="min-w-0 break-words [overflow-wrap:anywhere]">
             <IssueActivityCommentRoot projectId={projectId} workspaceSlug={workspaceSlug} isIntakeIssue={isIntakeIssue}
               issueId={issueId} selectedFilters={defaultActivityFilters} kind="comments" activityOperations={activityOperations}
               showAccessSpecifier={!!project.anchor} disabled={disabled} sortOrder={E_SORT_ORDER.ASC} />
           </div>
         </div>
-        {!disabled && <div data-izclick-chat-composer className="max-h-[45%] shrink-0 overflow-y-auto border-t border-subtle bg-surface-1 p-2">{renderCommentCreationBox}</div>}
+        {!disabled && <div data-izclick-chat-composer className="max-h-[45%] min-w-0 shrink-0 overflow-y-auto border-t border-subtle bg-surface-1 p-2">{renderCommentCreationBox}</div>}
       </section>
-      <section aria-label="Actividad de la tarea" className="flex min-h-0 flex-col rounded border border-subtle">
+      <section aria-label="Actividad de la tarea" className="flex min-h-0 min-w-0 flex-col rounded border border-subtle">
         <header className="flex shrink-0 items-center justify-between border-b border-subtle px-3 py-2">
           <h3 className="text-sm font-semibold">Actividad</h3>
           <div className="flex items-center gap-2">
