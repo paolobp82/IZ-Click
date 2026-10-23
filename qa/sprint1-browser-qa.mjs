@@ -13,6 +13,7 @@ const browser = await chromium.launch({ headless: true });
 const results = [];
 const errors = [];
 let page;
+let downloadAssetId;
 const route = `${base}/${fixture.workspace}/projects/${fixture.project_id}/issues`;
 async function contextFor(session) {
   const context = await browser.newContext({ viewport: { width: 1366, height: 950 }, acceptDownloads: true });
@@ -76,6 +77,10 @@ try {
     await page.screenshot({ path: path.join(output, "sprint1-nested-subtasks.png"), fullPage: true });
   });
   await step("Real image preview and real authenticated file download", async () => {
+    const assets = `${base}/api/assets/v2/workspaces/${fixture.workspace}/projects/${fixture.project_id}/issues/${fixture.issue_id}/attachments/`;
+    const listed = await adminContext.request.get(assets);
+    assert.equal(listed.status(), 200);
+    downloadAssetId = (await listed.json()).find((file) => file.attributes.name === "Reporte-QA.txt").id;
     const item = await row();
     await item.getByRole("button", { name: /^Ver adjuntos de/ }).click();
     const dialog = page.getByRole("dialog");
@@ -103,7 +108,12 @@ try {
     const item = await row();
     assert.equal(await item.locator('button[title="Sin permiso de edición"]').first().isDisabled(), true);
     await item.getByRole("button", { name: /^Ver adjuntos de/ }).click();
-    await page.getByRole("dialog").getByText("Reporte-QA.txt", { exact: true }).waitFor();
+    const dialog = page.getByRole("dialog");
+    const textItem = dialog.getByRole("listitem").filter({ hasText: "Reporte-QA.txt" });
+    await textItem.waitFor();
+    const [download] = await Promise.all([page.waitForEvent("download"), textItem.getByRole("link", { name: "Descargar", exact: true }).click()]);
+    assert.equal(download.suggestedFilename(), "Reporte-QA.txt");
+    assert.equal(fs.readFileSync(await download.path(), "utf8"), "IZCLICK Sprint 1: descarga verificada.\n");
     await page.screenshot({ path: path.join(output, "sprint1-reader-attachments.png"), fullPage: true });
     await context.close();
   });
@@ -112,6 +122,12 @@ try {
     const assets = `${base}/api/assets/v2/workspaces/${fixture.workspace}/projects/${fixture.project_id}/issues/${fixture.issue_id}/attachments/`;
     const response = await context.request.get(assets);
     assert.ok([401, 403].includes(response.status()));
+    assert.ok(downloadAssetId);
+    const root = `${base}/api/assets/v2/workspaces/${fixture.workspace}/projects/${fixture.project_id}`;
+    for (const endpoint of [`download/${downloadAssetId}/`, `${downloadAssetId}/`]) {
+      const privateAsset = await context.request.get(`${root}/${endpoint}`, { maxRedirects: 0 });
+      assert.ok([401, 403].includes(privateAsset.status()), "Anonymous asset access must be denied before issuing a signed URL");
+    }
     await context.close();
   });
   assert.deepEqual(errors, []);

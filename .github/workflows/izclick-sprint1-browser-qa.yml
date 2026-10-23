@@ -116,12 +116,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Install ephemeral browser harness
+      - name: Prepare the official Playwright runtime with its matching browser already installed
+        timeout-minutes: 10
         run: |
+          docker pull mcr.microsoft.com/playwright:v1.56.1-noble
           cd qa
           npm init -y >/dev/null
           npm install --no-save playwright@1.56.1
-          npx playwright install --with-deps chromium
       - name: Diagnose intake-state routing without altering QA data
         run: |
           docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell <<'PY'
@@ -143,9 +144,9 @@ jobs:
             'import json; from plane.db.models import Issue; rows=Issue.objects.filter(workspace__slug="izclick-qa").values_list("id","state_id","priority").order_by("id"); print("IZCLICK_BASELINE="+json.dumps([(str(i),str(st),p) for i,st,p in rows]))' | grep '^IZCLICK_BASELINE=' | cut -d= -f2- > "$RUNNER_TEMP/izclick-baseline.json"
           python3 -c 'import json,os; a=json.load(open(os.environ["RUNNER_TEMP"]+"/izclick-baseline.json")); assert len(a)==10'
       - name: Measure real List alignment and persistence in browser
-        run: node qa/visual-qa.mjs
+        run: docker run --rm --network host -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.56.1-noble node qa/visual-qa.mjs
       - name: Test event dates, nested subtasks and real attachment preview/download
-        run: node qa/sprint1-browser-qa.mjs
+        run: docker run --rm --network host -v "$PWD:/work" -w /work mcr.microsoft.com/playwright:v1.56.1-noble node qa/sprint1-browser-qa.mjs
       - name: Confirm queued crawler preserves saved date in isolated database
         run: |
           docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell <<'PYTHON'
