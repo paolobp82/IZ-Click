@@ -13,6 +13,7 @@ await context.addCookies([{ name: "session-id", value: f.admin_session, url: bas
 const page = await context.newPage();
 const results = [];
 const errors = [];
+let detail = "setup";
 const runtime = [];
 page.on("pageerror", error => runtime.push(String(error)));
 const request = async (method, url, data) => {
@@ -27,7 +28,7 @@ const clickAndSave = async (locator, endpoint) => {
   ]);
   assert.ok(response.ok(), `Save failed: ${response.status()}`);
 };
-const step = async (name, action) => { await action(); results.push({ name, passed: true }); };
+const step = async (name, action) => { detail = name; await action(); results.push({ name, passed: true }); };
 let createdIssue;
 let initial;
 let childBefore;
@@ -176,6 +177,7 @@ try {
     const sendBox = await send.boundingBox();
     const composerBox = await composer.boundingBox();
     assert.ok(sendBox && composerBox && sendBox.x >= composerBox.x && sendBox.x + sendBox.width <= composerBox.x + composerBox.width, "Send button fits inside composer");
+    detail = "Send comment by visible button";
     const [posted] = await Promise.all([
       page.waitForResponse(response => response.request().method() === "POST" && response.url().includes("comment")),
       send.click(),
@@ -185,6 +187,7 @@ try {
     await page.reload();
     await page.locator("[data-izclick-chat-feed]").getByText("Mensaje de chat Sprint 4 QA", { exact: true }).waitFor();
     await editor.fill("Mensaje con Enter Sprint 4 QA");
+    detail = "Send comment with Enter exactly once";
     const [entered] = await Promise.all([
       page.waitForResponse(response => response.request().method() === "POST" && response.url().includes("comment")),
       editor.press("Enter"),
@@ -201,7 +204,7 @@ try {
   });
   assert.deepEqual(runtime, [], "No browser runtime errors");
 } catch (error) {
-  errors.push(String(error));
+  errors.push(`${detail}: ${String(error)}`);
   await page.screenshot({ path: "qa/artifacts/sprints234-failure.png", fullPage: true }).catch(() => {});
   process.exitCode = 1;
 } finally {
