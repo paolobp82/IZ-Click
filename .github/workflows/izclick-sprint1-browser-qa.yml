@@ -12,12 +12,12 @@ on:
 
 permissions:
   contents: read
-  packages: read
+  packages: write
 
 jobs:
   isolated-browser-qa:
     if: github.head_ref == 'sprint/izclick-1-operacion-20261023' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 50
     env:
       QA_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -30,15 +30,17 @@ jobs:
           set -eu
           echo "IZCLICK_QA_API_IMAGE=izclick-sprint1-api:$QA_CANDIDATE_SHA" >> "$GITHUB_ENV"
           echo "IZCLICK_QA_WEB_IMAGE=izclick-sprint1-web:$QA_CANDIDATE_SHA" >> "$GITHUB_ENV"
-          echo "IZCLICK_QA_SECRET_KEY=$(openssl rand -hex 48)" >> "$GITHUB_ENV"
+          secret=$(openssl rand -hex 48)
+          echo "::add-mask::$secret"
+          echo "IZCLICK_QA_SECRET_KEY=$secret" >> "$GITHUB_ENV"
       - name: Read existing repository package for the production-compatible API base
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-      - name: Build matching local API and Web images; never publish
+      - name: Build matching API and Web images for isolated QA
         run: |
-          docker build -f qa/Dockerfile.api-sprint1 -t "$IZCLICK_QA_API_IMAGE" .
-          docker build -f apps/web/Dockerfile.web -t "$IZCLICK_QA_WEB_IMAGE" .
+          docker build --label "org.opencontainers.image.revision=$QA_CANDIDATE_SHA" --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" -f qa/Dockerfile.api-sprint1 -t "$IZCLICK_QA_API_IMAGE" .
+          docker build --label "org.opencontainers.image.revision=$QA_CANDIDATE_SHA" --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" -f apps/web/Dockerfile.web -t "$IZCLICK_QA_WEB_IMAGE" .
       - name: Guard against unintended deployment or shared volumes
         run: |
           set -eu
@@ -101,6 +103,16 @@ jobs:
           done
           docker compose -f qa/compose.qa.yml logs --tail=90 qa-api
           exit 1
+      - name: Start the matching worker and verify broker communication
+        run: |
+          docker compose -f qa/compose.qa.yml up -d qa-worker
+          for attempt in $(seq 1 20); do
+            if docker compose -f qa/compose.qa.yml exec -T qa-api celery -A plane inspect ping --timeout=5; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -143,7 +155,9 @@ jobs:
           assert len(links) == 1
           link = links[0]
           assert link.metadata["izclick_event_date"] == "2026-11-03"
-          crawl_work_item_link_title.run(str(link.pk), link.url)
+          crawl_work_item_link_title.app.conf.result_backend = "redis://qa-redis:6379/1"
+          result = crawl_work_item_link_title.delay(str(link.pk), link.url)
+          result.get(timeout=30)
           link.refresh_from_db()
           assert link.metadata["izclick_event_date"] == "2026-11-03"
           print("Persisted event date survives queued worker job")
@@ -163,6 +177,22 @@ jobs:
           assert baseline == after, "Synthetic work-item IDs, state or priority changed"
           print("All 10 identities, states and priorities preserved; custom value persisted")
           PY
+      - name: Publish only the exact images that passed authenticated QA
+        if: success()
+        env:
+          REGISTRY_PREFIX: ghcr.io/${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          [[ "$QA_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          for service in api web; do
+            source_image="izclick-sprint1-$service:$QA_CANDIDATE_SHA"
+            target_image="$REGISTRY_PREFIX/izclick-$service:sprint1-$QA_CANDIDATE_SHA"
+            test "$(docker image inspect "$source_image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$QA_CANDIDATE_SHA"
+            docker tag "$source_image" "$target_image"
+            docker push "$target_image"
+            docker image inspect "$target_image" --format '{{json .RepoDigests}}' > "qa/artifacts/candidate-$service-digests.json"
+          done
+          printf '%s\n' "$QA_CANDIDATE_SHA" > qa/artifacts/candidate-source-sha.txt
       - name: Save only fictional QA evidence, never sessions or DB
         if: always()
         uses: actions/upload-artifact@v4
