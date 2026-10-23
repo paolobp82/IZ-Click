@@ -20,6 +20,13 @@ const request = async (method, url, data) => {
   assert.ok(res.ok(), `${method} ${url}: ${res.status()} ${await res.text()}`);
   return res.status() === 204 ? null : res.json();
 };
+const clickAndSave = async (locator, endpoint) => {
+  const [response] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === "PATCH" && response.url().includes(endpoint)),
+    locator.click(),
+  ]);
+  assert.ok(response.ok(), `Save failed: ${response.status()}`);
+};
 const step = async (name, action) => { await action(); results.push({ name, passed: true }); };
 let createdIssue;
 let initial;
@@ -40,13 +47,13 @@ try {
   const row = () => page.locator(`[data-izclick-issue-id="${f.issue_id}"]`).first();
   await row().waitFor({ timeout: 45000 });
   await step("Complete and reopen through the checkbox; strikethrough survives reload", async () => {
-    await row().getByRole("checkbox", { name: /^Completar / }).click();
+    await clickAndSave(row().getByRole("checkbox", { name: /^Completar / }), `/issues/${f.issue_id}/`);
     await row().getByRole("checkbox", { name: /^Reabrir / }).waitFor();
     assert.equal((await request("get", `${api}/issues/${f.issue_id}/`)).state_id, done.id);
     await page.reload();
     await row().getByRole("checkbox", { name: /^Reabrir / }).waitFor();
     assert.ok(await row().locator("p.line-through").count());
-    await row().getByRole("checkbox", { name: /^Reabrir / }).click();
+    await clickAndSave(row().getByRole("checkbox", { name: /^Reabrir / }), `/issues/${f.issue_id}/`);
     await row().getByRole("checkbox", { name: /^Completar / }).waitFor();
     await request("patch", `${api}/issues/${f.issue_id}/`, { state_id: initial.state_id });
   });
@@ -58,11 +65,11 @@ try {
     const child = title.locator('xpath=ancestor::*[@data-izclick-issue-id][1]');
     const id = await child.getAttribute("data-izclick-issue-id");
     childBefore = await request("get", `${api}/issues/${id}/`);
-    await child.getByRole("checkbox", { name: /^Completar / }).click();
+    await clickAndSave(child.getByRole("checkbox", { name: /^Completar / }), `/issues/${id}/`);
     await child.getByRole("checkbox", { name: /^Reabrir / }).waitFor();
     assert.equal((await request("get", `${api}/issues/${id}/`)).state_id, done.id);
     assert.ok(await child.locator("p.line-through").count());
-    await child.getByRole("checkbox", { name: /^Reabrir / }).click();
+    await clickAndSave(child.getByRole("checkbox", { name: /^Reabrir / }), `/issues/${id}/`);
     await child.getByRole("checkbox", { name: /^Completar / }).waitFor();
     await request("patch", `${api}/issues/${id}/`, { state_id: childBefore.state_id });
     childBefore = null;
@@ -92,7 +99,7 @@ try {
     await page.goto(route);
     const commercial = row().locator("[data-izclick-commercial]");
     await commercial.getByRole("button").click();
-    await page.getByRole("option").filter({ hasText: /Tú|You|QA Editor|qa-admin/i }).first().click();
+    await clickAndSave(page.getByRole("option").filter({ hasText: /Tú|You|QA Editor|qa-admin/i }).first(), "/production-commercial/");
     await page.reload();
     await row().waitFor();
     const map = await request("get", `${api}/production-commercial/`);
@@ -106,8 +113,12 @@ try {
     const menu = page.locator("[data-izclick-popover]").filter({ hasText: "Crear columna personalizada" }).first();
     await menu.getByLabel("Nombre de columna", { exact: true }).fill("Supervisor Sprint 2 QA");
     await menu.getByLabel("Tipo de columna", { exact: true }).selectOption("member");
-    await menu.getByRole("button", { name: "+ Crear campo", exact: true }).click();
-    const field = (await request("get", `${api}/izclick-custom-fields/`)).find(field => field.name === "Supervisor Sprint 2 QA");
+    const [created] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/izclick-custom-fields/")),
+      menu.getByRole("button", { name: "+ Crear campo", exact: true }).click(),
+    ]);
+    assert.ok(created.ok());
+    const field = await created.json();
     assert.ok(field);
     await page.locator('[data-izclick-header="state"]').first().click();
     const cell = row().locator(`[data-izclick-custom-cell="${field.id}"]`);
@@ -115,7 +126,7 @@ try {
     const popup = page.getByRole("dialog", { name: "Editar Supervisor Sprint 2 QA", exact: true });
     await popup.getByRole("button", { name: /Seleccionar miembro/ }).click();
     await page.getByRole("option").filter({ hasText: /Tú|You|QA Editor|qa-admin/i }).first().click();
-    await popup.getByRole("button", { name: "Guardar", exact: true }).click();
+    await clickAndSave(popup.getByRole("button", { name: "Guardar", exact: true }), "/izclick-custom-field-values/");
     const saved = await request("get", `${api}/issues/${f.issue_id}/izclick-custom-field-values/`);
     assert.equal(saved[field.id], memberId);
     await page.reload(); await row().waitFor();
