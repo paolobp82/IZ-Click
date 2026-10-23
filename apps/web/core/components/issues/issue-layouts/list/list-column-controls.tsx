@@ -10,6 +10,7 @@ import type { ListColumnId, ListColumnPreferences } from "@/app/lib/izclick/list
 
 export { LIST_COLUMNS } from "@/app/lib/izclick/list-column-layout";
 
+const FIELD_TYPE_LABELS: Record<string, string> = { text: "Texto", number: "Número", date: "Fecha", select: "Selección", member: "Asignación" };
 type ColumnId = ListColumnId;
 type Preferences = ListColumnPreferences;
 const storageKey = (projectId: string) => `izclick-project-list-columns-v4:${projectId}`;
@@ -313,7 +314,7 @@ export function ListColumnControls({ canManageStates }: { canManageStates: boole
             {customFields.map(field => <label key={field.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-layer-1-hover">
               <input type="checkbox" checked={!hiddenCustom[field.id]} onChange={() => toggleCustom(field.id)} />
               <span className="min-w-0 flex-1 truncate" title={field.name}>{field.name}</span>
-              <span className="text-[10px] text-tertiary">{{ text: "Texto", number: "Número", date: "Fecha", select: "Selección", member: "Asignación" }[field.type] ?? field.type}</span>
+              <span className="text-[10px] text-tertiary">{FIELD_TYPE_LABELS[field.type] ?? field.type}</span>
             </label>)}
           </span>}
           <span className="mt-3 block border-t border-subtle pt-3">
