@@ -62,7 +62,7 @@ jobs:
         run: |
           docker compose -f qa/compose.qa.yml run --rm --no-deps -T qa-api python manage.py migrate --noinput
       - name: Verify assignments and state retirement on the production-compatible API
-        run: docker compose -f qa/compose.qa.yml run --rm --no-deps -T qa-api python manage.py test plane.api.tests.test_izclick_sprints234 --noinput
+        run: docker compose -f qa/compose.qa.yml run --rm --no-deps -T qa-api python manage.py test plane.api.tests.test_izclick_sprints234 plane.api.tests.test_izclick_custom_field_validation plane.api.tests.test_izclick_custom_field_schema plane.api.tests.test_izclick_custom_field_endpoints --noinput
       - name: Start isolated backend, frontend and localhost proxy
         run: |
           docker compose -f qa/compose.qa.yml up -d qa-api qa-web qa-proxy

@@ -44,7 +44,7 @@ jobs:
       - working-directory: apps/api
         run: pip install -r requirements/production.txt
       - working-directory: apps/api
-        run: python manage.py test plane.api.tests.test_izclick_event_date plane.api.tests.test_izclick_sprints234 --noinput
+        run: python manage.py test plane.api.tests.test_izclick_event_date plane.api.tests.test_izclick_sprints234 plane.api.tests.test_izclick_custom_field_validation plane.api.tests.test_izclick_custom_field_schema plane.api.tests.test_izclick_custom_field_endpoints --noinput
   web-build:
     runs-on: ubuntu-latest
     timeout-minutes: 50

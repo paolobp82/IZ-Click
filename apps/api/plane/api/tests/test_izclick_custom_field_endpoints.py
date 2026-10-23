@@ -155,6 +155,8 @@ class IzclickCustomFieldEndpointTests(TestCase):
         self.assertEqual(self.client.get(value_url).json()[field_id], "Aluminio")
 
     def test_guest_can_read_but_not_change_values_or_schema(self):
+        # Full-feature guests may read all project issues, matching native Plane.
+        Project.objects.filter(pk=self.project.pk).update(guest_view_all_features=True)
         ProjectMember.objects.filter(project=self.project, member=self.user).update(role=5)
         root = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}"
         self.client.force_login(self.user)
@@ -194,3 +196,22 @@ class IzclickCustomFieldEndpointTests(TestCase):
             IzclickCustomFieldValue.objects.filter(issue=self.issue).exists(),
             "Mixed-validity payload must not partially save any values",
         )
+
+
+    def test_restricted_guest_reads_only_own_issue_values(self):
+        ProjectMember.objects.filter(project=self.project, member=self.user).update(role=5)
+        Project.objects.filter(pk=self.project.pk).update(guest_view_all_features=False)
+        self.client.force_login(self.user)
+        root = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.pk}"
+        value_url = f"{root}/issues/{self.issue.pk}/izclick-custom-field-values/"
+        self.assertEqual(self.client.get(value_url).status_code, 404)
+        batch = f"{root}/izclick-custom-field-values/batch/"
+        payload = json.dumps({"issue_ids": [str(self.issue.pk)]})
+        denied = self.client.post(batch, data=payload, content_type="application/json")
+        self.assertEqual(denied.status_code, 200)
+        self.assertEqual(denied.json(), {})
+        Issue.objects.filter(pk=self.issue.pk).update(created_by=self.user)
+        self.assertEqual(self.client.get(value_url).status_code, 200)
+        allowed = self.client.post(batch, data=payload, content_type="application/json")
+        self.assertEqual(allowed.status_code, 200)
+        self.assertEqual(allowed.json(), {str(self.issue.pk): {}})
