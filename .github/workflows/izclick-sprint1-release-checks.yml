@@ -1,0 +1,19 @@
+name: IZCLICK Sprint 1 release tooling
+on:
+  pull_request:
+    paths:
+      - 'ops/izclick-sprint1-release.py'
+      - 'ops/tests/test_sprint1_release.py'
+      - '.github/workflows/izclick-sprint1-release-checks.yml'
+permissions:
+  contents: read
+jobs:
+  release-tooling:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify release safeguards without production access
+        run: |
+          python3 -m py_compile ops/izclick-sprint1-release.py
+          python3 -m unittest discover -s ops/tests -p test_sprint1_release.py -v
+
