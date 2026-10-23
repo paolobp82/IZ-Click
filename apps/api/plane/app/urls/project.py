@@ -3,11 +3,14 @@
 # See the LICENSE file for details.
 
 from django.urls import path
+from plane.api.views.izclick_state_retirement import IzclickProjectStateRetirementAPI
 from plane.api.views.izclick_custom_fields import (
     IzclickProjectCustomFieldsAPI,
     IzclickProjectCustomFieldDetailAPI,
     IzclickProjectCustomFieldBulkValuesAPI,
     IzclickIssueCustomFieldValuesAPI,
+    IzclickCommercialAssignmentsAPI,
+    IzclickIssueCommercialAPI,
 ) 
 
 from plane.app.views import (
@@ -28,6 +31,9 @@ from plane.app.views import (
 
 
 urlpatterns = [
+    path("workspaces/<str:slug>/projects/<uuid:project_id>/production-states/<uuid:state_id>/retire/", IzclickProjectStateRetirementAPI.as_view(), name="izclick-retire-project-state"),
+    path("workspaces/<str:slug>/projects/<uuid:project_id>/production-commercial/", IzclickCommercialAssignmentsAPI.as_view(), name="izclick-commercial-map"),
+    path("workspaces/<str:slug>/projects/<uuid:project_id>/issues/<uuid:issue_id>/production-commercial/", IzclickIssueCommercialAPI.as_view(), name="izclick-issue-commercial"),
     path("workspaces/<str:slug>/projects/<uuid:project_id>/izclick-custom-fields/", IzclickProjectCustomFieldsAPI.as_view(), name="izclick-custom-fields"),
     path("workspaces/<str:slug>/projects/<uuid:project_id>/izclick-custom-fields/<uuid:field_id>/", IzclickProjectCustomFieldDetailAPI.as_view(), name="izclick-custom-field-detail"),
     path("workspaces/<str:slug>/projects/<uuid:project_id>/issues/<uuid:issue_id>/izclick-custom-field-values/", IzclickIssueCustomFieldValuesAPI.as_view(), name="izclick-issue-custom-field-values"),

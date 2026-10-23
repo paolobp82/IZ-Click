@@ -52,6 +52,7 @@ export function IssueBlocksList(props: Props) {
           <IssueBlockRoot
             key={issueId}
             issueId={issueId}
+            rowNumber={String(index + 1)}
             issuesMap={issuesMap}
             updateIssue={updateIssue}
             quickActions={quickActions}

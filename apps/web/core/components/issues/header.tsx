@@ -111,6 +111,7 @@ export const IssuesHeader = observer(function IssuesHeader() {
         )}
       </Header.LeftItem>
       <Header.RightItem>
+        <a href={`/${workspaceSlug}/produccion#cargas`} className="shrink-0 rounded border border-subtle px-3 py-1.5 text-xs">Estados</a>
         <ProductionStatusesMenu />
         <div className="hidden gap-2 md:flex">
           <HeaderFilters
@@ -127,6 +128,7 @@ export const IssuesHeader = observer(function IssuesHeader() {
             onClick={() => {
               toggleCreateIssueModal(true, EIssuesStoreType.PROJECT);
             }}
+            data-izclick-create-task
             data-ph-element={WORK_ITEM_TRACKER_ELEMENTS.HEADER_ADD_BUTTON.WORK_ITEMS}
           >
             <div className="block sm:hidden">{t("issue.label", { count: 1 })}</div>

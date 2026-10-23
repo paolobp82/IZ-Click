@@ -24,7 +24,7 @@ export function ProductionWorkspacePanel({ workspaceSlug }: Props) {
       <ProductionDashboard issues={issues} states={states} producers={producers} clients={clients} projects={projects} loading={loading} onFiltersChange={setFilters} />
       {!loading && <div className="flex flex-col gap-5 px-5 pb-6">
         <ProductionCalendar issues={filteredIssues} projects={projects} clients={clients} workspaceSlug={workspaceSlug} />
-        <ProductionLoadDirectory issues={filteredIssues} states={states} projects={projects} clients={clients} workspaceSlug={workspaceSlug} />
+        <ProductionLoadDirectory members={members} issues={filteredIssues} states={states} projects={projects} clients={clients} workspaceSlug={workspaceSlug} />
       </div>}
     </>
   );

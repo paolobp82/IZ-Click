@@ -62,6 +62,7 @@ export const IssueTitleInput = observer(function IssueTitleInput(props: TIssueTi
         render={({ field: { value, onChange, ref } }) => (
           <Input
             id="name"
+            aria-label="Título de la tarea"
             name="name"
             type="text"
             value={value}

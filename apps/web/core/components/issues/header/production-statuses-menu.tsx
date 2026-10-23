@@ -27,6 +27,8 @@ export function ProductionStatusesMenu() {
   const canManage = allowPermissions([EUserPermissions.ADMIN], EUserPermissionsLevel.WORKSPACE, workspaceSlug);
   const service = useMemo(() => new ProductionStatusesService(), []);
   const [open, setOpen] = useState(false);
+  const [retiring, setRetiring] = useState<string | null>(null);
+  const [replacementId, setReplacementId] = useState("");
   const [statuses, setStatuses] = useState<WorkspaceProductionStatus[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [values, setValues] = useState<StatusValues>(INITIAL);
@@ -43,7 +45,7 @@ export function ProductionStatusesMenu() {
       .then((list) => { if (active) setStatuses(Array.isArray(list) ? list : []); })
       .catch(() => { if (active) setError("No se pudieron consultar los estados de Producción."); })
       .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+  return () => { active = false; };
   }, [open, workspaceSlug, service]);
 
   const edit = (entry: WorkspaceProductionStatus) => {
@@ -70,11 +72,24 @@ export function ProductionStatusesMenu() {
     } finally { setSaving(false); }
   };
 
+  const remove = async () => {
+    if (!canManage || !retiring || !replacementId || saving) return;
+    setSaving(true); setError("");
+    try {
+      await service.remove(workspaceSlug, retiring, replacementId);
+      // The removal may touch several projects; discard all stale task/state maps.
+      window.location.reload();
+    } catch (cause) {
+      const response = cause as { response?: { data?: { error?: string } } };
+      setError(response.response?.data?.error || "No se pudo eliminar. Ninguna tarea debe quedar sin destino.");
+    } finally { setSaving(false); }
+  };
+
   return (
     <div className="relative">
       <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((value) => !value)}
         className="h-8 rounded-md border border-subtle px-3 text-xs hover:bg-layer-1">
-        Estados de Producción
+        Administrar estados
       </button>
       {open && (
         <section role="dialog" aria-label="Estados generales de Producción"
@@ -99,11 +114,19 @@ export function ProductionStatusesMenu() {
                     <span className="h-3 w-3 rounded-full" style={{ backgroundColor: entry.color }} />
                     {entry.name}
                   </span>
-                  {canManage && <button type="button" className="underline" onClick={() => edit(entry)}>Editar</button>}
+                  {canManage && <span className="flex gap-2"><button type="button" className="underline" onClick={() => edit(entry)}>Editar</button><button type="button" className="text-red-500 underline" onClick={() => { setRetiring(entry.id); setReplacementId(""); setError(""); }}>Eliminar</button></span>}
                 </div>
               ))}
             </div>
           )}
+          {canManage && retiring && <div className="my-3 space-y-2 rounded border border-subtle p-3 text-xs">
+            <p>Eliminar {statuses.find(entry => entry.id === retiring)?.name} de todos los proyectos y mover sus tareas a:</p>
+            <select aria-label="Estado general de destino" value={replacementId} onChange={event => setReplacementId(event.target.value)} disabled={saving} className="w-full rounded border border-subtle bg-surface-1 p-2">
+              <option value="">Seleccionar destino</option>
+              {statuses.filter(entry => entry.id !== retiring).map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+            </select>
+            <div className="flex justify-end gap-3"><button type="button" disabled={saving} onClick={() => setRetiring(null)}>Cancelar</button><button type="button" disabled={saving || !replacementId} onClick={() => void remove()} className="text-red-500 underline disabled:opacity-50">Confirmar eliminación y traslado</button></div>
+          </div>}
           {canManage ? (
             <div className="mt-4 border-t border-subtle pt-3">
               <h3 className="mb-2 text-xs font-semibold">{editing ? "Editar estado" : "Agregar estado"}</h3>

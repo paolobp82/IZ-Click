@@ -1,3 +1,4 @@
+import { PRIORITY_LABELS, STATE_GROUP_LABELS } from "@/app/lib/izclick/production-labels";
 // oxlint-disable no-shadow
 /**
  * Copyright (c) 2023-present Plane Software, Inc. and contributors
@@ -127,7 +128,7 @@ export const getGroupByColumns = ({
     return [
       {
         id: "All Issues",
-        name: `All ${isEpic ? "Epics" : "work items"}`,
+        name: isEpic ? "Todas las épicas" : "Todas las tareas",
         payload: {},
         icon: undefined,
       },
@@ -204,7 +205,7 @@ const getCycleColumns = (): IGroupByColumn[] | undefined => {
   });
   cycles.push({
     id: "None",
-    name: "None",
+    name: "Sin asignar",
     icon: <CycleIcon className="h-3.5 w-3.5" />,
     payload: {},
   });
@@ -231,7 +232,7 @@ const getModuleColumns = (): IGroupByColumn[] | undefined => {
   });
   modules.push({
     id: "None",
-    name: "None",
+    name: "Sin asignar",
     icon: <ModuleIcon className="h-3.5 w-3.5" />,
     payload: {},
   });
@@ -260,7 +261,7 @@ const getStateGroupColumns = (): IGroupByColumn[] => {
   // map state groups to group by columns
   return Object.values(stateGroups).map((stateGroup) => ({
     id: stateGroup.key,
-    name: stateGroup.label,
+    name: STATE_GROUP_LABELS[stateGroup.key] ?? stateGroup.label,
     icon: (
       <div className="size-4 rounded-full">
         <StateGroupIcon stateGroup={stateGroup.key} size={EIconSize.LG} />
@@ -275,7 +276,7 @@ const getPriorityColumns = (): IGroupByColumn[] => {
   // map priorities to group by columns
   return priorities.map((priority) => ({
     id: priority.key,
-    name: priority.title,
+    name: PRIORITY_LABELS[priority.key] ?? priority.title,
     icon: <PriorityIcon priority={priority?.key} />,
     payload: { priority: priority.key },
   }));
@@ -286,7 +287,7 @@ const getLabelsColumns = ({ isWorkspaceLevel }: TGetColumns): IGroupByColumn[] =
   // map labels to group by columns
   const labels = [
     ...(isWorkspaceLevel ? workspaceLabels || [] : projectLabels || []),
-    { id: "None", name: "None", color: "#666" },
+    { id: "None", name: "Sin asignar", color: "#666" },
   ];
   // map labels to group by columns
   return labels.map((label) => ({
@@ -319,7 +320,7 @@ const getAssigneeColumns = ({ isWorkspaceLevel, projectId }: TGetColumns): IGrou
     });
   });
   if (includeNone) {
-    assigneeColumns.push({ id: "None", name: "None", icon: <Avatar size="md" />, payload: {} });
+    assigneeColumns.push({ id: "None", name: "Sin asignar", icon: <Avatar size="md" />, payload: {} });
   }
 
   return assigneeColumns;

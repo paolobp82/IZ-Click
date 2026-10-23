@@ -24,6 +24,9 @@ export class ProductionStatusesService extends APIService {
   async create(slug: string, data: StatusValues): Promise<WorkspaceProductionStatus> {
     return this.post(this.endpoint(slug), data).then((result) => result.data);
   }
+  async remove(slug: string, id: string, replacementId: string): Promise<void> {
+    await this.delete(`${this.endpoint(slug)}${encodeURIComponent(id)}/?replacement_id=${encodeURIComponent(replacementId)}`);
+  }
   async update(slug: string, id: string, data: StatusValues): Promise<WorkspaceProductionStatus> {
     return this.patch(`${this.endpoint(slug)}${encodeURIComponent(id)}/`, data).then((result) => result.data);
   }

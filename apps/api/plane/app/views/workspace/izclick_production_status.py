@@ -1,9 +1,13 @@
 """Workspace-scoped Production statuses backed by project-native Plane states.
 
-No native states or issues are deleted or reassigned. Only workspace admins
-can write. Writes across projects are atomic and bindings preserve identity.
+Only workspace admins can write. State retirement reassigns work items atomically
+and preserves their IDs, attachments and history.
 """
 from django.db import IntegrityError, transaction
+from django.db.models import Count
+from uuid import UUID
+from plane.utils.izclick_state_retirement import retire_state
+from plane.utils.cache import invalidate_cache
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -18,6 +22,22 @@ from plane.db.models import (
 from plane.utils.izclick_workflow import validate_status_fields
 
 
+def serialize_status(entry):
+    """Match the deployed frontend contract without exposing model internals."""
+    project_count = getattr(entry, "project_count", None)
+    if project_count is None:
+        project_count = entry.project_bindings.count()
+    return {
+        "id": str(entry.id),
+        "name": entry.name,
+        "color": entry.color,
+        "group": entry.group,
+        "sequence": entry.sequence,
+        "project_count": project_count,
+        "is_active": entry.is_active,
+    }
+
+
 class WorkspaceProductionStatusesEndpoint(BaseAPIView):
     permission_classes = [WorkspaceEntityPermission]
 
@@ -25,7 +45,7 @@ class WorkspaceProductionStatusesEndpoint(BaseAPIView):
     def get(self, request, slug):
         catalog = IzClickProductionStatus.objects.filter(
             workspace__slug=slug, is_active=True
-        ).order_by("sequence", "created_at")
+        ).annotate(project_count=Count("project_bindings")).order_by("sequence", "created_at")
         return Response([serialize_status(row) for row in catalog], status=status.HTTP_200_OK)
 
     @allow_permission([ROLE.ADMIN], level="WORKSPACE")
@@ -121,3 +141,32 @@ class WorkspaceProductionStatusDetailEndpoint(BaseAPIView):
                 return Response(serialize_status(entry), status=status.HTTP_200_OK)
         except IntegrityError:
             return Response({"error": "Conflicto de estados. No se guardaron cambios."}, status=status.HTTP_409_CONFLICT)
+
+
+    @invalidate_cache(path="workspaces/:slug/states/", url_params=True, user=False)
+    @allow_permission([ROLE.ADMIN], level="WORKSPACE")
+    def delete(self, request, slug, status_id):
+        try:
+            replacement_id = UUID(str(request.query_params.get("replacement_id", "")))
+        except ValueError:
+            return Response({"error": "Selecciona el estado general de destino."}, status=400)
+        with transaction.atomic():
+            workspace = Workspace.objects.select_for_update().get(slug=slug)
+            entries = list(IzClickProductionStatus.objects.select_for_update().filter(
+                workspace=workspace, id__in=[status_id, replacement_id], is_active=True,
+            ).order_by("id"))
+            by_id = {str(entry.pk): entry for entry in entries}
+            source, target = by_id.get(str(status_id)), by_id.get(str(replacement_id))
+            if not source or not target or source.pk == target.pk:
+                return Response({"error": "Elige otro estado general activo."}, status=400)
+            bindings = list(IzClickProductionStatusBinding.objects.filter(status=source).order_by("project_id"))
+            destinations = {binding.project_id: binding.plane_state_id for binding in IzClickProductionStatusBinding.objects.filter(status=target)}
+            if any(binding.project_id not in destinations for binding in bindings):
+                return Response({"error": "El destino no está vinculado a todos los proyectos. No se cambió ningún estado."}, status=409)
+            state_ids = [binding.plane_state_id for binding in bindings] + list(destinations.values())
+            locked = {row.pk: row for row in State.objects.select_for_update().filter(id__in=state_ids).order_by("id")}
+            if any(binding.plane_state_id not in locked or destinations[binding.project_id] not in locked for binding in bindings):
+                return Response({"error": "Cambió un estado de proyecto. Actualiza antes de eliminar."}, status=409)
+            moved = sum(retire_state(locked[binding.plane_state_id], locked[destinations[binding.project_id]], request.user) for binding in bindings)
+            source.delete()  # Catalogue/bindings only; native states are already retired.
+        return Response({"moved": moved})

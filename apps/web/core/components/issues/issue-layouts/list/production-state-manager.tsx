@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "@plane/constants";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { observer } from "mobx-react";
@@ -13,7 +14,7 @@ type Props = { projectId: string; canEdit: boolean };
 export const ProductionStateManager = observer(function ProductionStateManager({ projectId, canEdit }: Props) {
   const { workspaceSlug } = useParams();
   const slug = String(workspaceSlug ?? "");
-  const { getProjectStates, createState, updateState } = useProjectState();
+  const { getProjectStates, createState, updateState, fetchProjectStates } = useProjectState();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLSpanElement>(null);
   const panelRef = useRef<HTMLSpanElement>(null);
@@ -55,6 +56,7 @@ export const ProductionStateManager = observer(function ProductionStateManager({
   const [color, setColor] = useState(STATE_COLORS[0]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [replacementId, setReplacementId] = useState("");
   const states = getProjectStates(projectId) ?? [];
 
   const startNew = () => {
@@ -67,6 +69,7 @@ export const ProductionStateManager = observer(function ProductionStateManager({
 
   const startEdit = (state: (typeof states)[number]) => {
     setEditingId(state.id);
+    setReplacementId("");
     setName(state.name);
     setColor(state.color ?? STATE_COLORS[0]);
     setGroup(state.group as StateGroup);
@@ -96,6 +99,19 @@ export const ProductionStateManager = observer(function ProductionStateManager({
     }
   };
 
+  const remove = async () => {
+    if (!canEdit || !editingId || !replacementId || busy) return;
+    setBusy(true); setError("");
+    try {
+      const response = await fetch(`${(API_BASE_URL || "").replace(/\/$/, "")}/api/workspaces/${encodeURIComponent(slug)}/projects/${projectId}/production-states/${editingId}/retire/`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ replacement_id: replacementId }),
+      });
+      if (!response.ok) { const data = await response.json(); throw new Error(data.error || "No se pudo eliminar el estado."); }
+      // Refresh both task rows and state maps after the atomic reassignment.
+      window.location.reload();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo eliminar."); }
+    finally { setBusy(false); }
+  };
   if (!canEdit || !slug) return null;
   return (
     <span ref={rootRef} className="relative shrink-0">
@@ -152,6 +168,17 @@ export const ProductionStateManager = observer(function ProductionStateManager({
                     onChange={(event) => setColor(event.target.value)} />
                 </span>
               </span>
+              {editingId && <span className="mt-3 block border-t border-subtle pt-2">
+                <label className="block">Mover sus tareas al estado
+                  <select aria-label="Estado de destino" value={replacementId} onChange={event => setReplacementId(event.target.value)} disabled={busy}
+                    className="mt-1 w-full rounded border border-subtle bg-surface-1 p-1">
+                    <option value="">Seleccionar destino</option>
+                    {states.filter(state => state.id !== editingId).map(state => <option key={state.id} value={state.id}>{state.name}</option>)}
+                  </select>
+                </label>
+                <p className="my-2">Se conservarán las tareas y su historial. Si era el estado predeterminado, el destino pasará a serlo.</p>
+                <button type="button" disabled={busy || !replacementId} onClick={() => void remove()} className="text-red-500 underline disabled:opacity-50">Eliminar estado y mover tareas</button>
+              </span>}
               {error && <span role="alert" className="block text-red-500">{error}</span>}
               <span className="flex justify-end gap-2">
                 <button type="button" disabled={busy} onClick={() => { setEditingId(null); setError(""); }}>Cancelar</button>

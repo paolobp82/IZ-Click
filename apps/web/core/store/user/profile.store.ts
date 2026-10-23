@@ -112,7 +112,7 @@ export class ProfileStore implements IUserProfileStore {
         this.data = userProfile;
       });
       if (userProfile.language) {
-        void setLanguage(userProfile.language as TLanguage);
+        void setLanguage("es");
       }
       return userProfile;
     } catch (error) {
@@ -139,7 +139,7 @@ export class ProfileStore implements IUserProfileStore {
         this.mutateUserProfile(data);
       }
       if (data.language) {
-        void setLanguage(data.language as TLanguage);
+        void setLanguage("es");
       }
       const userProfile = await this.userService.updateCurrentUserProfile(data);
       return userProfile;

@@ -4,7 +4,8 @@
  * See the LICENSE file for details.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { BaseSyntheticEvent } from "react";
 import { observer } from "mobx-react";
 import { useForm, Controller } from "react-hook-form";
 // plane imports
@@ -24,6 +25,7 @@ type TCommentCreate = {
   workspaceSlug: string;
   activityOperations: TCommentsOperations;
   showToolbarInitially?: boolean;
+  compact?: boolean;
   projectId?: string;
   onSubmitCallback?: (elementId: string) => void;
 };
@@ -37,6 +39,7 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
     entityId,
     activityOperations,
     showToolbarInitially = false,
+    compact = false,
     projectId,
     onSubmitCallback,
   } = props;
@@ -44,6 +47,8 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
   const [uploadedAssetIds, setUploadedAssetIds] = useState<string[]>([]);
   // refs
   const editorRef = useRef<EditorRefApi>(null);
+  const submittingRef = useRef(false);
+  const submitLatestRef = useRef<(event?: BaseSyntheticEvent) => void>(() => {});
   // store hooks
   const workspaceStore = useWorkspace();
   // derived values
@@ -51,6 +56,7 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
   // form info
   const {
     handleSubmit,
+    getValues,
     control,
     watch,
     formState: { isSubmitting },
@@ -62,8 +68,10 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
   });
 
   const onSubmit = async (formData: Partial<TIssueComment>) => {
+    let submitted = false;
     try {
       const comment = await activityOperations.createComment(formData);
+      submitted = Boolean(comment?.id);
       if (comment?.id) onSubmitCallback?.(comment.id);
       if (uploadedAssetIds.length > 0) {
         if (projectId) {
@@ -80,12 +88,23 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
     } catch (error) {
       console.error(error);
     } finally {
-      reset({
-        comment_html: "<p></p>",
-      });
-      editorRef.current?.clearEditor();
+      if (!compact || submitted) {
+        reset({ comment_html: "<p></p>" });
+        editorRef.current?.clearEditor();
+      }
     }
   };
+
+  // The editor keyboard extension retains its initial callback. Read the latest
+  // submit handler through a stable ref, and lock before async form validation so
+  // the editor Enter handler and its bubbling event cannot submit twice.
+  useEffect(() => {
+    submitLatestRef.current = (event) => {
+      if (submittingRef.current || isCommentEmpty(getValues("comment_html") ?? undefined) || !editorRef.current?.isEditorReadyToDiscard()) return;
+      submittingRef.current = true;
+      void handleSubmit(onSubmit)(event).finally(() => { submittingRef.current = false; });
+    };
+  });
 
   const commentHTML = watch("comment_html");
   const isEmpty = isCommentEmpty(commentHTML ?? undefined);
@@ -93,17 +112,10 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
   return (
     <div
       className={cn("sticky bottom-0 z-[4] bg-surface-1 sm:static")}
-      onKeyDown={(e) => {
-        if (
-          e.key === "Enter" &&
-          !e.shiftKey &&
-          !e.ctrlKey &&
-          !e.metaKey &&
-          !isEmpty &&
-          !isSubmitting &&
-          editorRef.current?.isEditorReadyToDiscard()
-        )
-          handleSubmit(onSubmit)(e);
+      onKeyDown={(event) => {
+        if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.nativeEvent.isComposing) {
+          submitLatestRef.current(event);
+        }
       }}
     >
       <Controller
@@ -115,17 +127,14 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
             control={control}
             render={({ field: { value, onChange } }) => (
               <LiteTextEditor
+                variant={compact ? "lite" : "full"}
                 editable
                 workspaceId={workspaceId}
                 id={"add_comment_" + entityId}
                 value={"<p></p>"}
                 workspaceSlug={workspaceSlug}
                 projectId={projectId}
-                onEnterKeyPress={(e) => {
-                  if (!isEmpty && !isSubmitting) {
-                    handleSubmit(onSubmit)(e);
-                  }
-                }}
+                onEnterKeyPress={(event) => submitLatestRef.current(event)}
                 ref={editorRef}
                 initialValue={value ?? "<p></p>"}
                 containerClassName="min-h-min"

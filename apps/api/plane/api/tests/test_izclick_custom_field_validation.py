@@ -53,5 +53,11 @@ class IzclickCustomFieldValidationTests(SimpleTestCase):
     def test_field_type_choices_are_declared(self):
         self.assertEqual(
             set(dict(IzclickCustomField.TYPES)),
-            {"text", "number", "date", "select"},
+            {"text", "number", "date", "select", "member"},
         )
+
+
+    def test_member_field_rejects_select_options(self):
+        field = IzclickCustomField(name="Supervisor", field_type="member", options=[{"id": "x", "name": "Persona"}])
+        with self.assertRaises(ValidationError):
+            field.clean()

@@ -27,6 +27,7 @@ type TIssueActivityCommentRoot = {
   showAccessSpecifier?: boolean;
   disabled?: boolean;
   sortOrder: E_SORT_ORDER;
+  kind?: "comments" | "activity";
 };
 
 export const IssueActivityCommentRoot = observer(function IssueActivityCommentRoot(props: TIssueActivityCommentRoot) {
@@ -40,6 +41,7 @@ export const IssueActivityCommentRoot = observer(function IssueActivityCommentRo
     projectId,
     disabled,
     sortOrder,
+    kind,
   } = props;
   // store hooks
   const {
@@ -53,7 +55,9 @@ export const IssueActivityCommentRoot = observer(function IssueActivityCommentRo
 
   if (activityAndComments.length <= 0) return null;
 
-  const filteredActivityAndComments = filterActivityOnSelectedFilters(activityAndComments, selectedFilters);
+  const filteredActivityAndComments = kind === "comments"
+    ? activityAndComments.filter(item => item.activity_type === "COMMENT")
+    : filterActivityOnSelectedFilters(activityAndComments, selectedFilters).filter(item => kind !== "activity" || item.activity_type !== "COMMENT");
 
   return (
     <div>

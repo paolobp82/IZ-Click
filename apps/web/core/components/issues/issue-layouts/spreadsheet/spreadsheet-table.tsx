@@ -123,10 +123,11 @@ export const SpreadsheetTable = observer(function SpreadsheetTable(props: Props)
         isEpic={isEpic}
       />
       <tbody>
-        {issueIds.map((id) => (
+        {issueIds.map((id, index) => (
           <SpreadsheetIssueRow
             key={id}
             issueId={id}
+            rowNumber={String(index + 1)}
             displayProperties={displayProperties}
             quickActions={quickActions}
             canEditProperties={canEditProperties}

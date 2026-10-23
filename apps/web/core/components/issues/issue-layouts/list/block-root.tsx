@@ -30,6 +30,7 @@ import type { TRenderQuickActions } from "./list-view-types";
 
 type Props = {
   issueId: string;
+  rowNumber?: string;
   issuesMap: TIssueMap;
   updateIssue: ((projectId: string | null, issueId: string, data: Partial<TIssue>) => Promise<void>) | undefined;
   quickActions: TRenderQuickActions;
@@ -51,6 +52,7 @@ type Props = {
 export const IssueBlockRoot = observer(function IssueBlockRoot(props: Props) {
   const {
     issueId,
+    rowNumber,
     issuesMap,
     groupId,
     updateIssue,
@@ -144,6 +146,7 @@ export const IssueBlockRoot = observer(function IssueBlockRoot(props: Props) {
       >
         <IssueBlock
           issueId={issueId}
+          rowNumber={rowNumber}
           issuesMap={issuesMap}
           groupId={groupId}
           updateIssue={updateIssue}
@@ -164,10 +167,11 @@ export const IssueBlockRoot = observer(function IssueBlockRoot(props: Props) {
 
       {isExpanded &&
         !isEpic &&
-        subIssues?.map((subIssueId) => (
+        subIssues?.map((subIssueId, index) => (
           <IssueBlockRoot
             key={`${subIssueId}`}
             issueId={subIssueId}
+            rowNumber={`${rowNumber ?? "1"}.${index + 1}`}
             issuesMap={issuesMap}
             updateIssue={updateIssue}
             quickActions={quickActions}
