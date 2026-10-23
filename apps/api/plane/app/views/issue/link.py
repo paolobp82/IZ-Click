@@ -74,11 +74,14 @@ class IssueLinkViewSet(BaseViewSet):
         requested_data = json.dumps(request.data, cls=DjangoJSONEncoder)
         current_instance = json.dumps(IssueLinkSerializer(issue_link).data, cls=DjangoJSONEncoder)
 
+        previous_url = issue_link.url
+
         serializer = IssueLinkSerializer(issue_link, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            if not is_production_link(serializer.data.get("metadata")):
-                crawl_work_item_link_title.delay(serializer.data.get("id"), serializer.data.get("url"))
+            updated_url = serializer.data.get("url")
+            if updated_url and updated_url != previous_url and not is_production_link(serializer.data.get("metadata")):
+                crawl_work_item_link_title.delay(serializer.data.get("id"), updated_url)
 
             issue_activity.delay(
                 type="link.activity.updated",

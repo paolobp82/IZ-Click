@@ -1,0 +1,176 @@
+name: IZCLICK Sprint 1 authenticated browser QA
+# Dedicated PR QA. No SSH, production credentials, public staging host,
+# shared volumes or production data. Uses an ephemeral GitHub runner.
+on:
+  pull_request:
+    branches: [izclick/clickup-native-list-detail-20261014]
+    paths:
+      - 'apps/web/**'
+      - 'apps/api/**'
+      - 'qa/**'
+      - '.github/workflows/izclick-sprint1-browser-qa.yml'
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  isolated-browser-qa:
+    if: github.head_ref == 'sprint/izclick-1-operacion-20261023' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      QA_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Define isolated QA candidate from this commit
+        run: |
+          set -eu
+          echo "IZCLICK_QA_API_IMAGE=izclick-sprint1-api:$QA_CANDIDATE_SHA" >> "$GITHUB_ENV"
+          echo "IZCLICK_QA_WEB_IMAGE=izclick-sprint1-web:$QA_CANDIDATE_SHA" >> "$GITHUB_ENV"
+          echo "IZCLICK_QA_SECRET_KEY=$(openssl rand -hex 48)" >> "$GITHUB_ENV"
+      - name: Read existing repository package for the production-compatible API base
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build matching local API and Web images; never publish
+        run: |
+          docker build -f qa/Dockerfile.api-sprint1 -t "$IZCLICK_QA_API_IMAGE" .
+          docker build -f apps/web/Dockerfile.web -t "$IZCLICK_QA_WEB_IMAGE" .
+      - name: Guard against unintended deployment or shared volumes
+        run: |
+          set -eu
+          test "${{ github.head_ref }}" = "sprint/izclick-1-operacion-20261023"
+          test "$(git rev-parse HEAD)" = "$QA_CANDIDATE_SHA"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            test "${{ github.event.pull_request.number }}" = "8"
+          fi
+          docker compose -f qa/compose.qa.yml config --quiet
+          ! grep -Eq '(izclick\.izango\.com\.pe|209\.145\.60\.238|/opt/iz-click)' qa/compose.qa.yml
+      - name: Start private ephemeral dependencies
+        run: |
+          docker compose -f qa/compose.qa.yml up -d qa-db qa-redis qa-mq qa-s3
+      - name: Apply migration to QA-only database
+        run: |
+          docker compose -f qa/compose.qa.yml run --rm --no-deps -T qa-api python manage.py migrate --noinput
+      - name: Start isolated backend, frontend and localhost proxy
+        run: |
+          docker compose -f qa/compose.qa.yml up -d qa-api qa-web qa-proxy
+          for attempt in $(seq 1 90); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:38080/api/instances/ || true)
+            if [ "$code" = "200" ] || [ "$code" = "401" ] || [ "$code" = "403" ] || [ "$code" = "404" ]; then
+              echo "QA API responded with HTTP $code"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "QA backend was not ready" >&2
+          exit 1
+      - name: Create fictional workspace and temporary authenticated sessions
+        run: |
+          docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell < qa/seed.py > "$RUNNER_TEMP/izclick-qa-seed.log"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import os
+          log = Path(os.environ["RUNNER_TEMP"], "izclick-qa-seed.log").read_text()
+          rows = [line.split("IZCLICK_QA_FIXTURE=", 1)[1] for line in log.splitlines()
+                  if "IZCLICK_QA_FIXTURE=" in line]
+          assert len(rows) == 1, "QA seed did not produce exactly one fixture"
+          fixture = json.loads(rows[0])
+          assert fixture["workspace"] == "izclick-qa"
+          Path("qa/.qa-fixture.json").write_text(json.dumps(fixture))
+          print("QA fixture successfully created; session credentials withheld")
+          PY
+      - name: Seed nested subtasks and real fictional attachments
+        run: docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell < qa/sprint1-seed.py >> "$RUNNER_TEMP/izclick-qa-seed.log"
+      - name: Verify synthetic instance and refresh API configuration cache
+        run: |
+          docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell -c \
+            'from plane.license.models import Instance; from plane.db.models import Workspace, Issue; i=Instance.objects.first(); assert i is not None and i.is_setup_done and i.is_test, "QA instance not set up"; assert Workspace.objects.filter(slug="izclick-qa").exists(); assert Issue.objects.filter(workspace__slug="izclick-qa").count()==10; print("QA setup verified with 10 synthetic work items")'
+          docker compose -f qa/compose.qa.yml restart qa-api
+          for attempt in $(seq 1 50); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:38080/api/instances/ || true)
+            if [ "$code" = "200" ]; then
+              echo "QA API instance endpoint responsive after restart"
+              exit 0
+            fi
+            sleep 3
+          done
+          docker compose -f qa/compose.qa.yml logs --tail=90 qa-api
+          exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install ephemeral browser harness
+        run: |
+          cd qa
+          npm init -y >/dev/null
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Diagnose intake-state routing without altering QA data
+        run: |
+          docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell <<'PY'
+          from django.urls import resolve, Resolver404
+          from plane.db.models import Project
+          project = Project.objects.get(workspace__slug="izclick-qa")
+          route = f"/api/workspaces/izclick-qa/projects/{project.pk}/intake-state/"
+          try:
+              result = resolve(route)
+          except Resolver404:
+              print("INTAKE_ROUTE=not_registered")
+          else:
+              view_class = getattr(result.func, "view_class", None)
+              print(f"INTAKE_ROUTE=registered:{result.view_name};class={view_class};kwargs={result.kwargs}")
+          PY
+      - name: Snapshot identities and states of synthetic work items
+        run: |
+          docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell -c \
+            'import json; from plane.db.models import Issue; rows=Issue.objects.filter(workspace__slug="izclick-qa").values_list("id","state_id","priority").order_by("id"); print("IZCLICK_BASELINE="+json.dumps([(str(i),str(st),p) for i,st,p in rows]))' | grep '^IZCLICK_BASELINE=' | cut -d= -f2- > "$RUNNER_TEMP/izclick-baseline.json"
+          python3 -c 'import json,os; a=json.load(open(os.environ["RUNNER_TEMP"]+"/izclick-baseline.json")); assert len(a)==10'
+      - name: Measure real List alignment and persistence in browser
+        run: node qa/visual-qa.mjs
+      - name: Test event dates, nested subtasks and real attachment preview/download
+        run: node qa/sprint1-browser-qa.mjs
+      - name: Confirm queued crawler preserves saved date in isolated database
+        run: |
+          docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell <<'PYTHON'
+          from plane.db.models import IssueLink
+          from plane.bgtasks.work_item_link_task import crawl_work_item_link_title
+          links = list(IssueLink.objects.filter(workspace__slug="izclick-qa", metadata__izclick_kind="event-date"))
+          assert len(links) == 1
+          link = links[0]
+          assert link.metadata["izclick_event_date"] == "2026-11-03"
+          crawl_work_item_link_title.run(str(link.pk), link.url)
+          link.refresh_from_db()
+          assert link.metadata["izclick_event_date"] == "2026-11-03"
+          print("Persisted event date survives queued worker job")
+          PYTHON
+      - name: Verify identities, states and saved custom value after browser edits
+        if: success()
+        run: |
+          docker compose -f qa/compose.qa.yml exec -T qa-api python manage.py shell -c \
+            'import json; from plane.db.models import Issue,IzclickCustomFieldValue; rows=Issue.objects.filter(workspace__slug="izclick-qa").values_list("id","state_id","priority").order_by("id"); print("IZCLICK_AFTER="+json.dumps([(str(i),str(st),p) for i,st,p in rows])); v=IzclickCustomFieldValue.objects.get(field__project__workspace__slug="izclick-qa",field__name="Material QA"); assert v.value=="Madera QA guardada", "Custom field value not persisted"' | grep '^IZCLICK_AFTER=' | cut -d= -f2- > "$RUNNER_TEMP/izclick-after.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          folder = Path(os.environ["RUNNER_TEMP"])
+          baseline = json.loads((folder / "izclick-baseline.json").read_text())
+          after = json.loads((folder / "izclick-after.json").read_text())
+          assert len(baseline) == len(after) == 10, "Synthetic work-item count changed"
+          assert baseline == after, "Synthetic work-item IDs, state or priority changed"
+          print("All 10 identities, states and priorities preserved; custom value persisted")
+          PY
+      - name: Save only fictional QA evidence, never sessions or DB
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: izclick-sprint1-visual-qa
+          path: qa/artifacts/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Destroy isolated database, objects and containers
+        if: always()
+        run: docker compose -f qa/compose.qa.yml down --volumes --remove-orphans || true

@@ -1,0 +1,6 @@
+# Exact API digest verified through the production read-only inspection on 2026-10-23.
+# Preserve deployed dependencies, email features, migrations and security fixes.
+FROM ghcr.io/paolobp82/izclick-api@sha256:50919c1c42ffcb3e289b6fec1b5617e9745894bdf73bcb5ca8e84b7d173c8df0
+COPY apps/api/plane/bgtasks/work_item_link_task.py /code/plane/bgtasks/work_item_link_task.py
+COPY apps/api/plane/app/views/issue/link.py /code/plane/app/views/issue/link.py
+RUN python -m py_compile /code/plane/bgtasks/work_item_link_task.py /code/plane/app/views/issue/link.py

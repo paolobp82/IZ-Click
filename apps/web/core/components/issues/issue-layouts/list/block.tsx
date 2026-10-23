@@ -264,6 +264,8 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
                   <button
                     type="button"
                     className="grid size-4 place-items-center rounded-xs text-placeholder hover:text-tertiary"
+                    aria-label={`${isExpanded ? "Contraer" : "Ver"} subtareas de ${issue.name}`}
+                    aria-expanded={isExpanded}
                     onClick={handleToggleExpand}
                   >
                     <ChevronRightIcon
