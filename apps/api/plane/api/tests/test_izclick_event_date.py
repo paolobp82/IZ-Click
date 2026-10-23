@@ -3,7 +3,7 @@ from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from plane.bgtasks import work_item_link_task as task
@@ -89,6 +89,7 @@ class IzclickLinkPreviewTests(SimpleTestCase):
         self.link.save.assert_not_called()
 
 
+@override_settings(APP_BASE_URL="https://qa.invalid", WEB_URL="https://qa.invalid")
 class IzclickEventDateEndpointTests(TestCase):
     @classmethod
     def setUpTestData(cls):

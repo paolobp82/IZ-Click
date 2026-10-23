@@ -1,7 +1,5 @@
 name: IZCLICK Sprint 1 checks
 on:
-  push:
-    branches: [sprint/izclick-1-operacion-20261023]
   pull_request:
     branches: [izclick/clickup-native-list-detail-20261014]
 permissions:
