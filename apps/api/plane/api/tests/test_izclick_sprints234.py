@@ -1,6 +1,7 @@
 """Assignment permissions and safe workflow retirement against isolated Postgres."""
 from unittest.mock import patch
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.urls import resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
 from plane.db.models import (User, Workspace, Project, ProjectMember, Issue, State,
                              IzclickCustomField, IzclickCustomFieldValue, IssueActivity)
@@ -9,6 +10,7 @@ from plane.api.views.izclick_custom_fields import (IzclickIssueCommercialAPI, Iz
 from plane.api.views.izclick_state_retirement import IzclickProjectStateRetirementAPI
 
 
+@override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
 class Sprints234Tests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -26,7 +28,16 @@ class Sprints234Tests(TestCase):
         cls.child = Issue.objects.create(project=cls.project, workspace=cls.workspace, name="Subtarea QA", state=cls.source, parent=cls.issue)
 
     def request(self, view, actor=None, method="patch", data=None, **kwargs):
-        request = getattr(APIRequestFactory(), method)("/api/s234/", data=data or {}, format="json")
+        root = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.pk}"
+        paths = {
+            IzclickIssueCommercialAPI: f"{root}/issues/{kwargs.get('issue_id')}/production-commercial/",
+            IzclickCommercialAssignmentsAPI: f"{root}/production-commercial/",
+            IzclickProjectCustomFieldsAPI: f"{root}/izclick-custom-fields/",
+            IzclickIssueCustomFieldValuesAPI: f"{root}/issues/{kwargs.get('issue_id')}/izclick-custom-field-values/",
+            IzclickProjectStateRetirementAPI: f"{root}/production-states/{kwargs.get('state_id')}/retire/",
+        }
+        request = getattr(APIRequestFactory(), method)(paths[view], data=data or {}, format="json")
+        request.resolver_match = resolve(paths[view])
         if actor:
             force_authenticate(request, user=actor)
         return view.as_view()(request, slug=self.workspace.slug, project_id=self.project.pk, **kwargs)
@@ -97,7 +108,9 @@ class Sprints234Tests(TestCase):
         target = IzClickProductionStatus.objects.create(workspace=self.workspace, name="General final", group="completed")
         IzClickProductionStatusBinding.objects.create(status=source, project=self.project, plane_state=self.source)
         IzClickProductionStatusBinding.objects.create(status=target, project=self.project, plane_state=self.target)
-        request = APIRequestFactory().delete(f"/api/status/?replacement_id={target.pk}")
+        url = f"/api/workspaces/{self.workspace.slug}/izclick-production-statuses/{source.pk}/"
+        request = APIRequestFactory().delete(f"{url}?replacement_id={target.pk}")
+        request.resolver_match = resolve(url)
         force_authenticate(request, user=self.admin)
         result = WorkspaceProductionStatusDetailEndpoint.as_view()(request, slug=self.workspace.slug, status_id=source.pk)
         self.assertEqual(result.status_code, 200, result.data)
@@ -114,7 +127,9 @@ class Sprints234Tests(TestCase):
         source = IzClickProductionStatus.objects.create(workspace=self.workspace, name="General anterior", group="started")
         target = IzClickProductionStatus.objects.create(workspace=self.workspace, name="Sin vinculos", group="completed")
         IzClickProductionStatusBinding.objects.create(status=source, project=self.project, plane_state=self.source)
-        request = APIRequestFactory().delete(f"/api/status/?replacement_id={target.pk}")
+        url = f"/api/workspaces/{self.workspace.slug}/izclick-production-statuses/{source.pk}/"
+        request = APIRequestFactory().delete(f"{url}?replacement_id={target.pk}")
+        request.resolver_match = resolve(url)
         force_authenticate(request, user=self.admin)
         result = WorkspaceProductionStatusDetailEndpoint.as_view()(request, slug=self.workspace.slug, status_id=source.pk)
         self.assertEqual(result.status_code, 409, result.data)

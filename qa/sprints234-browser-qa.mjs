@@ -23,6 +23,7 @@ const request = async (method, url, data) => {
 const step = async (name, action) => { await action(); results.push({ name, passed: true }); };
 let createdIssue;
 let initial;
+let childBefore;
 try {
   initial = await request("get", `${api}/issues/${f.issue_id}/`);
   const states = await request("get", `${api}/states/`);
@@ -49,10 +50,30 @@ try {
     await row().getByRole("checkbox", { name: /^Completar / }).waitFor();
     await request("patch", `${api}/issues/${f.issue_id}/`, { state_id: initial.state_id });
   });
-  await step("Create a task with client selected before save", async () => {
+  await step("Complete and reopen a nested subtask independently", async () => {
+    await page.reload(); await row().waitFor();
+    await row().getByRole("button", { name: /^Ver subtareas de/ }).click();
+    const title = page.getByText("Subtarea Sprint 1 QA", { exact: true });
+    await title.waitFor();
+    const child = title.locator('xpath=ancestor::*[@data-izclick-issue-id][1]');
+    const id = await child.getAttribute("data-izclick-issue-id");
+    childBefore = await request("get", `${api}/issues/${id}/`);
+    await child.getByRole("checkbox", { name: /^Completar / }).click();
+    await child.getByRole("checkbox", { name: /^Reabrir / }).waitFor();
+    assert.equal((await request("get", `${api}/issues/${id}/`)).state_id, done.id);
+    assert.ok(await child.locator("p.line-through").count());
+    await child.getByRole("checkbox", { name: /^Reabrir / }).click();
+    await child.getByRole("checkbox", { name: /^Completar / }).waitFor();
+    await request("patch", `${api}/issues/${id}/`, { state_id: childBefore.state_id });
+    childBefore = null;
+  });
+  await step("Create a task with client and members selected before save", async () => {
     await page.locator("[data-izclick-create-task]").click();
     const form = page.locator("[data-izclick-task-form]");
     await form.getByLabel("Título de la tarea", { exact: true }).fill("Tarea Sprint 2 QA");
+    await form.getByRole("button", { name: /Asignar miembros/ }).click();
+    await page.getByRole("option").filter({ hasText: /Tú|You|QA Editor|qa-admin/i }).first().click();
+    await form.getByLabel("Título de la tarea", { exact: true }).click();
     const select = form.getByLabel("Cliente de la nueva tarea");
     await select.selectOption(client.id);
     await form.locator('button[type="submit"]').click();
@@ -63,6 +84,7 @@ try {
     assert.ok(createdIssue);
     const saved = await request("get", `${api}/issues/${createdIssue.id}/`);
     assert.ok(saved.label_ids.includes(client.id));
+    assert.ok(saved.assignee_ids.includes(memberId));
     await request("delete", `${api}/issues/${createdIssue.id}/`);
     createdIssue = null;
   });
@@ -77,6 +99,20 @@ try {
     assert.equal(map[f.issue_id], memberId);
     await request("patch", `${api}/issues/${f.issue_id}/production-commercial/`, { member_id: null });
     await page.screenshot({ path: "qa/artifacts/sprint2-commercial.png" });
+  });
+  await step("Create and retire a project state through the UI", async () => {
+    await page.goto(route); await row().waitFor();
+    await page.getByRole("button", { name: "Administrar estados del proyecto", exact: true }).first().click();
+    const dialog = page.getByRole("dialog", { name: "Administrar estados del proyecto", exact: true });
+    await dialog.getByRole("button", { name: "+ Crear estado", exact: true }).click();
+    await dialog.getByLabel("Nombre", { exact: true }).fill("Temporal Sprint 3 QA");
+    await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
+    await dialog.getByRole("button", { name: /Temporal Sprint 3 QA/ }).click();
+    await dialog.getByLabel("Estado de destino", { exact: true }).selectOption(initial.state_id);
+    await dialog.getByRole("button", { name: "Eliminar estado y mover tareas", exact: true }).click();
+    await dialog.getByRole("button", { name: "+ Crear estado", exact: true }).waitFor();
+    assert.equal((await request("get", `${api}/states/`)).some(s => s.name === "Temporal Sprint 3 QA"), false);
+    await dialog.getByRole("button", { name: "Cerrar", exact: true }).click();
   });
   await step("States and producer loads are reachable from the task bar", async () => {
     await page.getByRole("link", { name: "Estados", exact: true }).click();
@@ -109,6 +145,7 @@ try {
   await page.screenshot({ path: "qa/artifacts/sprints234-failure.png", fullPage: true }).catch(() => {});
   process.exitCode = 1;
 } finally {
+  if (childBefore) await request("patch", `${api}/issues/${childBefore.id}/`, { state_id: childBefore.state_id }).catch(() => {});
   if (initial) await request("patch", `${api}/issues/${f.issue_id}/`, { state_id: initial.state_id }).catch(() => {});
   if (createdIssue) await request("delete", `${api}/issues/${createdIssue.id}/`).catch(() => {});
   fs.writeFileSync("qa/artifacts/sprints234-results.json", JSON.stringify({ syntheticOnly: true, results, errors, runtime }, null, 2));
