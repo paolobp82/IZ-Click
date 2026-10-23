@@ -15,6 +15,7 @@ import base64
 import ipaddress
 from typing import Dict, Any, Tuple
 from typing import Optional
+from django.db import transaction
 from plane.db.models import IssueLink
 from plane.utils.exception_logger import log_exception
 from plane.utils.ip_address import is_blocked_ip
@@ -245,15 +246,32 @@ def fetch_and_encode_favicon(
         }
 
 
+def is_production_link(metadata):
+    return isinstance(metadata, dict) and metadata.get("izclick_kind") in ("event-date", "sig-project")
+
+
 @shared_task
 def crawl_work_item_link_title(id: str, url: str) -> None:
-    meta_data = crawl_work_item_link_title_and_favicon(url)
-
     try:
         issue_link = IssueLink.objects.get(id=id)
     except IssueLink.DoesNotExist:
-        logger.warning(f"IssueLink not found for the id {id} and the url {url}")
+        logger.warning("IssueLink not found for id %s", id)
         return
 
-    issue_link.metadata = meta_data
-    issue_link.save()
+    # These links store business fields, not website previews. Also protects
+    # already queued jobs when the API and worker are upgraded separately.
+    if is_production_link(issue_link.metadata) or issue_link.url != url:
+        return
+
+    meta_data = crawl_work_item_link_title_and_favicon(url)
+    with transaction.atomic():
+        try:
+            issue_link = IssueLink.objects.select_for_update().get(id=id)
+        except IssueLink.DoesNotExist:
+            return
+        # Recheck after network I/O: the user may have edited/deleted the link.
+        if is_production_link(issue_link.metadata) or issue_link.url != url:
+            return
+        existing = issue_link.metadata if isinstance(issue_link.metadata, dict) else {}
+        issue_link.metadata = {**existing, **meta_data}
+        issue_link.save(update_fields=["metadata", "updated_at"])

@@ -1,0 +1,77 @@
+name: IZCLICK Sprint 1 checks
+on:
+  push:
+    branches: [sprint/izclick-1-operacion-20261023]
+  pull_request:
+    branches: [izclick/clickup-native-list-detail-20261014]
+permissions:
+  contents: read
+concurrency:
+  group: izclick-sprint1-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  logic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --experimental-strip-types --test apps/web/app/lib/izclick/*.test.ts
+      - run: python3 -m unittest discover -s apps/api/izclick_contract_tests -p 'test_*.py' -v
+  event-date-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: izclick_test
+          POSTGRES_PASSWORD: izclick_test
+          POSTGRES_DB: izclick_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U izclick_test -d izclick_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://izclick_test:izclick_test@127.0.0.1:5432/izclick_test
+      REDIS_URL: redis://127.0.0.1:6379/0
+      SECRET_KEY: sprint1-ephemeral-tests-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - working-directory: apps/api
+        run: pip install -r requirements/production.txt
+      - working-directory: apps/api
+        run: python manage.py test plane.api.tests.test_izclick_event_date --noinput
+  web-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and check types, without publishing or deploying
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile.web
+          platforms: linux/amd64
+          push: false
+          build-args: IZCLICK_VALIDATE_TYPES=true
+  attachment-component:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: npm install --prefix "$RUNNER_TEMP/izclick-qa-deps" --no-save jsdom@26.1.0 esbuild@0.28.1
+      - run: node qa/sprint1-attachments-dom.mjs
+        env:
+          IZCLICK_QA_DEPS: ${{ runner.temp }}/izclick-qa-deps

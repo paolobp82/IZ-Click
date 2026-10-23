@@ -4,6 +4,7 @@
  * See the LICENSE file for details.
  */
 
+import { rootIssueIds } from "@/app/lib/izclick/production-hierarchy";
 import type { MutableRefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
@@ -308,7 +309,7 @@ export const ListGroup = observer(function ListGroup(props: Props) {
           />
           {groupIssueIds && (
             <IssueBlocksList
-              issueIds={groupIssueIds}
+              issueIds={isEpic ? groupIssueIds : rootIssueIds(groupIssueIds, issuesMap)}
               groupId={group.id}
               issuesMap={issuesMap}
               updateIssue={updateIssue}
