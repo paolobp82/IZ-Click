@@ -1,3 +1,4 @@
+import { isCompletionState } from "@/app/lib/izclick/production-completion";
 import { CompletionCheckbox } from "@/components/issues/completion-checkbox";
 import { useProjectState } from "@/hooks/store/use-project-state";
 /**
@@ -170,7 +171,7 @@ export const SubIssuesListItem = observer(function SubIssuesListItem(props: Prop
                 </div>
               </WithDisplayPropertiesHOC>
               <Tooltip tooltipContent={issue.name} isMobile={isMobile}>
-                <span className={cn("w-0 flex-1 truncate text-13", getStateById(issue.state_id)?.group === "completed" ? "text-tertiary line-through opacity-60" : "text-primary")}>{issue.name}</span>
+                <span className={cn("w-0 flex-1 truncate text-13", isCompletionState(getStateById(issue.state_id)) ? "text-tertiary line-through opacity-60" : "text-primary")}>{issue.name}</span>
               </Tooltip>
             </div>
 

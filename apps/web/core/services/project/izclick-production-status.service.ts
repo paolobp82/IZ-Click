@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "@plane/constants";
 import { APIService } from "@/services/api.service";
+import { isCompletionState } from "@/app/lib/izclick/production-completion";
 
 export type WorkspaceProductionStatus = {
   id: string;
@@ -11,7 +12,7 @@ export type WorkspaceProductionStatus = {
   is_active: boolean;
   origin: "catalogue" | "plane";
 };
-export type StatusValues = Pick<WorkspaceProductionStatus, "name" | "color" | "group" | "sequence">;
+export type StatusValues = Pick<WorkspaceProductionStatus, "name" | "color" | "sequence">;
 
 /** Native Plane session/CSRF. No second authentication or database. */
 export class ProductionStatusesService extends APIService {
@@ -23,12 +24,12 @@ export class ProductionStatusesService extends APIService {
     return this.get(this.endpoint(slug)).then((result) => result.data);
   }
   async create(slug: string, data: StatusValues): Promise<WorkspaceProductionStatus> {
-    return this.post(this.endpoint(slug), data).then((result) => result.data);
+    return this.post(this.endpoint(slug), isCompletionState(data) ? { ...data, group: "completed" } : data).then((result) => result.data);
   }
   async remove(slug: string, id: string, replacementId: string): Promise<void> {
     await this.delete(`${this.endpoint(slug)}${encodeURIComponent(id)}/?replacement_id=${encodeURIComponent(replacementId)}`);
   }
   async update(slug: string, id: string, data: StatusValues): Promise<WorkspaceProductionStatus> {
-    return this.patch(`${this.endpoint(slug)}${encodeURIComponent(id)}/`, data).then((result) => result.data);
+    return this.patch(`${this.endpoint(slug)}${encodeURIComponent(id)}/`, isCompletionState(data) ? { ...data, group: "completed" } : data).then((result) => result.data);
   }
 }

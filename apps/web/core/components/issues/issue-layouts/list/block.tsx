@@ -1,3 +1,4 @@
+import { isCompletionState } from "@/app/lib/izclick/production-completion";
 import { CommercialAssignment } from "@/components/issues/commercial-assignment";
 import { CompletionCheckbox } from "@/components/issues/completion-checkbox";
 import { useProjectState } from "@/hooks/store/use-project-state";
@@ -298,7 +299,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
               disabled={isCurrentBlockDragging}
               renderByDefault={false}
             >
-              <p className={cn("cursor-pointer truncate text-body-xs-medium", getStateById(issue.state_id)?.group === "completed" ? "text-tertiary line-through opacity-60" : "text-primary")}>{issue.name}</p>
+              <p className={cn("cursor-pointer truncate text-body-xs-medium", isCompletionState(getStateById(issue.state_id)) ? "text-tertiary line-through opacity-60" : "text-primary")}>{issue.name}</p>
             </Tooltip>
           </div>
           {!issue?.tempId && (

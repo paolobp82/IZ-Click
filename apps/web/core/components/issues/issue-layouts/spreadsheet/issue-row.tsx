@@ -1,3 +1,4 @@
+import { isCompletionState } from "@/app/lib/izclick/production-completion";
 import { CommercialAssignment } from "@/components/issues/commercial-assignment";
 import { CompletionCheckbox } from "@/components/issues/completion-checkbox";
 import { useProjectState } from "@/hooks/store/use-project-state";
@@ -377,7 +378,7 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
                   <div className="w-full overflow-hidden">
                     <Tooltip tooltipContent={issueDetail.name} isMobile={isMobile}>
                       <div
-                        className={cn("h-full w-full cursor-pointer truncate pr-4 text-left text-13 focus:outline-none", getStateById(issueDetail.state_id)?.group === "completed" ? "text-tertiary line-through opacity-60" : "text-primary")}
+                        className={cn("h-full w-full cursor-pointer truncate pr-4 text-left text-13 focus:outline-none", isCompletionState(getStateById(issueDetail.state_id)) ? "text-tertiary line-through opacity-60" : "text-primary")}
                         tabIndex={-1}
                       >
                         {issueDetail.name}
