@@ -111,7 +111,6 @@ export const IssuesHeader = observer(function IssuesHeader() {
         )}
       </Header.LeftItem>
       <Header.RightItem>
-        <a href={`/${workspaceSlug}/produccion#cargas`} className="shrink-0 rounded border border-subtle px-3 py-1.5 text-xs">Estados</a>
         <ProductionStatusesMenu />
         <div className="hidden gap-2 md:flex">
           <HeaderFilters

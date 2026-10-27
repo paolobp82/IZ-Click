@@ -155,8 +155,20 @@ try {
     assert.equal(await dialog.getByRole("button", { name: "Eliminar estado Temporal Sprint 3 QA", exact: true }).count(), 0);
     await dialog.getByRole("button", { name: "Cerrar", exact: true }).click();
   });
-  await step("States and producer loads are reachable from the task bar", async () => {
-    await page.getByRole("link", { name: "Estados", exact: true }).click();
+  await step("A single States button opens the management catalogue without navigating", async () => {
+    const before = page.url();
+    assert.equal(await page.getByRole("link", { name: "Estados", exact: true }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Administrar estados", exact: true }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Estados", exact: true }).count(), 1);
+    await page.getByRole("button", { name: "Estados", exact: true }).click();
+    const catalogue = page.getByRole("dialog", { name: "Estados generales de Producción", exact: true });
+    await catalogue.waitFor();
+    await catalogue.getByRole("heading", { name: "Agregar estado", exact: true }).waitFor();
+    assert.equal(page.url(), before, "Managing states stays on the task page");
+    await catalogue.getByRole("button", { name: "Cerrar", exact: true }).click();
+  });
+  await step("Producer loads remain accessible from the production dashboard", async () => {
+    await page.goto(`${base}/${f.workspace}/produccion#cargas`);
     await page.getByRole("button", { name: "Por productor", exact: true }).click();
     await page.getByLabel("Cargas agrupadas por productor").waitFor();
     await page.screenshot({ path: "qa/artifacts/sprint3-producers.png" });

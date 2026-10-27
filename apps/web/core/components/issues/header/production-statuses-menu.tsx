@@ -89,7 +89,7 @@ export function ProductionStatusesMenu() {
     <div className="relative">
       <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((value) => !value)}
         className="h-8 rounded-md border border-subtle px-3 text-xs hover:bg-layer-1">
-        Administrar estados
+        Estados
       </button>
       {open && (
         <section role="dialog" aria-label="Estados generales de Producción"
