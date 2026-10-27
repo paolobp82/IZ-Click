@@ -116,7 +116,7 @@ export const ProductionStateManager = observer(function ProductionStateManager({
   return (
     <span ref={rootRef} className="relative shrink-0">
       <button type="button" className="rounded px-1 text-tertiary hover:bg-layer-1-hover"
-        aria-label="Administrar estados del proyecto" title="Crear o editar estados y colores"
+        aria-label="Administrar estados del proyecto" title="Crear, editar o eliminar estados"
         onClick={(event) => { event.preventDefault(); event.stopPropagation(); setOpen(!open); setEditingId(null); }}>⋯</button>
       {open && createPortal(
         <span ref={panelRef} data-izclick-popover role="dialog" aria-label="Administrar estados del proyecto" className="fixed z-[1000] block max-h-[70vh] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto rounded border border-subtle bg-surface-1 p-3 text-xs shadow-lg" style={{ top: panelPosition.top, left: panelPosition.left }}
@@ -129,12 +129,14 @@ export const ProductionStateManager = observer(function ProductionStateManager({
             <span className="block">
               <span className="block max-h-52 overflow-y-auto">
                 {states.map((state) => (
-                  <button key={state.id} type="button" onClick={() => startEdit(state)}
-                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-layer-1-hover">
+                  <span key={state.id} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-layer-1-hover">
                     <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: state.color }} />
-                    <span className="truncate">{state.name}</span>
-                    <span className="ml-auto text-tertiary">Editar</span>
-                  </button>
+                    <span className="min-w-0 flex-1 truncate" title={state.name}>{state.name}</span>
+                    <button type="button" aria-label={`Editar estado ${state.name}`} onClick={() => startEdit(state)}
+                      className="shrink-0 text-tertiary underline">Editar</button>
+                    <button type="button" aria-label={`Eliminar estado ${state.name}`} onClick={() => startEdit(state)}
+                      className="shrink-0 text-red-500 underline">Eliminar</button>
+                  </span>
                 ))}
               </span>
               <button type="button" className="mt-2 w-full rounded border border-subtle p-2 text-left hover:bg-layer-1-hover"

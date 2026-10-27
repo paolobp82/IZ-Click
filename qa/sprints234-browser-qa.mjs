@@ -140,13 +140,19 @@ try {
     await dialog.getByRole("button", { name: "+ Crear estado", exact: true }).click();
     await dialog.getByLabel("Nombre", { exact: true }).fill("Temporal Sprint 3 QA");
     await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
-    await dialog.getByRole("button", { name: /Temporal Sprint 3 QA/ }).click();
+    const removeState = () => dialog.getByRole("button", { name: "Eliminar estado Temporal Sprint 3 QA", exact: true });
+    await removeState().click();
+    const confirmRemoval = () => dialog.getByRole("button", { name: "Eliminar estado y mover tareas", exact: true });
+    assert.equal(await confirmRemoval().isDisabled(), true, "A destination is required before deletion");
+    await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
+    assert.equal((await request("get", `${api}/states/`)).some(s => s.name === "Temporal Sprint 3 QA"), true, "Cancel preserves the state");
+    await removeState().click();
     await dialog.getByLabel("Estado de destino", { exact: true }).selectOption(initial.state_id);
     await Promise.all([page.waitForEvent("load"), dialog.getByRole("button", { name: "Eliminar estado y mover tareas", exact: true }).click()]);
     await row().waitFor();
     assert.equal((await request("get", `${api}/states/`)).some(s => s.name === "Temporal Sprint 3 QA"), false);
     await page.getByRole("button", { name: "Administrar estados del proyecto", exact: true }).first().click();
-    assert.equal(await dialog.getByRole("button", { name: /Temporal Sprint 3 QA/ }).count(), 0);
+    assert.equal(await dialog.getByRole("button", { name: "Eliminar estado Temporal Sprint 3 QA", exact: true }).count(), 0);
     await dialog.getByRole("button", { name: "Cerrar", exact: true }).click();
   });
   await step("States and producer loads are reachable from the task bar", async () => {
