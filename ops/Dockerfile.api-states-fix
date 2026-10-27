@@ -1,0 +1,4 @@
+# Preserve the exact currently deployed API and its production fixes.
+FROM ghcr.io/paolobp82/izclick-api@sha256:5f782ab1558376ca3b6a046b35e8856c1d9c3d95d7f86b08f535c1a1456a04ec
+COPY apps/api/plane/app/views/workspace/izclick_production_status.py /code/plane/app/views/workspace/izclick_production_status.py
+RUN python -m py_compile /code/plane/app/views/workspace/izclick_production_status.py

@@ -11,13 +11,15 @@ type Props = {
   update: (data: Partial<TIssue>) => Promise<unknown>;
 };
 export const CompletionCheckbox = observer(function CompletionCheckbox({ issue, disabled, update }: Props) {
-  const { getProjectStates, getStateById } = useProjectState();
+  const { getProjectStates } = useProjectState();
   const [busy, setBusy] = useState(false);
-  const completed = getStateById(issue.state_id)?.group === "completed";
-  const target = completionTarget(getProjectStates(issue.project_id) ?? [], !completed);
+  const states = getProjectStates(issue.project_id) ?? [];
+  const completedState = completionTarget(states, true);
+  const completed = Boolean(completedState && issue.state_id === completedState);
+  const target = completed ? completionTarget(states, false) : completedState;
   return <input type="checkbox" checked={completed} disabled={disabled || busy || !target}
     aria-label={`${completed ? "Reabrir" : "Completar"} ${issue.name}`}
-    title={target ? (completed ? "Reabrir tarea" : "Marcar tarea culminada") : "El proyecto necesita un estado completado y uno pendiente"}
+    title={target ? (completed ? "Reabrir tarea" : "Marcar como Completado") : "El proyecto necesita el estado Completado y un estado pendiente"}
     className="size-4 shrink-0 cursor-pointer accent-green-600 disabled:cursor-default"
     onClick={event => event.stopPropagation()}
     onChange={async event => {
