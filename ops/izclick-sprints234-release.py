@@ -14,11 +14,11 @@ import subprocess
 import time
 
 ROOT = Path('/opt/iz-click/plane-app')
-REVISION = 'ddf139ee3ab4d162d14374504064f08655872a56'
+REVISION = 'c8a69d3749b957d853d4b1f58760e45e66f04351'
 BASE_API = 'ghcr.io/paolobp82/izclick-api@sha256:34958845a91dd29e09cb70a26b57f9389b0a6084520100cfa9007c3bc81a1f09'
 BASE_WEB = 'ghcr.io/paolobp82/izclick-web@sha256:35df3bc5afe62e305b7c0929e19c28e79d73bf321eea051107e7ec8bc94fced2'
-API = 'ghcr.io/paolobp82/izclick-api@sha256:670399dcf3f2b82e3e0fabff8751a41aa8b4b9eeac4514aef6125746a0895e6b'
-WEB = 'ghcr.io/paolobp82/izclick-web@sha256:ff0295abd104f8aac005424bf188d8b1d43eddb1c0b0de52bb496ee40e1195cf'
+API = 'ghcr.io/paolobp82/izclick-api@sha256:e5b3647ae703b489931ef8bcddb4d51b771ff7a8da3d48409a1c4851613fe138'
+WEB = 'ghcr.io/paolobp82/izclick-web@sha256:56fe22efb6f5a15ecba23f92ee22704ef4764624202eeb38a82c13673bacc174'
 SERVICES = ('api', 'worker', 'web')
 
 
