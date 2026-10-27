@@ -1,0 +1,7 @@
+{
+  "source_sha": "cf52fc5c3f1e94445c5a258c475dde17d9e53bac",
+  "web": "ghcr.io/paolobp82/izclick-web@sha256:fc24a5b66f489552e862dfc1f6983e8112520649a9ea9c2bf1c72cba67ab220d",
+  "api_unchanged": "ghcr.io/paolobp82/izclick-api@sha256:7ee89ac934d2ff71e793d47fe4d94fcb995ef1749cb6d3391599e1b2aaa04779",
+  "worker_unchanged": true,
+  "verified_actions_run": 40598894731
+}
