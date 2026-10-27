@@ -166,7 +166,7 @@ export function ProductionStatusesMenu() {
           <Dialog.Panel onClick={event => event.stopPropagation()} className="w-full max-w-lg space-y-4 rounded-lg border border-subtle bg-surface-1 p-5 text-sm shadow-xl">
             <Dialog.Title className="font-semibold">Eliminar estado: {statuses.find(entry => entry.id === retiring)?.name}</Dialog.Title>
             <Dialog.Description>Elige dónde mover todas sus tareas y subtareas en los proyectos indicados. Se conservará su historial.</Dialog.Description>
-            <select autoFocus aria-label="Estado general de destino" value={replacementId} onChange={event => setReplacementId(event.target.value)} disabled={saving} className="w-full rounded border border-subtle bg-surface-1 p-2">
+            <select aria-label="Estado general de destino" value={replacementId} onChange={event => setReplacementId(event.target.value)} disabled={saving} className="w-full rounded border border-subtle bg-surface-1 p-2">
               <option value="">Seleccionar destino</option>
               {statuses.filter(entry => entry.id !== retiring).map(entry => <option key={entry.id} value={entry.id}>{entry.name}{entry.origin === "plane" ? " (Plane)" : ""} · {STATUS_GROUPS.find(group => group.value === entry.group)?.label} · {entry.project_count} proyectos</option>)}
             </select>
