@@ -9,6 +9,7 @@ export type WorkspaceProductionStatus = {
   sequence: number;
   project_count: number;
   is_active: boolean;
+  origin: "catalogue" | "plane";
 };
 export type StatusValues = Pick<WorkspaceProductionStatus, "name" | "color" | "group" | "sequence">;
 

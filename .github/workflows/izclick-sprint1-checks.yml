@@ -1,7 +1,7 @@
 name: IZCLICK operational sprint checks
 on:
   pull_request:
-    branches: [izclick/clickup-native-list-detail-20261014, sprint/izclick-1-operacion-20261023]
+    branches: [izclick/clickup-native-list-detail-20261014, sprint/izclick-1-operacion-20261023, release/izclick-estados-unico-20261027]
 permissions:
   contents: read
 concurrency:

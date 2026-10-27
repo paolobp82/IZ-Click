@@ -35,7 +35,48 @@ def serialize_status(entry):
         "sequence": entry.sequence,
         "project_count": project_count,
         "is_active": entry.is_active,
+        "origin": "catalogue",
     }
+
+
+def unbound_states(workspace):
+    """Expose native states without creating catalogue records during a read."""
+    return State.objects.filter(
+        workspace=workspace, project__deleted_at__isnull=True, is_triage=False,
+    ).exclude(pk__in=IzClickProductionStatusBinding.objects.values("plane_state_id"))
+
+
+def serialize_native_states(states):
+    representative = states[0]
+    return {
+        "id": str(representative.pk), "name": representative.name,
+        "color": representative.color, "group": representative.group,
+        "sequence": max(0, min(1000000, int(representative.sequence))),
+        "project_count": len({row.project_id for row in states}),
+        "is_active": True, "origin": "plane",
+    }
+
+
+def resolve_status(workspace, status_id):
+    """Resolve either a catalogue ID or a listed native-state representative.
+
+    Callers hold the workspace lock for mutations. Native states with the same
+    name and workflow group are administered together across this workspace.
+    """
+    entry = IzClickProductionStatus.objects.filter(
+        workspace=workspace, pk=status_id, is_active=True,
+    ).first()
+    if entry:
+        states = list(State.objects.filter(
+            izclick_workspace_bindings__status=entry,
+        ).order_by("id"))
+        return entry, states
+    native = unbound_states(workspace).filter(pk=status_id).first()
+    if native is None:
+        return None, []
+    return None, list(unbound_states(workspace).filter(
+        name__iexact=native.name, group=native.group,
+    ).order_by("id"))
 
 
 class WorkspaceProductionStatusesEndpoint(BaseAPIView):
@@ -46,8 +87,16 @@ class WorkspaceProductionStatusesEndpoint(BaseAPIView):
         catalog = IzClickProductionStatus.objects.filter(
             workspace__slug=slug, is_active=True
         ).annotate(project_count=Count("project_bindings")).order_by("sequence", "created_at")
-        return Response([serialize_status(row) for row in catalog], status=status.HTTP_200_OK)
+        workspace = Workspace.objects.get(slug=slug)
+        native_groups = {}
+        for row in unbound_states(workspace).order_by("id"):
+            native_groups.setdefault((row.name.lower(), row.group), []).append(row)
+        entries = [serialize_status(row) for row in catalog]
+        entries.extend(serialize_native_states(rows) for rows in native_groups.values())
+        entries.sort(key=lambda row: (row["sequence"], row["name"].lower(), row["id"]))
+        return Response(entries, status=status.HTTP_200_OK)
 
+    @invalidate_cache(path="workspaces/:slug/states/", url_params=True, user=False)
     @allow_permission([ROLE.ADMIN], level="WORKSPACE")
     def post(self, request, slug):
         fields, error = validate_status_fields(request.data)
@@ -109,6 +158,7 @@ class WorkspaceProductionStatusesEndpoint(BaseAPIView):
 class WorkspaceProductionStatusDetailEndpoint(BaseAPIView):
     permission_classes = [WorkspaceEntityPermission]
 
+    @invalidate_cache(path="workspaces/:slug/states/", url_params=True, user=False)
     @allow_permission([ROLE.ADMIN], level="WORKSPACE")
     def patch(self, request, slug, status_id):
         fields, error = validate_status_fields(request.data, partial=True)
@@ -117,28 +167,30 @@ class WorkspaceProductionStatusDetailEndpoint(BaseAPIView):
         try:
             with transaction.atomic():
                 workspace = Workspace.objects.select_for_update().get(slug=slug)
-                entry = IzClickProductionStatus.objects.select_for_update().filter(
-                    workspace=workspace, pk=status_id, is_active=True
-                ).first()
-                if entry is None:
+                entry, states = resolve_status(workspace, status_id)
+                if entry is None and not states:
                     return Response({"error": "Estado no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-                name = fields.get("name", entry.name)
-                if IzClickProductionStatus.objects.filter(workspace=workspace, name__iexact=name).exclude(pk=entry.id).exists():
+                state_ids = [row.pk for row in states]
+                states = list(State.objects.select_for_update().filter(pk__in=state_ids).order_by("id"))
+                if len(states) != len(state_ids):
+                    return Response({"error": "Cambió un estado de proyecto. Actualiza antes de editar."}, status=409)
+                name = fields.get("name", entry.name if entry else states[0].name)
+                if IzClickProductionStatus.objects.filter(workspace=workspace, name__iexact=name).exclude(pk=entry.pk if entry else None).exists():
                     return Response({"error": "Ya existe un estado con ese nombre."}, status=status.HTTP_409_CONFLICT)
-                bindings = list(IzClickProductionStatusBinding.objects.select_related("plane_state", "project").filter(status=entry))
-                for binding in bindings:
-                    if State.objects.filter(project=binding.project, name__iexact=name, deleted_at__isnull=True).exclude(pk=binding.plane_state_id).exists():
+                for native in states:
+                    if State.objects.filter(project_id=native.project_id, name__iexact=name).exclude(pk=native.pk).exists():
                         return Response({"error": "El nombre ya se usa en un proyecto; no se cambiaron estados."}, status=status.HTTP_409_CONFLICT)
-                for key, value in fields.items():
-                    setattr(entry, key, value)
-                entry.save()
-                for binding in bindings:
-                    native = binding.plane_state
-                    native.name = entry.name
-                    native.color = entry.color
-                    native.group = entry.group
-                    native.save(update_fields=["name", "slug", "color", "group"])
-                return Response(serialize_status(entry), status=status.HTTP_200_OK)
+                if entry:
+                    for key, value in fields.items():
+                        setattr(entry, key, value)
+                    entry.save()
+                for native in states:
+                    for key, value in fields.items():
+                        setattr(native, key, value)
+                    native.updated_by = request.user
+                    native.save(update_fields=[*fields, "slug", "updated_by", "updated_at"], disable_auto_set_user=True)
+                result = serialize_status(entry) if entry else serialize_native_states(states)
+                return Response(result, status=status.HTTP_200_OK)
         except IntegrityError:
             return Response({"error": "Conflicto de estados. No se guardaron cambios."}, status=status.HTTP_409_CONFLICT)
 
@@ -152,21 +204,22 @@ class WorkspaceProductionStatusDetailEndpoint(BaseAPIView):
             return Response({"error": "Selecciona el estado general de destino."}, status=400)
         with transaction.atomic():
             workspace = Workspace.objects.select_for_update().get(slug=slug)
-            entries = list(IzClickProductionStatus.objects.select_for_update().filter(
-                workspace=workspace, id__in=[status_id, replacement_id], is_active=True,
-            ).order_by("id"))
-            by_id = {str(entry.pk): entry for entry in entries}
-            source, target = by_id.get(str(status_id)), by_id.get(str(replacement_id))
-            if not source or not target or source.pk == target.pk:
+            source, source_states = resolve_status(workspace, status_id)
+            target, target_states = resolve_status(workspace, replacement_id)
+            if str(status_id) == str(replacement_id) or (source is None and not source_states) or (target is None and not target_states):
                 return Response({"error": "Elige otro estado general activo."}, status=400)
-            bindings = list(IzClickProductionStatusBinding.objects.filter(status=source).order_by("project_id"))
-            destinations = {binding.project_id: binding.plane_state_id for binding in IzClickProductionStatusBinding.objects.filter(status=target)}
-            if any(binding.project_id not in destinations for binding in bindings):
+            destinations = {}
+            for row in target_states:
+                if row.project_id in destinations:
+                    return Response({"error": "El destino es ambiguo en un proyecto. No se cambió ningún estado."}, status=409)
+                destinations[row.project_id] = row.pk
+            if any(row.project_id not in destinations for row in source_states):
                 return Response({"error": "El destino no está vinculado a todos los proyectos. No se cambió ningún estado."}, status=409)
-            state_ids = [binding.plane_state_id for binding in bindings] + list(destinations.values())
+            state_ids = [row.pk for row in source_states] + list(destinations.values())
             locked = {row.pk: row for row in State.objects.select_for_update().filter(id__in=state_ids).order_by("id")}
-            if any(binding.plane_state_id not in locked or destinations[binding.project_id] not in locked for binding in bindings):
+            if any(row.pk not in locked or destinations[row.project_id] not in locked for row in source_states):
                 return Response({"error": "Cambió un estado de proyecto. Actualiza antes de eliminar."}, status=409)
-            moved = sum(retire_state(locked[binding.plane_state_id], locked[destinations[binding.project_id]], request.user) for binding in bindings)
-            source.delete()  # Catalogue/bindings only; native states are already retired.
+            moved = sum(retire_state(locked[row.pk], locked[destinations[row.project_id]], request.user) for row in source_states)
+            if source:
+                source.delete()  # Catalogue/bindings only; native states are already retired.
         return Response({"moved": moved})

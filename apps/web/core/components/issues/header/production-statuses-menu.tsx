@@ -49,6 +49,7 @@ export function ProductionStatusesMenu() {
   }, [open, workspaceSlug, service]);
 
   const edit = (entry: WorkspaceProductionStatus) => {
+    setRetiring(null);
     setEditing(entry.id);
     setValues({ name: entry.name, color: entry.color, group: entry.group, sequence: entry.sequence });
     setError("");
@@ -101,29 +102,29 @@ export function ProductionStatusesMenu() {
             </button>
           </header>
           <p className="mb-3 text-xs text-custom-text-300">
-            Un catálogo común para las cargas, sin configurar estados por separado en cada proyecto.
+            Todos los estados, incluidos los originales de Plane. Los cambios se aplican a los proyectos indicados.
           </p>
           {loading ? <p role="status" className="text-xs">Consultando estados…</p> : (
             <div className="space-y-1.5">
               {statuses.length === 0 && <p className="text-xs text-custom-text-300">
-                No hay estados en el catálogo general. Los existentes de Plane permanecen intactos.
+                No hay estados disponibles.
               </p>}
               {statuses.map((entry) => (
                 <div key={entry.id} className="flex items-center justify-between rounded border border-subtle px-3 py-2 text-xs">
                   <span className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                    {entry.name}
+                    <span>{entry.name}<span className="block text-custom-text-300">{entry.origin === "plane" ? "Plane · " : ""}{entry.project_count} proyecto{entry.project_count !== 1 ? "s" : ""}</span></span>
                   </span>
-                  {canManage && <span className="flex gap-2"><button type="button" className="underline" onClick={() => edit(entry)}>Editar</button><button type="button" className="text-red-500 underline" onClick={() => { setRetiring(entry.id); setReplacementId(""); setError(""); }}>Eliminar</button></span>}
+                  {canManage && <span className="flex gap-2"><button type="button" disabled={saving} className="underline" onClick={() => edit(entry)}>Editar</button><button type="button" disabled={saving} className="text-red-500 underline" onClick={() => { setRetiring(entry.id); setEditing(null); setValues(INITIAL); setReplacementId(""); setError(""); }}>Eliminar</button></span>}
                 </div>
               ))}
             </div>
           )}
           {canManage && retiring && <div className="my-3 space-y-2 rounded border border-subtle p-3 text-xs">
-            <p>Eliminar {statuses.find(entry => entry.id === retiring)?.name} de todos los proyectos y mover sus tareas a:</p>
+            <p>Eliminar {statuses.find(entry => entry.id === retiring)?.name} de los {statuses.find(entry => entry.id === retiring)?.project_count} proyectos donde se utiliza y mover todas sus tareas y subtareas a:</p>
             <select aria-label="Estado general de destino" value={replacementId} onChange={event => setReplacementId(event.target.value)} disabled={saving} className="w-full rounded border border-subtle bg-surface-1 p-2">
               <option value="">Seleccionar destino</option>
-              {statuses.filter(entry => entry.id !== retiring).map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+              {statuses.filter(entry => entry.id !== retiring).map(entry => <option key={entry.id} value={entry.id}>{entry.name}{entry.origin === "plane" ? " (Plane)" : ""} · {entry.project_count} proyectos</option>)}
             </select>
             <div className="flex justify-end gap-3"><button type="button" disabled={saving} onClick={() => setRetiring(null)}>Cancelar</button><button type="button" disabled={saving || !replacementId} onClick={() => void remove()} className="text-red-500 underline disabled:opacity-50">Confirmar eliminación y traslado</button></div>
           </div>}
