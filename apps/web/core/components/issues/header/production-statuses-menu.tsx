@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Dialog } from "@headlessui/react";
 import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { useParams } from "next/navigation";
 import { ProductionStatusesService } from "@/services/project/izclick-production-status.service";
@@ -119,14 +120,6 @@ export function ProductionStatusesMenu() {
               ))}
             </div>
           )}
-          {canManage && retiring && <div className="my-3 space-y-2 rounded border border-subtle p-3 text-xs">
-            <p>Eliminar {statuses.find(entry => entry.id === retiring)?.name} de los proyectos indicados y mover todas sus tareas y subtareas a:</p>
-            <select aria-label="Estado general de destino" value={replacementId} onChange={event => setReplacementId(event.target.value)} disabled={saving} className="w-full rounded border border-subtle bg-surface-1 p-2">
-              <option value="">Seleccionar destino</option>
-              {statuses.filter(entry => entry.id !== retiring).map(entry => <option key={entry.id} value={entry.id}>{entry.name}{entry.origin === "plane" ? " (Plane)" : ""} · {STATUS_GROUPS.find(group => group.value === entry.group)?.label} · {entry.project_count} proyectos</option>)}
-            </select>
-            <div className="flex justify-end gap-3"><button type="button" disabled={saving} onClick={() => setRetiring(null)}>Cancelar</button><button type="button" disabled={saving || !replacementId} onClick={() => void remove()} className="text-red-500 underline disabled:opacity-50">Confirmar eliminación y traslado</button></div>
-          </div>}
           {canManage ? (
             <div className="mt-4 border-t border-subtle pt-3">
               <h3 className="mb-2 text-xs font-semibold">{editing ? "Editar estado" : "Agregar estado"}</h3>
@@ -150,7 +143,7 @@ export function ProductionStatusesMenu() {
                   </label>
                 </div>
               </div>
-              {error && <p role="alert" className="my-2 text-xs text-red-500">{error}</p>}
+              {error && !retiring && <p role="alert" className="my-2 text-xs text-red-500">{error}</p>}
               <div className="mt-3 flex items-center gap-3">
                 <button type="button" disabled={saving} onClick={() => void save()}
                   className="rounded bg-custom-primary-100 px-3 py-2 text-xs text-white disabled:opacity-50">
@@ -167,6 +160,24 @@ export function ProductionStatusesMenu() {
           {!canManage && error && <p role="alert" className="mt-2 text-xs text-red-500">{error}</p>}
         </section>
       )}
+      <Dialog open={Boolean(canManage && retiring)} onClose={() => { if (!saving) setRetiring(null); }} className="relative z-[1200]">
+        <div className="fixed inset-0 bg-black/40" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-4">
+          <Dialog.Panel onClick={event => event.stopPropagation()} className="w-full max-w-lg space-y-4 rounded-lg border border-subtle bg-surface-1 p-5 text-sm shadow-xl">
+            <Dialog.Title className="font-semibold">Eliminar estado: {statuses.find(entry => entry.id === retiring)?.name}</Dialog.Title>
+            <Dialog.Description>Elige dónde mover todas sus tareas y subtareas en los proyectos indicados. Se conservará su historial.</Dialog.Description>
+            <select aria-label="Estado general de destino" value={replacementId} onChange={event => setReplacementId(event.target.value)} disabled={saving} className="w-full rounded border border-subtle bg-surface-1 p-2">
+              <option value="">Seleccionar destino</option>
+              {statuses.filter(entry => entry.id !== retiring).map(entry => <option key={entry.id} value={entry.id}>{entry.name}{entry.origin === "plane" ? " (Plane)" : ""} · {STATUS_GROUPS.find(group => group.value === entry.group)?.label} · {entry.project_count} proyectos</option>)}
+            </select>
+            {error && <p role="alert" className="text-red-500">{error}</p>}
+            <div className="flex justify-end gap-3">
+              <button type="button" disabled={saving} onClick={() => { setRetiring(null); setError(""); }}>Cancelar</button>
+              <button type="button" disabled={saving || !replacementId} onClick={() => void remove()} className="text-red-500 underline disabled:opacity-50">{saving ? "Trasladando tareas…" : "Confirmar eliminación y traslado"}</button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
     </div>
   );
 }
