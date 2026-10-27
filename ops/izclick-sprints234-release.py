@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Pinned Sprints 2-4 release. Default: read-only preflight on administrator console.
-Apply with --apply. API, Web and worker must match the deployed Sprint 1 digests.
+Apply with --apply. API, Web and worker must match the previously deployed state-delete release digests.
 Only the reviewed 0125 assignment migration; no database restoration, SSH changes or volume deletion.
 """
 import argparse
@@ -14,11 +14,11 @@ import subprocess
 import time
 
 ROOT = Path('/opt/iz-click/plane-app')
-REVISION = 'c8a69d3749b957d853d4b1f58760e45e66f04351'
-BASE_API = 'ghcr.io/paolobp82/izclick-api@sha256:34958845a91dd29e09cb70a26b57f9389b0a6084520100cfa9007c3bc81a1f09'
-BASE_WEB = 'ghcr.io/paolobp82/izclick-web@sha256:35df3bc5afe62e305b7c0929e19c28e79d73bf321eea051107e7ec8bc94fced2'
-API = 'ghcr.io/paolobp82/izclick-api@sha256:e5b3647ae703b489931ef8bcddb4d51b771ff7a8da3d48409a1c4851613fe138'
-WEB = 'ghcr.io/paolobp82/izclick-web@sha256:56fe22efb6f5a15ecba23f92ee22704ef4764624202eeb38a82c13673bacc174'
+REVISION = 'ea8037d73625b27be39e79e5e0a3eb96500f1fd7'
+BASE_API = 'ghcr.io/paolobp82/izclick-api@sha256:e5b3647ae703b489931ef8bcddb4d51b771ff7a8da3d48409a1c4851613fe138'
+BASE_WEB = 'ghcr.io/paolobp82/izclick-web@sha256:56fe22efb6f5a15ecba23f92ee22704ef4764624202eeb38a82c13673bacc174'
+API = 'ghcr.io/paolobp82/izclick-api@sha256:5f782ab1558376ca3b6a046b35e8856c1d9c3d95d7f86b08f535c1a1456a04ec'
+WEB = 'ghcr.io/paolobp82/izclick-web@sha256:fa3d05efdc532be69571b345509c766dea5e519d5241d500623899634ad80eca'
 SERVICES = ('api', 'worker', 'web')
 
 
