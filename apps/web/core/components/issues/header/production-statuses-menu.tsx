@@ -19,11 +19,10 @@ const INITIAL: StatusValues = {
 
 /** A single workspace catalogue accessible from the native issue header. */
 export function ProductionStatusesMenu() {
-  const { workspaceSlug: slugParam, projectId: projectParam } = useParams();
+  const { workspaceSlug: slugParam } = useParams();
   const workspaceSlug = slugParam?.toString() ?? "";
-  const projectId = projectParam?.toString() ?? "";
   const { allowPermissions } = useUserPermissions();
-  const { fetchProjectStates } = useProjectState();
+  const { fetchWorkspaceStates } = useProjectState();
   const canManage = allowPermissions([EUserPermissions.ADMIN], EUserPermissionsLevel.WORKSPACE, workspaceSlug);
   const service = useMemo(() => new ProductionStatusesService(), []);
   const [open, setOpen] = useState(false);
@@ -66,7 +65,7 @@ export function ProductionStatusesMenu() {
       setStatuses(list);
       setValues(INITIAL);
       setEditing(null);
-      if (projectId) await fetchProjectStates(workspaceSlug, projectId);
+      await fetchWorkspaceStates(workspaceSlug);
     } catch (err: unknown) {
       const response = err as { response?: { data?: { error?: string } } };
       setError(response?.response?.data?.error || "No se pudo guardar. Revisa el nombre o los permisos.");
@@ -113,7 +112,7 @@ export function ProductionStatusesMenu() {
                 <div key={entry.id} className="flex items-center justify-between rounded border border-subtle px-3 py-2 text-xs">
                   <span className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span>{entry.name}<span className="block text-custom-text-300">{entry.origin === "plane" ? "Plane · " : ""}{entry.project_count} proyecto{entry.project_count !== 1 ? "s" : ""}</span></span>
+                    <span>{entry.name}<span className="block text-custom-text-300">{entry.origin === "plane" ? "Plane · " : ""}{entry.project_count} proyecto{entry.project_count !== 1 ? "s" : ""} · {STATUS_GROUPS.find(group => group.value === entry.group)?.label}</span></span>
                   </span>
                   {canManage && <span className="flex gap-2"><button type="button" disabled={saving} className="underline" onClick={() => edit(entry)}>Editar</button><button type="button" disabled={saving} className="text-red-500 underline" onClick={() => { setRetiring(entry.id); setEditing(null); setValues(INITIAL); setReplacementId(""); setError(""); }}>Eliminar</button></span>}
                 </div>
@@ -121,10 +120,10 @@ export function ProductionStatusesMenu() {
             </div>
           )}
           {canManage && retiring && <div className="my-3 space-y-2 rounded border border-subtle p-3 text-xs">
-            <p>Eliminar {statuses.find(entry => entry.id === retiring)?.name} de los {statuses.find(entry => entry.id === retiring)?.project_count} proyectos donde se utiliza y mover todas sus tareas y subtareas a:</p>
+            <p>Eliminar {statuses.find(entry => entry.id === retiring)?.name} de los proyectos indicados y mover todas sus tareas y subtareas a:</p>
             <select aria-label="Estado general de destino" value={replacementId} onChange={event => setReplacementId(event.target.value)} disabled={saving} className="w-full rounded border border-subtle bg-surface-1 p-2">
               <option value="">Seleccionar destino</option>
-              {statuses.filter(entry => entry.id !== retiring).map(entry => <option key={entry.id} value={entry.id}>{entry.name}{entry.origin === "plane" ? " (Plane)" : ""} · {entry.project_count} proyectos</option>)}
+              {statuses.filter(entry => entry.id !== retiring).map(entry => <option key={entry.id} value={entry.id}>{entry.name}{entry.origin === "plane" ? " (Plane)" : ""} · {STATUS_GROUPS.find(group => group.value === entry.group)?.label} · {entry.project_count} proyectos</option>)}
             </select>
             <div className="flex justify-end gap-3"><button type="button" disabled={saving} onClick={() => setRetiring(null)}>Cancelar</button><button type="button" disabled={saving || !replacementId} onClick={() => void remove()} className="text-red-500 underline disabled:opacity-50">Confirmar eliminación y traslado</button></div>
           </div>}

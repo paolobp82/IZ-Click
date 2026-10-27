@@ -279,3 +279,22 @@ class Sprints234Tests(TestCase):
         self.source.refresh_from_db(); native.refresh_from_db()
         self.assertEqual(self.source.name, "Antes")
         self.assertEqual(native.name, "Antes")
+
+    def test_native_homonym_in_other_project_still_allows_editing(self):
+        from plane.db.models import IzClickProductionStatus, IzClickProductionStatusBinding
+        _, second_source, _, _ = self.second_native_project()
+        catalogue = IzClickProductionStatus.objects.create(workspace=self.workspace, name=self.source.name, group="started")
+        IzClickProductionStatusBinding.objects.create(status=catalogue, project=second_source.project, plane_state=second_source)
+        result = self.workspace_status_request("patch", self.admin, self.source.pk, {"color": "#abcdef"})
+        self.assertEqual(result.status_code, 200, result.data)
+        self.source.refresh_from_db(); second_source.refresh_from_db()
+        self.assertEqual(self.source.color, "#abcdef")
+        self.assertEqual(second_source.color, "#112233")
+
+    def test_native_retirement_cannot_use_same_group_from_another_project_as_destination(self):
+        _, second_source, _, _ = self.second_native_project()
+        result = self.workspace_status_request("delete", self.admin, self.source.pk, replacement_id=second_source.pk)
+        self.assertEqual(result.status_code, 400, result.data)
+        self.issue.refresh_from_db()
+        self.assertEqual(self.issue.state_id, self.source.pk)
+        self.assertEqual(IssueActivity.objects.count(), 0)

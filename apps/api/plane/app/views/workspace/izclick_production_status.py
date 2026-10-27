@@ -175,7 +175,7 @@ class WorkspaceProductionStatusDetailEndpoint(BaseAPIView):
                 if len(states) != len(state_ids):
                     return Response({"error": "Cambió un estado de proyecto. Actualiza antes de editar."}, status=409)
                 name = fields.get("name", entry.name if entry else states[0].name)
-                if IzClickProductionStatus.objects.filter(workspace=workspace, name__iexact=name).exclude(pk=entry.pk if entry else None).exists():
+                if entry and IzClickProductionStatus.objects.filter(workspace=workspace, name__iexact=name).exclude(pk=entry.pk).exists():
                     return Response({"error": "Ya existe un estado con ese nombre."}, status=status.HTTP_409_CONFLICT)
                 for native in states:
                     if State.objects.filter(project_id=native.project_id, name__iexact=name).exclude(pk=native.pk).exists():
@@ -208,6 +208,8 @@ class WorkspaceProductionStatusDetailEndpoint(BaseAPIView):
             target, target_states = resolve_status(workspace, replacement_id)
             if str(status_id) == str(replacement_id) or (source is None and not source_states) or (target is None and not target_states):
                 return Response({"error": "Elige otro estado general activo."}, status=400)
+            if {row.pk for row in source_states} & {row.pk for row in target_states}:
+                return Response({"error": "Elige un estado de destino diferente."}, status=400)
             destinations = {}
             for row in target_states:
                 if row.project_id in destinations:
