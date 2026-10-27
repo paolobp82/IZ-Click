@@ -15,11 +15,12 @@ const bundle = await build({
       "@plane/constants": `export const API_BASE_URL=''; export const EUserPermissions={ADMIN:20}; export const EUserPermissionsLevel={WORKSPACE:'workspace'};`,
       "@/hooks/store/user": `export const useUserPermissions=()=>({allowPermissions:()=>window.__admin});`,
       "@/hooks/store/use-project-state": `export const useProjectState=()=>({fetchWorkspaceStates:async()=>{window.__refreshed=true;}});`,
-      "@/services/api.service": `export class APIService { async get(){return {data:window.__statuses};} async patch(url,data){window.__patch={url,data};return {data};} async delete(url){window.__delete=url;throw {response:{data:{error:'Destino incompleto: no se cambió ninguna tarea.'}}};} }`,
+      "@/services/api.service": `export class APIService { async get(){return {data:window.__statuses};} async post(url,data){window.__post={url,data};const row={id:'created',origin:'catalogue',project_count:2,...data};window.__statuses.push(row);return {data:row};} async patch(url,data){window.__patch={url,data};if(window.__patchFail)throw {response:{data:{error:'No se pudo editar el estado.'}}};Object.assign(window.__statuses.find(row=>url.endsWith('/'+row.id+'/')),data);return {data};} async delete(url){window.__delete=url;throw {response:{data:{error:'Destino incompleto: no se cambió ninguna tarea.'}}};} }`,
     };
     b.onResolve({ filter: /^(next\/navigation|@plane\/constants|@\/hooks\/store\/(user|use-project-state)|@\/services\/api.service)$/ }, a => ({path:a.path,namespace:"mock"}));
     b.onLoad({filter:/.*/,namespace:"mock"}, a => ({contents:mocks[a.path],resolveDir:root+"/apps/web"}));
     b.onResolve({filter:/^@\/services\/project\/izclick-production-status.service$/}, () => ({path:root+"/apps/web/core/services/project/izclick-production-status.service.ts"}));
+    b.onResolve({filter:/^@\/app\/lib\/izclick\/production-completion$/},()=>({path:root+"/apps/web/app/lib/izclick/production-completion.ts"}));
   }}],
 });
 async function until(fn) { for(let i=0;i<200;i++){if(fn())return;await new Promise(r=>setTimeout(r,10));} throw Error("DOM timeout"); }
@@ -47,10 +48,23 @@ assert.match(w.document.body.textContent,/Plane · 2 proyectos/);
 const nativeRow=[...w.document.querySelectorAll("div")].find(d=>d.textContent.includes("Recibido") && d.querySelectorAll("button").length===2);
 [...nativeRow.querySelectorAll("button")].find(b=>b.textContent==="Editar").click();
 await until(()=>w.document.querySelector("input[maxlength]")?.value==="Recibido");
+assert(w.document.querySelector('[aria-modal="true"]'), "Edit must open a modal immediately");
+assert(!w.document.querySelector('section').contains(w.document.querySelector('input[maxlength]')), "Editor must be outside the scrolling list");
+assert.equal(w.document.querySelector('[aria-modal="true"] select'),null, "No group selector in editor");
+assert(!w.document.querySelector('[aria-modal="true"]').textContent.includes('Grupo'));
+function fill(input,value){Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype,'value').set.call(input,value);input.dispatchEvent(new w.Event('input',{bubbles:true}));}
+fill(w.document.querySelector('input[maxlength]'),'Recibido corregido');
 button("Guardar cambios").click();
 await until(()=>w.__refreshed);
 assert.equal(w.__patch.url,"/api/workspaces/qa/izclick-production-statuses/native/");
-assert.equal(w.__patch.data.name,"Recibido");
+assert.equal(w.__patch.data.name,"Recibido corregido");
+assert.equal(w.__patch.data.group,undefined,"Ordinary editing must not require a group");
+button('+ Agregar estado').click();
+await until(()=>w.document.querySelector('input[maxlength]'));
+fill(w.document.querySelector('input[maxlength]'),'Completado');
+button('Crear estado general').click();
+await until(()=>w.__post && !w.document.querySelector('[aria-modal="true"]'));
+assert.equal(w.__post.data.name,'Completado');assert.equal(w.__post.data.group,'completed','Internal completion metadata must be automatic');
 [...nativeRow.querySelectorAll("button")].find(b=>b.textContent==="Eliminar").click();
 await until(()=>w.document.querySelector('select[aria-label="Estado general de destino"]'));
 assert(w.document.querySelector('[aria-modal="true"]'), "Delete must open an immediate modal, outside the scrolling list");

@@ -146,7 +146,7 @@ jobs:
   publish-web-actions:
     name: Publish verified state action Web fix
     needs: [logic, event-date-persistence, web-build, attachment-component]
-    if: github.head_ref == 'fix/izclick-state-actions-20261027' && github.event.pull_request.head.repo.full_name == github.repository
+    if: (github.head_ref == 'fix/izclick-state-actions-20261027' || github.head_ref == 'fix/izclick-simple-states-20261027') && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     permissions:

@@ -12,11 +12,12 @@ test("completar nunca selecciona Aprobada aunque sea el primer estado o el prede
   assert.equal(completionTarget([approved, done], true), "done");
   assert.equal(completionTarget([done, approved], true), "done");
   assert.equal(completionTarget([approved], true), null);
-  assert.equal(completionTarget([{ ...done, group: "started" }], true), null);
+  assert.equal(completionTarget([{ ...done, group: "started" }], true), "done");
   assert.equal(completionTarget([{ ...done, name: " COMPLETADO " }], true), "done");
 });
 test("reabrir prefiere el estado pendiente por defecto y conserva estados existentes", () => {
   assert.equal(completionTarget([{ id: "open", group: "unstarted" }, { id: "default", group: "backlog", default: true }], false), "default");
-  assert.equal(completionTarget([{ id: "cancelled", group: "cancelled" }], false), null);
+  assert.equal(completionTarget([{ id: "custom", name: "Revisión interna", group: "started", default: true }], false), "custom");
+  assert.equal(completionTarget([{ id: "done", name: "Completado", group: "started" }], false), null);
   assert.equal(completionTarget([], true), null);
 });
