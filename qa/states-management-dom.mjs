@@ -26,6 +26,7 @@ async function until(fn) { for(let i=0;i<200;i++){if(fn())return;await new Promi
 async function mount(admin) {
   const dom = new JSDOM('<div id="root"></div>', {runScripts:"dangerously",url:"https://qa.invalid/",pretendToBeVisual:true});
   const w=dom.window;
+  w.ResizeObserver=class { observe(){} unobserve(){} disconnect(){} };
   w.__admin=admin;
   w.__statuses=[
     {id:"native",name:"Recibido",origin:"plane",color:"#112233",group:"backlog",sequence:15000,project_count:2,is_active:true},
@@ -52,6 +53,8 @@ assert.equal(w.__patch.url,"/api/workspaces/qa/izclick-production-statuses/nativ
 assert.equal(w.__patch.data.name,"Recibido");
 [...nativeRow.querySelectorAll("button")].find(b=>b.textContent==="Eliminar").click();
 await until(()=>w.document.querySelector('select[aria-label="Estado general de destino"]'));
+assert(w.document.querySelector('[aria-modal="true"]'), "Delete must open an immediate modal, outside the scrolling list");
+assert.equal(w.__delete, undefined, "Opening confirmation must not delete anything");
 const select=w.document.querySelector('select[aria-label="Estado general de destino"]');
 assert.equal(select.querySelector('option[value="native"]'),null);
 select.value="catalogue";select.dispatchEvent(new w.Event("change",{bubbles:true}));
@@ -59,7 +62,9 @@ await until(()=>!button("Confirmar eliminación y traslado").disabled);
 button("Confirmar eliminación y traslado").click();
 await until(()=>w.document.querySelector('[role="alert"]'));
 assert.equal(w.__delete,"/api/workspaces/qa/izclick-production-statuses/native/?replacement_id=catalogue");
-assert.match(w.document.querySelector('[role="alert"]').textContent,/Destino incompleto/);
+assert.match(w.document.querySelector('[aria-modal="true"] [role="alert"]').textContent,/Destino incompleto/);
+button("Cancelar").click();
+await until(()=>!w.document.querySelector('[aria-modal="true"]'));
 w.close();
 const reader=await mount(false);
 assert.equal([...reader.window.document.querySelectorAll("button")].filter(b=>["Editar","Eliminar"].includes(b.textContent)).length,0);
