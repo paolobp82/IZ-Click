@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { useParams } from "next/navigation";
 import { ProductionStatusesService } from "@/services/project/izclick-production-status.service";
@@ -22,6 +22,7 @@ export function ProductionStatusesMenu() {
   const canManage = allowPermissions([EUserPermissions.ADMIN], EUserPermissionsLevel.WORKSPACE, workspaceSlug);
   const service = useMemo(() => new ProductionStatusesService(), []);
   const [open, setOpen] = useState(false);
+  const editFormRef = useRef<HTMLDivElement>(null);
   const [retiring, setRetiring] = useState<string | null>(null);
   const [replacementId, setReplacementId] = useState("");
   const [statuses, setStatuses] = useState<WorkspaceProductionStatus[]>([]);
@@ -44,6 +45,12 @@ export function ProductionStatusesMenu() {
       .finally(() => { if (active) setLoading(false); });
   return () => { active = false; };
   }, [open, workspaceSlug, service]);
+
+  useEffect(() => {
+    if (!editing) return;
+    editFormRef.current?.scrollIntoView({ block: "nearest" });
+    editFormRef.current?.querySelector("input")?.focus();
+  }, [editing]);
 
   const edit = (entry: WorkspaceProductionStatus) => {
     setEditing(entry.id);
@@ -158,7 +165,7 @@ export function ProductionStatusesMenu() {
             <div className="flex justify-end gap-3"><button type="button" disabled={saving} onClick={() => setRetiring(null)}>Cancelar</button><button type="button" disabled={saving || !replacementId} onClick={() => void remove()} className="text-red-500 underline disabled:opacity-50">Confirmar eliminación y traslado</button></div>
           </div>}
           {canManage ? (
-            <div className="mt-4 border-t border-subtle pt-3">
+            <div ref={editFormRef} className="mt-4 border-t border-subtle pt-3">
               <h3 className="mb-2 text-xs font-semibold">{editing ? "Editar estado" : "Agregar estado"}</h3>
               <div className="space-y-2">
                 <label className="block text-xs">Nombre
