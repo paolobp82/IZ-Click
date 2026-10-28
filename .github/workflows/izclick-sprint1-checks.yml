@@ -73,3 +73,10 @@ jobs:
       - run: node qa/sprint1-attachments-dom.mjs
         env:
           IZCLICK_QA_DEPS: ${{ runner.temp }}/izclick-qa-deps
+
+      - run: node qa/states-management-dom.mjs
+        env:
+          IZCLICK_QA_DEPS: ${{ runner.temp }}/izclick-qa-deps
+      - run: node qa/completion-checkbox-dom.mjs
+        env:
+          IZCLICK_QA_DEPS: ${{ runner.temp }}/izclick-qa-deps

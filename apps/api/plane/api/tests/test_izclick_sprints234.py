@@ -146,6 +146,159 @@ class Sprints234Tests(TestCase):
         self.assertEqual(mapping.status_code, 200)
         self.assertEqual(mapping.data, {})
 
+    def workspace_status_request(self, method, actor=None, status_id=None, data=None, replacement_id=None):
+        from plane.db.models import WorkspaceMember
+        from plane.app.views.workspace.izclick_production_status import (
+            WorkspaceProductionStatusesEndpoint, WorkspaceProductionStatusDetailEndpoint,
+        )
+        for user, role in [(self.admin, 20), (self.member, 15)]:
+            WorkspaceMember.objects.get_or_create(workspace=self.workspace, member=user,
+                                                  defaults={"role": role, "is_active": True})
+        url = f"/api/workspaces/{self.workspace.slug}/izclick-production-statuses/"
+        view, kwargs = WorkspaceProductionStatusesEndpoint, {}
+        if status_id:
+            url += f"{status_id}/"
+            view, kwargs = WorkspaceProductionStatusDetailEndpoint, {"status_id": status_id}
+        path = f"{url}?replacement_id={replacement_id}" if replacement_id else url
+        request = getattr(APIRequestFactory(), method)(path, data=data or {}, format="json")
+        request.resolver_match = resolve(url)
+        if actor:
+            force_authenticate(request, user=actor)
+        return view.as_view()(request, slug=self.workspace.slug, **kwargs)
+
+    def second_native_project(self):
+        project = Project.objects.create(name="Second", identifier="SND", workspace=self.workspace)
+        source = State.objects.create(project=project, workspace=self.workspace,
+                                      name=self.source.name, group=self.source.group, color="#112233", default=True)
+        target = State.objects.create(project=project, workspace=self.workspace,
+                                      name=self.target.name, group=self.target.group, color="#445566")
+        issue = Issue.objects.create(project=project, workspace=self.workspace, name="Second task", state=source)
+        return project, source, target, issue
+
+    def test_unified_list_includes_plane_defaults_and_catalogue_without_read_writes(self):
+        from plane.db.models import IzClickProductionStatus, IzClickProductionStatusBinding
+        _, second_source, _, _ = self.second_native_project()
+        catalogue = IzClickProductionStatus.objects.create(workspace=self.workspace, name="General final", group="completed")
+        IzClickProductionStatusBinding.objects.create(status=catalogue, project=self.project, plane_state=self.target)
+        counts = (State.all_state_objects.count(), IzClickProductionStatus.objects.count())
+        result = self.workspace_status_request("get", self.admin)
+        self.assertEqual(result.status_code, 200, result.data)
+        native = [row for row in result.data if row["name"] == self.source.name and row["origin"] == "plane"]
+        self.assertEqual(len(native), 1)
+        self.assertEqual(native[0]["project_count"], 2)
+        self.assertIn(str(second_source.pk), [str(row.pk) for row in State.objects.filter(name=self.source.name)])
+        self.assertEqual(len([row for row in result.data if row["id"] == str(catalogue.pk)]), 1)
+        self.assertFalse(any(row["id"] == str(self.target.pk) for row in result.data))
+        self.assertEqual(counts, (State.all_state_objects.count(), IzClickProductionStatus.objects.count()))
+
+    def test_edit_native_default_updates_all_matching_projects_preserving_task_identity(self):
+        _, second_source, _, second_issue = self.second_native_project()
+        self.source.default = True; self.source.save()
+        result = self.workspace_status_request("patch", self.admin, self.source.pk,
+                                               {"name": "Recibido", "color": "#abcdef"})
+        self.assertEqual(result.status_code, 200, result.data)
+        for state in [self.source, second_source]:
+            state.refresh_from_db()
+            self.assertEqual((state.name, state.color, state.group, state.default), ("Recibido", "#abcdef", "started", True))
+        self.issue.refresh_from_db(); second_issue.refresh_from_db(); self.child.refresh_from_db()
+        self.assertEqual(self.issue.state_id, self.source.pk)
+        self.assertEqual(second_issue.state_id, second_source.pk)
+        self.assertEqual(self.child.parent_id, self.issue.pk)
+
+    def test_native_rename_conflict_in_one_project_changes_nothing(self):
+        project, second_source, _, _ = self.second_native_project()
+        State.objects.create(project=project, workspace=self.workspace, name="Taken", group="started", color="#123456")
+        result = self.workspace_status_request("patch", self.admin, self.source.pk, {"name": "Taken"})
+        self.assertEqual(result.status_code, 409, result.data)
+        self.source.refresh_from_db(); second_source.refresh_from_db()
+        self.assertEqual(self.source.name, "Antes")
+        self.assertEqual(second_source.name, "Antes")
+
+    def test_delete_plane_default_moves_tasks_and_subtasks_without_cascade(self):
+        _, second_source, second_target, second_issue = self.second_native_project()
+        self.source.default = True; self.source.save()
+        with patch("plane.bgtasks.deletion_task.soft_delete_related_objects.delay") as cascade:
+            result = self.workspace_status_request("delete", self.admin, self.source.pk, replacement_id=self.target.pk)
+            self.assertEqual(result.status_code, 200, result.data)
+            cascade.assert_not_called()
+        self.assertEqual(result.data["moved"], 3)
+        self.issue.refresh_from_db(); self.child.refresh_from_db(); second_issue.refresh_from_db()
+        self.target.refresh_from_db(); second_target.refresh_from_db()
+        self.assertEqual(self.issue.state_id, self.target.pk)
+        self.assertEqual(self.child.state_id, self.target.pk)
+        self.assertEqual(self.child.parent_id, self.issue.pk)
+        self.assertEqual(second_issue.state_id, second_target.pk)
+        self.assertTrue(self.target.default and second_target.default)
+        self.assertFalse(State.objects.filter(pk__in=[self.source.pk, second_source.pk]).exists())
+        self.assertEqual(IssueActivity.objects.filter(field="state").count(), 3)
+
+    def test_native_state_can_retire_into_catalogue_destination(self):
+        from plane.db.models import IzClickProductionStatus, IzClickProductionStatusBinding
+        target = IzClickProductionStatus.objects.create(workspace=self.workspace, name="General final", group="completed")
+        IzClickProductionStatusBinding.objects.create(status=target, project=self.project, plane_state=self.target)
+        result = self.workspace_status_request("delete", self.admin, self.source.pk, replacement_id=target.pk)
+        self.assertEqual(result.status_code, 200, result.data)
+        self.issue.refresh_from_db()
+        self.assertEqual(self.issue.state_id, self.target.pk)
+        self.assertTrue(IzClickProductionStatus.objects.filter(pk=target.pk).exists())
+
+    def test_catalogue_state_can_retire_into_native_destination(self):
+        from plane.db.models import IzClickProductionStatus, IzClickProductionStatusBinding
+        source = IzClickProductionStatus.objects.create(workspace=self.workspace, name="General old", group="started")
+        IzClickProductionStatusBinding.objects.create(status=source, project=self.project, plane_state=self.source)
+        result = self.workspace_status_request("delete", self.admin, source.pk, replacement_id=self.target.pk)
+        self.assertEqual(result.status_code, 200, result.data)
+        self.issue.refresh_from_db()
+        self.assertEqual(self.issue.state_id, self.target.pk)
+        self.assertFalse(IzClickProductionStatus.objects.filter(pk=source.pk).exists())
+
+    def test_native_retirement_rejects_incomplete_destination_atomically(self):
+        _, second_source, second_target, second_issue = self.second_native_project()
+        second_target.name = "Another destination"; second_target.save()
+        result = self.workspace_status_request("delete", self.admin, self.source.pk, replacement_id=self.target.pk)
+        self.assertEqual(result.status_code, 409, result.data)
+        self.issue.refresh_from_db(); second_issue.refresh_from_db()
+        self.assertEqual(self.issue.state_id, self.source.pk)
+        self.assertEqual(second_issue.state_id, second_source.pk)
+        self.assertTrue(State.objects.filter(pk=self.source.pk).exists())
+        self.assertEqual(IssueActivity.objects.count(), 0)
+
+    def test_native_management_rejects_members_outsiders_and_cross_workspace_ids(self):
+        for actor in [self.member, self.outsider, None]:
+            response = self.workspace_status_request("patch", actor, self.source.pk, {"name": "Forbidden"})
+            self.assertIn(response.status_code, (401, 403), response.data)
+            response = self.workspace_status_request("delete", actor, self.source.pk, replacement_id=self.target.pk)
+            self.assertIn(response.status_code, (401, 403), response.data)
+        other = Workspace.objects.create(name="Other", slug="other-status-qa", owner=self.admin)
+        project = Project.objects.create(name="Other", identifier="OTH", workspace=other)
+        native = State.objects.create(project=project, workspace=other, name="Antes", group="started", color="#112233")
+        response = self.workspace_status_request("patch", self.admin, native.pk, {"name": "Forbidden"})
+        self.assertEqual(response.status_code, 404, response.data)
+        response = self.workspace_status_request("delete", self.admin, self.source.pk, replacement_id=native.pk)
+        self.assertEqual(response.status_code, 400, response.data)
+        self.source.refresh_from_db(); native.refresh_from_db()
+        self.assertEqual(self.source.name, "Antes")
+        self.assertEqual(native.name, "Antes")
+
+    def test_native_homonym_in_other_project_still_allows_editing(self):
+        from plane.db.models import IzClickProductionStatus, IzClickProductionStatusBinding
+        _, second_source, _, _ = self.second_native_project()
+        catalogue = IzClickProductionStatus.objects.create(workspace=self.workspace, name=self.source.name, group="started")
+        IzClickProductionStatusBinding.objects.create(status=catalogue, project=second_source.project, plane_state=second_source)
+        result = self.workspace_status_request("patch", self.admin, self.source.pk, {"color": "#abcdef"})
+        self.assertEqual(result.status_code, 200, result.data)
+        self.source.refresh_from_db(); second_source.refresh_from_db()
+        self.assertEqual(self.source.color, "#abcdef")
+        self.assertEqual(second_source.color, "#112233")
+
+    def test_native_retirement_cannot_use_same_group_from_another_project_as_destination(self):
+        _, second_source, _, _ = self.second_native_project()
+        result = self.workspace_status_request("delete", self.admin, self.source.pk, replacement_id=second_source.pk)
+        self.assertEqual(result.status_code, 400, result.data)
+        self.issue.refresh_from_db()
+        self.assertEqual(self.issue.state_id, self.source.pk)
+        self.assertEqual(IssueActivity.objects.count(), 0)
+
 
 @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
 class WorkflowPresetTests(TestCase):

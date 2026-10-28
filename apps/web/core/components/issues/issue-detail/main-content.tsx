@@ -1,3 +1,4 @@
+import { isCompletionState } from "@/app/lib/izclick/production-completion";
 import { CompletionCheckbox } from "@/components/issues/completion-checkbox";
 import { useProjectState } from "@/hooks/store/use-project-state";
 // oxlint-disable no-shadow
@@ -100,7 +101,7 @@ export const IssueMainContent = observer(function IssueMainContent(props: Props)
 
         <div className="flex items-start gap-3">
         <CompletionCheckbox issue={issue} disabled={isArchived || !isEditable} update={data => issueOperations.update(workspaceSlug, projectId, issue.id, data)} />
-        <div className={getStateById(issue.state_id)?.group === "completed" ? "min-w-0 flex-1 line-through opacity-60" : "min-w-0 flex-1"}>
+        <div className={isCompletionState(getStateById(issue.state_id)) ? "min-w-0 flex-1 line-through opacity-60" : "min-w-0 flex-1"}>
         <IssueTitleInput
           workspaceSlug={workspaceSlug}
           projectId={issue.project_id}
