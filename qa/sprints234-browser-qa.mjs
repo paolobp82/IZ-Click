@@ -247,7 +247,7 @@ try {
     const other = list.find(state => state.name === "Pendiente de información");
     await catalogue.getByRole("button", { name: "Editar estado general Recibida", exact: true }).click();
     await catalogue.getByLabel("Nombre", { exact: true }).fill("Recibida QA editable");
-    await catalogue.getByLabel("Color", { exact: true }).fill("#123456");
+    await catalogue.getByLabel("Código hexadecimal del color", { exact: true }).fill("#123456");
     await clickAndSave(catalogue.getByRole("button", { name: "Guardar cambios", exact: true }), `/${received.id}/`);
     await page.reload(); await row().waitFor();
     await page.getByRole("button", { name: "Estados", exact: true }).click();

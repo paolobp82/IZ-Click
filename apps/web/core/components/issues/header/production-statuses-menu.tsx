@@ -61,6 +61,7 @@ export function ProductionStatusesMenu() {
     if (!canManage || saving) return;
     setError("");
     if (!values.name.trim()) { setError("Escribe un nombre para el estado."); return; }
+    if (!/^#[0-9a-fA-F]{6}$/.test(values.color)) { setError("Escribe un color válido, por ejemplo #123456."); return; }
     setSaving(true);
     try {
       if (editing) await service.update(workspaceSlug, editing, values);
@@ -175,7 +176,7 @@ export function ProductionStatusesMenu() {
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <label className="text-xs">Color
-                    <input type="color" value={values.color}
+                    <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(values.color) ? values.color : "#64748b"}
                       onChange={(e) => setValues((v) => ({ ...v, color: e.target.value }))}
                       className="mt-1 h-8 w-full rounded border border-subtle bg-surface-1" />
                   </label>
@@ -187,6 +188,11 @@ export function ProductionStatusesMenu() {
                   </label>
                 </div>
               </div>
+              <label className="mt-2 block text-xs">Código hexadecimal del color
+                <input value={values.color} maxLength={7} placeholder="#123456"
+                  onChange={event => setValues(current => ({ ...current, color: event.target.value }))}
+                  className="mt-1 h-8 w-full rounded border border-subtle bg-surface-1 px-2" />
+              </label>
               <div className="mt-3 flex items-center gap-3">
                 <button type="button" disabled={saving} onClick={() => void save()}
                   className="rounded bg-custom-primary-100 px-3 py-2 text-xs text-white disabled:opacity-50">
