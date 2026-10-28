@@ -20,11 +20,11 @@ let inspectingUpload = false;
 page.on("response", async response => {
   if (!inspectingUpload) return;
   const pathname = new URL(response.url()).pathname;
-  if (!pathname.includes("/assets/v2/") && !pathname.includes("/qa-uploads/")) return;
+  if (!pathname.includes("/assets/v2/") && !pathname.includes("/qa-uploads")) return;
   const entry = { origin: new URL(response.url()).origin, path: pathname, method: response.request().method(), status: response.status() };
-  if (response.request().method() === "POST" && pathname.includes("/assets/v2/") && response.ok()) {
-    const payload = await response.json();
-    if (payload.upload_data?.url) entry.storageOrigin = new URL(payload.upload_data.url).origin;
+  if (response.request().method() === "POST" && pathname.includes("/assets/v2/") && response.status() === 200) {
+    const payload = await response.json().catch(() => null);
+    if (payload?.upload_data?.url) entry.storageOrigin = new URL(payload.upload_data.url).origin;
   }
   if (!response.ok()) entry.error = (await response.text().catch(() => "Unavailable")).slice(0, 1800);
   uploadNetwork.push(entry);
