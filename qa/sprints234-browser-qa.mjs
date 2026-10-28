@@ -15,6 +15,19 @@ const results = [];
 const errors = [];
 let detail = "setup";
 const runtime = [];
+const uploadNetwork = [];
+let inspectingUpload = false;
+page.on("response", async response => {
+  if (!inspectingUpload) return;
+  const pathname = new URL(response.url()).pathname;
+  if (!pathname.includes("/assets/v2/") && !pathname.includes("/qa-uploads/")) return;
+  const entry = { path: pathname, method: response.request().method(), status: response.status() };
+  if (!response.ok()) entry.error = (await response.text().catch(() => "Unavailable")).slice(0, 1800);
+  uploadNetwork.push(entry);
+});
+page.on("requestfailed", request => {
+  if (inspectingUpload) uploadNetwork.push({ path: new URL(request.url()).pathname, failed: request.failure()?.errorText });
+});
 page.on("pageerror", error => runtime.push(String(error)));
 const request = async (method, url, data) => {
   const res = await context.request[method](base + url, { data });
@@ -227,6 +240,7 @@ try {
     const composer = page.locator("[data-izclick-chat-composer]");
     await composer.waitFor();
     const files = JSON.parse(fs.readFileSync("qa/upload-documents-fixture.json", "utf8"));
+    inspectingUpload = true;
     const [chooser] = await Promise.all([
       page.waitForEvent("filechooser"),
       composer.getByRole("button", { name: "Adjuntar archivos al comentario", exact: true }).click(),
@@ -255,6 +269,7 @@ try {
       assert.deepEqual(await response.body(), Buffer.from(file.base64, "base64"));
     }
     await page.screenshot({ path: "qa/artifacts/izclick-comment-documents.png" });
+    inspectingUpload = false;
   });
   await step("Twenty catalogue states keep five segments and independent editable colors", async () => {
     await page.goto(route); await row().waitFor();
@@ -318,6 +333,6 @@ try {
   if (childBefore) await request("patch", `${api}/issues/${childBefore.id}/`, { state_id: childBefore.state_id }).catch(() => {});
   if (initial) await request("patch", `${api}/issues/${f.issue_id}/`, { state_id: initial.state_id }).catch(() => {});
   if (createdIssue) await request("delete", `${api}/issues/${createdIssue.id}/`).catch(() => {});
-  fs.writeFileSync("qa/artifacts/sprints234-results.json", JSON.stringify({ syntheticOnly: true, results, errors, runtime }, null, 2));
+  fs.writeFileSync("qa/artifacts/sprints234-results.json", JSON.stringify({ syntheticOnly: true, results, errors, runtime, uploadNetwork }, null, 2));
   await browser.close();
 }

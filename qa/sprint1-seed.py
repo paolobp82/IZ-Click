@@ -20,7 +20,7 @@ s3 = boto3.client('s3', endpoint_url=os.environ['AWS_S3_ENDPOINT_URL'],
                   aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'], region_name='us-east-1')
 bucket = os.environ['AWS_S3_BUCKET_NAME']
 s3.create_bucket(Bucket=bucket)
-s3.put_bucket_cors(Bucket=bucket, CORSConfiguration={'CORSRules': [{'AllowedMethods': ['GET'],
+s3.put_bucket_cors(Bucket=bucket, CORSConfiguration={'CORSRules': [{'AllowedMethods': ['GET', 'HEAD', 'POST'],
     'AllowedOrigins': ['http://127.0.0.1:38080'], 'AllowedHeaders': ['*']}]})
 png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9S0AAAAASUVORK5CYII=')
 for name, content, kind in [('Montaje-QA.png', png, 'image/png'),
