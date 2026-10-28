@@ -14,11 +14,11 @@ import subprocess
 import time
 
 ROOT = Path('/opt/iz-click/plane-app')
-REVISION = '9fe8324a9c2e3d927b54056513be52ba5c0684d4'
+REVISION = '52b8909d2e6e0559dd12bcca5f2251418ca08a9f'
 BASE_API = 'ghcr.io/paolobp82/izclick-api@sha256:34958845a91dd29e09cb70a26b57f9389b0a6084520100cfa9007c3bc81a1f09'
 BASE_WEB = 'ghcr.io/paolobp82/izclick-web@sha256:35df3bc5afe62e305b7c0929e19c28e79d73bf321eea051107e7ec8bc94fced2'
-API = 'ghcr.io/paolobp82/izclick-api@sha256:f1a1e1cfb94d4b524dd63d2d279357812c58dd59b327c8470cc319a7173fcb54'
-WEB = 'ghcr.io/paolobp82/izclick-web@sha256:a3ebde7c919876d31cb92f6902ee0f13c4433d304bf596cdf22cbff5ae7f5d77'
+API = 'ghcr.io/paolobp82/izclick-api@sha256:bba165ee2439f6cf0659ff82da9cb335702fbbbdb002b2cf3de442d30aba95e5'
+WEB = 'ghcr.io/paolobp82/izclick-web@sha256:edc318f43e01b4aed858a1192d8e8736c48ee54955d2b144b651b0985dab71ca'
 BASELINES = (
     (BASE_API, BASE_WEB),
     ('ghcr.io/paolobp82/izclick-api@sha256:670399dcf3f2b82e3e0fabff8751a41aa8b4b9eeac4514aef6125746a0895e6b',
@@ -27,6 +27,13 @@ BASELINES = (
      'ghcr.io/paolobp82/izclick-web@sha256:56fe22efb6f5a15ecba23f92ee22704ef4764624202eeb38a82c13673bacc174'),
     ('ghcr.io/paolobp82/izclick-api@sha256:5f782ab1558376ca3b6a046b35e8856c1d9c3d95d7f86b08f535c1a1456a04ec',
      'ghcr.io/paolobp82/izclick-web@sha256:fa3d05efdc532be69571b345509c766dea5e519d5241d500623899634ad80eca'),
+    # API/worker retained while the administrator applied the later Web-only fixes.
+    ('ghcr.io/paolobp82/izclick-api@sha256:7ee89ac934d2ff71e793d47fe4d94fcb995ef1749cb6d3391599e1b2aaa04779',
+     'ghcr.io/paolobp82/izclick-web@sha256:d6ce0a61e62de45b477fcfb1ae713ad0f6e2caf843968d711f7c1348c20de1ca'),
+    ('ghcr.io/paolobp82/izclick-api@sha256:7ee89ac934d2ff71e793d47fe4d94fcb995ef1749cb6d3391599e1b2aaa04779',
+     'ghcr.io/paolobp82/izclick-web@sha256:8e36eed1f2f7525ceb58f6aef8b9a7900670b064bd46b83c7cd1a6e7ab7f5fd5'),
+    ('ghcr.io/paolobp82/izclick-api@sha256:7ee89ac934d2ff71e793d47fe4d94fcb995ef1749cb6d3391599e1b2aaa04779',
+     'ghcr.io/paolobp82/izclick-web@sha256:fc24a5b66f489552e862dfc1f6983e8112520649a9ea9c2bf1c72cba67ab220d'),
 )
 SERVICES = ('api', 'worker', 'web')
 
@@ -202,6 +209,7 @@ def apply(args):
             baseline_found = True
             break
     if not baseline_found:
+        report('baseline_unrecognized', services={name: {'image_id': row['Image'], 'image_ref': row['Config'].get('Image'), 'revision': row['Config'].get('Labels', {}).get('org.opencontainers.image.revision')} for name, row in containers.items()}, production_unchanged=True)
         raise RuntimeError('API/Web/worker baseline changed or mixed; no deployment')
     labels = containers['api']['Config']['Labels']
     project = labels['com.docker.compose.project']

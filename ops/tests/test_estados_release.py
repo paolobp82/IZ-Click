@@ -207,10 +207,17 @@ class ReleaseTests(unittest.TestCase):
     def test_unreviewed_baseline_stops_before_pull_or_compose(self):
         with patch.object(release, 'inspect', return_value=container()), \
              patch.object(release, 'image_info', return_value={'Id': 'different'}), \
-             patch.object(release, 'run') as run:
+             patch.object(release, 'report') as report, patch.object(release, 'run') as run:
             with self.assertRaisesRegex(RuntimeError, 'baseline changed'):
-                release.apply(SimpleNamespace(apply=True, expected_worker_image='sha256:old'))
+                release.apply(SimpleNamespace(apply=True))
             run.assert_not_called()
+            report.assert_called_once()
+            check = report.call_args
+            self.assertEqual(check.args[0], 'baseline_unrecognized')
+            self.assertTrue(check.kwargs['production_unchanged'])
+            for metadata in check.kwargs['services'].values():
+                self.assertEqual(set(metadata), {'image_id', 'image_ref', 'revision'})
+            self.assertNotIn('PASSWORD', json.dumps(check.kwargs))
 
     def test_http_requires_three_consecutive_successes(self):
         with patch.object(release, 'http_ok', side_effect=[True, True, False, True, True, True, True, True, True, True]), \
