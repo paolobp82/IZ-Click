@@ -106,6 +106,10 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
 
   const attachFiles = async (files: File[]) => {
     if (uploadingFileRef.current || submittingRef.current || files.length === 0) return;
+    if (!editorRef.current?.isEditorReadyToDiscard()) {
+      setFileError("Espera a que el editor termine de cargar o subir archivos e inténtalo de nuevo.");
+      return;
+    }
     if (files.some(file => file.size > maxFileSize)) {
       setFileError(`Cada archivo debe pesar como máximo ${Math.round(maxFileSize / 1024 / 1024)} MB.`);
       return;
@@ -113,6 +117,7 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
     uploadingFileRef.current = true;
     setUploadingFile(true); setFileError("");
     try {
+      // The native upload service shares its cancellation handle; keep uploads ordered.
       for (const file of files) {
         const { asset_id } = await activityOperations.uploadCommentAsset(crypto.randomUUID(), file);
         uploadedAssetIdsRef.current.push(asset_id);

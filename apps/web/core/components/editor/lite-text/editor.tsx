@@ -188,7 +188,7 @@ export const LiteTextEditor = React.forwardRef(function LiteTextEditor(
               });
             }}
             onSubmit={(e) => rest.onEnterKeyPress?.(e)}
-            isSubmitting={isSubmitting}
+            isSubmitting={isSubmitting || !editorRef}
             isEmpty={isEmpty}
           />
         )}
