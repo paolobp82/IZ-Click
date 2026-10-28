@@ -6,6 +6,8 @@ on:
       - 'ops/tests/test_sprint1_release.py'
       - 'ops/izclick-sprints234-release.py'
       - 'ops/tests/test_sprints234_release.py'
+      - 'ops/izclick-estados-release.py'
+      - 'ops/tests/test_estados_release.py'
       - '.github/workflows/izclick-sprint1-release-checks.yml'
 permissions:
   contents: read
@@ -21,3 +23,6 @@ jobs:
 
           python3 -m py_compile ops/izclick-sprints234-release.py
           python3 -m unittest discover -s ops/tests -p test_sprints234_release.py -v
+
+          python3 -m py_compile ops/izclick-estados-release.py
+          python3 -m unittest discover -s ops/tests -p test_estados_release.py -v
