@@ -21,6 +21,9 @@ export class ProductionStatusesService extends APIService {
   async list(slug: string): Promise<WorkspaceProductionStatus[]> {
     return this.get(this.endpoint(slug)).then((result) => result.data);
   }
+  async installPreset(slug: string): Promise<{ created: number }> {
+    return this.post(this.endpoint(slug), { preset: "izango-20261028" }).then(result => result.data);
+  }
   async create(slug: string, data: StatusValues): Promise<WorkspaceProductionStatus> {
     return this.post(this.endpoint(slug), data).then((result) => result.data);
   }

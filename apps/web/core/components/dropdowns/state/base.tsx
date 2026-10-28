@@ -6,6 +6,7 @@
 
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
+import { PRODUCTION_STATE_SEGMENTS } from "@/app/lib/izclick/production-state-presets";
 import { observer } from "mobx-react";
 import { usePopper } from "react-popper";
 import { Combobox } from "@headlessui/react";
@@ -240,15 +241,19 @@ export const WorkItemStateDropdownBase = observer(function WorkItemStateDropdown
             <div className="mt-2 max-h-48 space-y-1 overflow-y-scroll">
               {filteredOptions ? (
                 filteredOptions.length > 0 ? (
-                  filteredOptions.map((option) => (
-                    <StateOption
-                      {...props}
-                      key={option.value}
-                      option={option}
-                      selectedValue={value}
-                      className="flex w-full cursor-pointer items-center justify-between gap-2 truncate rounded-sm px-1 py-1.5 select-none"
-                    />
-                  ))
+                  PRODUCTION_STATE_SEGMENTS.map(segment => {
+                    const entries = filteredOptions.filter(option => getStateById(option.value)?.group === segment.value);
+                    return entries.length > 0 ? <div key={segment.value} role="group" aria-label={`Segmento ${segment.label}`}>
+                      <p className="px-1 py-2 text-10 font-semibold uppercase text-tertiary">{segment.label}</p>
+                      {entries.map(option => <StateOption
+                        {...props}
+                        key={option.value}
+                        option={option}
+                        selectedValue={value}
+                        className="flex w-full cursor-pointer items-center justify-between gap-2 truncate rounded-sm px-1 py-1.5 select-none"
+                      />)}
+                    </div> : null;
+                  })
                 ) : (
                   <p className="px-1.5 py-1 text-placeholder italic">{t("no_matching_results")}</p>
                 )

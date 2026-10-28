@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Recibida",
+    "group": "backlog",
+    "color": "#64748b",
+    "sequence": 100
+  },
+  {
+    "name": "Pendiente de información",
+    "group": "backlog",
+    "color": "#f59e0b",
+    "sequence": 200
+  },
+  {
+    "name": "Pendiente de aprobación comercial",
+    "group": "backlog",
+    "color": "#eab308",
+    "sequence": 300
+  },
+  {
+    "name": "Esperando respuesta del cliente",
+    "group": "backlog",
+    "color": "#a855f7",
+    "sequence": 400
+  },
+  {
+    "name": "Pausado",
+    "group": "backlog",
+    "color": "#94a3b8",
+    "sequence": 500
+  },
+  {
+    "name": "Por cotizar",
+    "group": "unstarted",
+    "color": "#fb923c",
+    "sequence": 600
+  },
+  {
+    "name": "Por iniciar proyecto",
+    "group": "unstarted",
+    "color": "#0ea5e9",
+    "sequence": 700
+  },
+  {
+    "name": "En cotización",
+    "group": "started",
+    "color": "#eab308",
+    "sequence": 800
+  },
+  {
+    "name": "En revisión PM",
+    "group": "started",
+    "color": "#8b5cf6",
+    "sequence": 900
+  },
+  {
+    "name": "Ajustes en cotización",
+    "group": "started",
+    "color": "#f97316",
+    "sequence": 1000
+  },
+  {
+    "name": "Cotización aprobada",
+    "group": "started",
+    "color": "#14b8a6",
+    "sequence": 1100
+  },
+  {
+    "name": "En planificación",
+    "group": "started",
+    "color": "#3b82f6",
+    "sequence": 1200
+  },
+  {
+    "name": "En producción",
+    "group": "started",
+    "color": "#6366f1",
+    "sequence": 1300
+  },
+  {
+    "name": "Listo para ejecutar",
+    "group": "started",
+    "color": "#06b6d4",
+    "sequence": 1400
+  },
+  {
+    "name": "En ejecución",
+    "group": "started",
+    "color": "#10b981",
+    "sequence": 1500
+  },
+  {
+    "name": "En cierre",
+    "group": "started",
+    "color": "#84cc16",
+    "sequence": 1600
+  },
+  {
+    "name": "Completado",
+    "group": "completed",
+    "color": "#22c55e",
+    "sequence": 1700
+  },
+  {
+    "name": "Rechazado",
+    "group": "cancelled",
+    "color": "#ef4444",
+    "sequence": 1800
+  },
+  {
+    "name": "Rechazado fuera de tiempo",
+    "group": "cancelled",
+    "color": "#e11d48",
+    "sequence": 1900
+  },
+  {
+    "name": "Cancelado",
+    "group": "cancelled",
+    "color": "#dc2626",
+    "sequence": 2000
+  }
+]

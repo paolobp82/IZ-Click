@@ -12,3 +12,6 @@ COPY apps/api/plane/api/tests/test_izclick_custom_field_validation.py /code/plan
 COPY apps/api/plane/api/tests/test_izclick_custom_field_schema.py /code/plane/api/tests/test_izclick_custom_field_schema.py
 COPY apps/api/plane/api/tests/test_izclick_custom_field_endpoints.py /code/plane/api/tests/test_izclick_custom_field_endpoints.py
 RUN python -m compileall -q /code/plane/api/views/izclick_custom_fields.py /code/plane/api/views/izclick_state_retirement.py /code/plane/utils/izclick_state_retirement.py /code/plane/app/views/workspace/izclick_production_status.py
+
+COPY apps/api/plane/utils/izclick_workflow_preset.py /code/plane/utils/izclick_workflow_preset.py
+COPY apps/web/app/lib/izclick/production-workflow-presets.json /code/plane/utils/izclick_workflow_presets.json

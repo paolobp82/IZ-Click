@@ -220,6 +220,56 @@ try {
     assert.deepEqual(await composer.boundingBox(), before);
     await page.screenshot({ path: "qa/artifacts/sprint4-chat.png" });
   });
+  await step("Twenty catalogue states keep five segments and independent editable colors", async () => {
+    await page.goto(route); await row().waitFor();
+    await page.getByRole("button", { name: "Estados", exact: true }).click();
+    const catalogue = page.getByRole("dialog", { name: "Estados generales de Producción", exact: true });
+    const endpoint = `/api/workspaces/${f.workspace}/izclick-production-statuses/`;
+    const load = async () => {
+      const [response] = await Promise.all([
+        page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith(endpoint)),
+        catalogue.getByRole("button", { name: "Cargar los 20 estados de Izango", exact: true }).click(),
+      ]);
+      assert.ok(response.ok(), await response.text());
+      return response.json();
+    };
+    await load();
+    await catalogue.getByText(/Se agregaron/).waitFor();
+    const list = await request("get", endpoint);
+    const expected = JSON.parse(fs.readFileSync("apps/web/app/lib/izclick/production-workflow-presets.json", "utf8"));
+    for (const preset of expected) {
+      assert.equal(list.filter(state => state.name === preset.name && state.group === preset.group).length, 1);
+    }
+    for (const label of ["Pendiente", "Por hacer", "En progreso", "Completado", "Cancelado"]) {
+      assert.equal(await catalogue.getByRole("region", { name: `Segmento ${label}`, exact: true }).count(), 1);
+    }
+    const received = list.find(state => state.name === "Recibida");
+    const other = list.find(state => state.name === "Pendiente de información");
+    await catalogue.getByRole("button", { name: "Editar estado general Recibida", exact: true }).click();
+    await catalogue.getByLabel("Nombre", { exact: true }).fill("Recibida QA editable");
+    await catalogue.getByLabel("Color", { exact: true }).fill("#123456");
+    await clickAndSave(catalogue.getByRole("button", { name: "Guardar cambios", exact: true }), `/${received.id}/`);
+    await page.reload(); await row().waitFor();
+    await page.getByRole("button", { name: "Estados", exact: true }).click();
+    await catalogue.getByRole("button", { name: "Editar estado general Recibida QA editable", exact: true }).click();
+    assert.equal(await catalogue.getByLabel("Color", { exact: true }).inputValue(), "#123456");
+    await catalogue.getByLabel("Nombre", { exact: true }).fill("Recibida");
+    await clickAndSave(catalogue.getByRole("button", { name: "Guardar cambios", exact: true }), `/${received.id}/`);
+    const beforeRepeat = await request("get", endpoint);
+    assert.equal(beforeRepeat.find(state => state.id === other.id).color, other.color);
+    assert.equal((await load()).created, 0);
+    const afterRepeat = await request("get", endpoint);
+    assert.equal(afterRepeat.find(state => state.id === received.id).color, "#123456");
+    assert.equal(afterRepeat.length, beforeRepeat.length);
+    assert.deepEqual(afterRepeat.map(state => state.id).sort(), beforeRepeat.map(state => state.id).sort());
+    await catalogue.getByText(/Se agregaron 0 estados/).waitFor();
+    await page.screenshot({ path: "qa/artifacts/izclick-workflow-segments.png" });
+    await catalogue.getByRole("button", { name: "Cerrar", exact: true }).click();
+    await row().locator('[data-izclick-cell="state"]').getByRole("button").first().click();
+    await page.getByRole("group", { name: "Segmento En progreso", exact: true }).waitFor();
+    await page.screenshot({ path: "qa/artifacts/izclick-workflow-picker.png" });
+    await page.keyboard.press("Escape");
+  });
   assert.deepEqual(runtime, [], "No browser runtime errors");
 } catch (error) {
   errors.push(`${detail}: ${String(error)}`);

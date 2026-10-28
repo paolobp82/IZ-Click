@@ -20,6 +20,7 @@ from plane.db.models import (
 )
 
 from plane.utils.izclick_workflow import validate_status_fields
+from plane.utils.izclick_workflow_preset import install_workflow_preset
 
 
 def serialize_status(entry):
@@ -48,8 +49,16 @@ class WorkspaceProductionStatusesEndpoint(BaseAPIView):
         ).annotate(project_count=Count("project_bindings")).order_by("sequence", "created_at")
         return Response([serialize_status(row) for row in catalog], status=status.HTTP_200_OK)
 
+    @invalidate_cache(path="workspaces/:slug/states/", url_params=True, user=False)
     @allow_permission([ROLE.ADMIN], level="WORKSPACE")
     def post(self, request, slug):
+        if request.data.get("preset") == "izango-20261028":
+            try:
+                created = install_workflow_preset(slug, request.user)
+            except (ValueError, IntegrityError) as error:
+                message = str(error) if isinstance(error, ValueError) else "Conflicto de estados. No se cambió el catálogo."
+                return Response({"error": message}, status=409)
+            return Response({"created": created}, status=200)
         fields, error = validate_status_fields(request.data)
         if error:
             return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)

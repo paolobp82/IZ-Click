@@ -5,6 +5,8 @@ import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 import { useProjectState } from "@/hooks/store/use-project-state";
 
+import { segmentProductionStates } from "@/app/lib/izclick/production-state-presets";
+
 const STATE_COLORS = ["#64748b", "#eab308", "#f97316", "#3b82f6", "#8b5cf6", "#22c55e", "#ef4444", "#ec4899"];
 type StateGroup = "backlog" | "unstarted" | "started" | "completed" | "cancelled";
 
@@ -128,7 +130,7 @@ export const ProductionStateManager = observer(function ProductionStateManager({
           {editingId === null ? (
             <span className="block">
               <span className="block max-h-52 overflow-y-auto">
-                {states.map((state) => (
+                {segmentProductionStates(states).map(segment => <span key={segment.value} className="block" role="group" aria-label={`Segmento ${segment.label}`}><span className="block px-2 py-2 font-semibold uppercase">{segment.label}</span>{segment.states.map((state) => (
                   <span key={state.id} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-layer-1-hover">
                     <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: state.color }} />
                     <span className="min-w-0 flex-1 truncate" title={state.name}>{state.name}</span>
@@ -137,7 +139,7 @@ export const ProductionStateManager = observer(function ProductionStateManager({
                     <button type="button" aria-label={`Eliminar estado ${state.name}`} onClick={() => startEdit(state)}
                       className="shrink-0 text-red-500 underline">Eliminar</button>
                   </span>
-                ))}
+                ))}</span>)}
               </span>
               <button type="button" className="mt-2 w-full rounded border border-subtle p-2 text-left hover:bg-layer-1-hover"
                 onClick={startNew}>+ Crear estado</button>

@@ -145,3 +145,87 @@ class Sprints234Tests(TestCase):
         mapping = self.request(IzclickCommercialAssignmentsAPI, self.reader, method="get")
         self.assertEqual(mapping.status_code, 200)
         self.assertEqual(mapping.data, {})
+
+
+@override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
+class WorkflowPresetTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        from plane.db.models import WorkspaceMember
+        cls.admin = User.objects.create(username="preset-admin", email="preset-admin@example.invalid")
+        cls.member = User.objects.create(username="preset-member", email="preset-member@example.invalid")
+        cls.workspace = Workspace.objects.create(name="Preset QA", slug="preset-qa", owner=cls.admin)
+        for user, role in [(cls.admin, 20), (cls.member, 15)]:
+            WorkspaceMember.objects.create(workspace=cls.workspace, member=user, role=role, is_active=True)
+        cls.project = Project.objects.create(name="Preset Project", identifier="PRE", workspace=cls.workspace)
+
+    def post_preset(self, actor=None):
+        from plane.app.views.workspace.izclick_production_status import WorkspaceProductionStatusesEndpoint
+        url = f"/api/workspaces/{self.workspace.slug}/izclick-production-statuses/"
+        request = APIRequestFactory().post(url, data={"preset": "izango-20261028"}, format="json")
+        request.resolver_match = resolve(url)
+        if actor:
+            force_authenticate(request, user=actor)
+        return WorkspaceProductionStatusesEndpoint.as_view()(request, slug=self.workspace.slug)
+
+    def test_twenty_states_five_segments_and_repeat_without_duplicates(self):
+        from collections import Counter
+        from plane.db.models import IzClickProductionStatus, IzClickProductionStatusBinding
+        result = self.post_preset(self.admin)
+        self.assertEqual(result.status_code, 200, result.data)
+        self.assertEqual(result.data["created"], 20)
+        self.assertEqual(Counter(IzClickProductionStatus.objects.values_list("group", flat=True)), {"backlog": 5, "unstarted": 2, "started": 9, "completed": 1, "cancelled": 3})
+        ids = set(State.objects.filter(project=self.project).values_list("id", flat=True))
+        self.assertEqual(self.post_preset(self.admin).data["created"], 0)
+        self.assertEqual(set(State.objects.filter(project=self.project).values_list("id", flat=True)), ids)
+        self.assertEqual(IzClickProductionStatusBinding.objects.count(), 20)
+
+    def test_adopts_existing_native_state_preserving_color_identity_and_tasks(self):
+        from plane.db.models import IzClickProductionStatus
+        state = State.objects.create(project=self.project, workspace=self.workspace, name="POR COTIZAR", group="backlog", color="#123456", default=True)
+        issue = Issue.objects.create(project=self.project, workspace=self.workspace, name="Conservar tarea", state=state)
+        self.assertEqual(self.post_preset(self.admin).status_code, 200)
+        state.refresh_from_db(); issue.refresh_from_db()
+        self.assertEqual((state.name, state.color, state.group, state.default), ("POR COTIZAR", "#123456", "unstarted", True))
+        self.assertEqual(issue.state_id, state.pk)
+        self.assertEqual(IzClickProductionStatus.objects.get(name="Por cotizar").color, "#123456")
+
+    def test_edited_catalogue_colors_and_names_survive_repeat(self):
+        from plane.db.models import IzClickProductionStatus
+        self.post_preset(self.admin)
+        entry = IzClickProductionStatus.objects.get(name="Recibida")
+        entry.name = "RECIBIDA"
+        entry.color = "#123abc"
+        entry.save()
+        untouched = IzClickProductionStatus.objects.get(name="Pausado")
+        self.assertEqual(self.post_preset(self.admin).data["created"], 0)
+        entry.refresh_from_db(); untouched.refresh_from_db()
+        self.assertEqual((entry.name, entry.color), ("RECIBIDA", "#123abc"))
+        self.assertNotEqual(untouched.color, entry.color)
+
+    def test_conflicting_binding_rolls_back_entire_catalogue(self):
+        from plane.db.models import IzClickProductionStatus, IzClickProductionStatusBinding
+        entry = IzClickProductionStatus.objects.create(workspace=self.workspace, name="Otro catálogo", group="cancelled")
+        state = State.objects.create(project=self.project, workspace=self.workspace, name="Cancelado", group="cancelled")
+        IzClickProductionStatusBinding.objects.create(status=entry, project=self.project, plane_state=state)
+        baseline = set(State.objects.filter(project=self.project).values_list("id", flat=True))
+        result = self.post_preset(self.admin)
+        self.assertEqual(result.status_code, 409, result.data)
+        self.assertEqual(IzClickProductionStatus.objects.count(), 1)
+        self.assertEqual(set(State.objects.filter(project=self.project).values_list("id", flat=True)), baseline)
+
+    def test_segment_change_keeps_completion_timestamp_consistent(self):
+        pending = State.objects.create(project=self.project, workspace=self.workspace, name="Por cotizar", group="completed")
+        completed = State.objects.create(project=self.project, workspace=self.workspace, name="Completado", group="started")
+        a = Issue.objects.create(project=self.project, workspace=self.workspace, name="Pendiente", state=pending)
+        b = Issue.objects.create(project=self.project, workspace=self.workspace, name="Culminada", state=completed)
+        self.assertEqual(self.post_preset(self.admin).status_code, 200)
+        a.refresh_from_db(); b.refresh_from_db()
+        self.assertEqual(a.state_id, pending.pk); self.assertEqual(b.state_id, completed.pk)
+        self.assertIsNone(a.completed_at); self.assertIsNotNone(b.completed_at)
+
+    def test_members_and_anonymous_cannot_install(self):
+        from plane.db.models import IzClickProductionStatus
+        self.assertEqual(self.post_preset(self.member).status_code, 403)
+        self.assertIn(self.post_preset().status_code, (401, 403))
+        self.assertFalse(IzClickProductionStatus.objects.exists())

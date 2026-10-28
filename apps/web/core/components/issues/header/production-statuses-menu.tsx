@@ -6,13 +6,8 @@ import type { WorkspaceProductionStatus, StatusValues } from "@/services/project
 import { useUserPermissions } from "@/hooks/store/user";
 import { useProjectState } from "@/hooks/store/use-project-state";
 
-const STATUS_GROUPS: readonly { value: StatusValues["group"]; label: string }[] = [
-  { value: "backlog", label: "Pendiente" },
-  { value: "unstarted", label: "Por iniciar" },
-  { value: "started", label: "En curso" },
-  { value: "completed", label: "Finalizado" },
-  { value: "cancelled", label: "Cancelado" },
-];
+import { PRODUCTION_STATE_SEGMENTS, segmentProductionStates } from "@/app/lib/izclick/production-state-presets";
+
 const INITIAL: StatusValues = {
   name: "", color: "#64748b", group: "unstarted", sequence: 1000,
 };
@@ -35,6 +30,8 @@ export function ProductionStatusesMenu() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [report, setReport] = useState("");
+  const segments = segmentProductionStates(statuses);
 
   useEffect(() => {
     if (!open || !workspaceSlug) return;
@@ -72,6 +69,20 @@ export function ProductionStatusesMenu() {
     } finally { setSaving(false); }
   };
 
+  const installPreset = async () => {
+    if (!canManage || saving || loading) return;
+    setSaving(true); setError(""); setReport("");
+    try {
+      const result = await service.installPreset(workspaceSlug);
+      setStatuses(await service.list(workspaceSlug));
+      if (projectId) await fetchProjectStates(workspaceSlug, projectId);
+      setReport(`Se agregaron ${result.created} estados. Los colores existentes se conservaron.`);
+    } catch (cause) {
+      const response = cause as { response?: { data?: { error?: string } } };
+      setError(response.response?.data?.error || "No se pudo cargar el catálogo. No se guardaron cambios parciales.");
+    } finally { setSaving(false); }
+  };
+
   const remove = async () => {
     if (!canManage || !retiring || !replacementId || saving) return;
     setSaving(true); setError("");
@@ -103,22 +114,41 @@ export function ProductionStatusesMenu() {
           <p className="mb-3 text-xs text-custom-text-300">
             Un catálogo común para las cargas, sin configurar estados por separado en cada proyecto.
           </p>
+          {canManage && <div className="mb-3 rounded border border-subtle p-2 text-xs">
+            <p className="mb-2">Cargar los 20 estados de Izango en sus cinco segmentos. Conserva nombres y colores existentes; ajusta los segmentos y no reasigna tareas.</p>
+            <button type="button" disabled={saving || loading} onClick={() => void installPreset()} className="rounded border border-subtle px-3 py-2 disabled:opacity-50">
+              {saving ? "Guardando…" : "Cargar los 20 estados de Izango"}
+            </button>
+            {report && <p role="status" className="mt-2">{report}</p>}
+          </div>}
           {loading ? <p role="status" className="text-xs">Consultando estados…</p> : (
             <div className="space-y-1.5">
               {statuses.length === 0 && <p className="text-xs text-custom-text-300">
                 No hay estados en el catálogo general. Los existentes de Plane permanecen intactos.
               </p>}
-              {statuses.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between rounded border border-subtle px-3 py-2 text-xs">
-                  <span className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                    {entry.name}
-                  </span>
-                  {canManage && <span className="flex gap-2"><button type="button" className="underline" onClick={() => edit(entry)}>Editar</button><button type="button" className="text-red-500 underline" onClick={() => { setRetiring(entry.id); setReplacementId(""); setError(""); }}>Eliminar</button></span>}
-                </div>
+              {segments.map(segment => (
+                <section key={segment.value} aria-label={`Segmento ${segment.label}`} className="border-b border-subtle pb-3 pt-2 last:border-0">
+                  <h3 className="mb-2 flex justify-between text-xs font-semibold uppercase">
+                    {segment.label}<span>{segment.states.length}</span>
+                  </h3>
+                  {segment.states.length === 0 && <p className="text-xs text-custom-text-300">Sin estados en este segmento.</p>}
+                  {segment.states.map(entry => (
+                    <div key={entry.id} data-izclick-catalogue-state={entry.id} className="flex items-center justify-between gap-2 rounded px-2 py-2 text-xs hover:bg-layer-1">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="h-3 w-3 shrink-0 rounded-full" data-izclick-state-color style={{ backgroundColor: entry.color }} />
+                        <span className="break-words">{entry.name}</span>
+                      </span>
+                      {canManage && <span className="flex shrink-0 gap-2">
+                        <button type="button" disabled={saving} aria-label={`Editar estado general ${entry.name}`} className="underline" onClick={() => edit(entry)}>Editar</button>
+                        <button type="button" disabled={saving} aria-label={`Eliminar estado general ${entry.name}`} className="text-red-500 underline" onClick={() => { setRetiring(entry.id); setReplacementId(""); setError(""); }}>Eliminar</button>
+                      </span>}
+                    </div>
+                  ))}
+                </section>
               ))}
             </div>
           )}
+          {error && <p role="alert" className="my-2 text-xs text-red-500">{error}</p>}
           {canManage && retiring && <div className="my-3 space-y-2 rounded border border-subtle p-3 text-xs">
             <p>Eliminar {statuses.find(entry => entry.id === retiring)?.name} de todos los proyectos y mover sus tareas a:</p>
             <select aria-label="Estado general de destino" value={replacementId} onChange={event => setReplacementId(event.target.value)} disabled={saving} className="w-full rounded border border-subtle bg-surface-1 p-2">
@@ -142,15 +172,14 @@ export function ProductionStatusesMenu() {
                       onChange={(e) => setValues((v) => ({ ...v, color: e.target.value }))}
                       className="mt-1 h-8 w-full rounded border border-subtle bg-surface-1" />
                   </label>
-                  <label className="text-xs">Grupo
+                  <label className="text-xs">Segmento
                     <select value={values.group} onChange={(e) => setValues((v) => ({ ...v, group: e.target.value as StatusValues["group"] }))}
                       className="mt-1 h-8 w-full rounded border border-subtle bg-surface-1 px-2">
-                      {STATUS_GROUPS.map((group) => <option key={group.value} value={group.value}>{group.label}</option>)}
+                      {PRODUCTION_STATE_SEGMENTS.map((group) => <option key={group.value} value={group.value}>{group.label}</option>)}
                     </select>
                   </label>
                 </div>
               </div>
-              {error && <p role="alert" className="my-2 text-xs text-red-500">{error}</p>}
               <div className="mt-3 flex items-center gap-3">
                 <button type="button" disabled={saving} onClick={() => void save()}
                   className="rounded bg-custom-primary-100 px-3 py-2 text-xs text-white disabled:opacity-50">
@@ -164,7 +193,6 @@ export function ProductionStatusesMenu() {
           ) : <p className="mt-3 text-xs text-custom-text-300">
             Solo un administrador del espacio puede editar el catálogo.
           </p>}
-          {!canManage && error && <p role="alert" className="mt-2 text-xs text-red-500">{error}</p>}
         </section>
       )}
     </div>
