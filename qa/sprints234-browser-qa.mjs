@@ -21,12 +21,16 @@ page.on("response", async response => {
   if (!inspectingUpload) return;
   const pathname = new URL(response.url()).pathname;
   if (!pathname.includes("/assets/v2/") && !pathname.includes("/qa-uploads/")) return;
-  const entry = { path: pathname, method: response.request().method(), status: response.status() };
+  const entry = { origin: new URL(response.url()).origin, path: pathname, method: response.request().method(), status: response.status() };
+  if (response.request().method() === "POST" && pathname.includes("/assets/v2/") && response.ok()) {
+    const payload = await response.json();
+    if (payload.upload_data?.url) entry.storageOrigin = new URL(payload.upload_data.url).origin;
+  }
   if (!response.ok()) entry.error = (await response.text().catch(() => "Unavailable")).slice(0, 1800);
   uploadNetwork.push(entry);
 });
 page.on("requestfailed", request => {
-  if (inspectingUpload) uploadNetwork.push({ path: new URL(request.url()).pathname, failed: request.failure()?.errorText });
+  if (inspectingUpload) uploadNetwork.push({ origin: new URL(request.url()).origin, path: new URL(request.url()).pathname, failed: request.failure()?.errorText });
 });
 page.on("pageerror", error => runtime.push(String(error)));
 const request = async (method, url, data) => {
