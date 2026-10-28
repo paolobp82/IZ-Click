@@ -382,3 +382,52 @@ class WorkflowPresetTests(TestCase):
         self.assertEqual(self.post_preset(self.member).status_code, 403)
         self.assertIn(self.post_preset().status_code, (401, 403))
         self.assertFalse(IzClickProductionStatus.objects.exists())
+
+
+@override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
+class CommentDocumentUploadTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        from plane.db.models import WorkspaceMember
+        cls.user = User.objects.create(username="files-admin", email="files-admin@example.invalid")
+        cls.outsider = User.objects.create(username="files-outside", email="files-outside@example.invalid")
+        cls.workspace = Workspace.objects.create(name="Files QA", slug="files-qa", owner=cls.user)
+        cls.project = Project.objects.create(name="Files Project", identifier="FIL", workspace=cls.workspace)
+        WorkspaceMember.objects.create(workspace=cls.workspace, member=cls.user, role=20, is_active=True)
+        ProjectMember.objects.create(workspace=cls.workspace, project=cls.project, member=cls.user, role=20, is_active=True)
+
+    def upload(self, mime, entity="COMMENT_DESCRIPTION", actor=None, workspace=False):
+        from plane.app.views.asset.v2 import ProjectAssetEndpoint, WorkspaceFileAssetEndpoint
+        path = f"/api/assets/v2/workspaces/{self.workspace.slug}/" + ("" if workspace else f"projects/{self.project.pk}/")
+        request = APIRequestFactory().post(path, data={"name": "Documento QA", "type": mime, "size": 100, "entity_type": entity, "entity_identifier": ""}, format="json")
+        request.resolver_match = resolve(path)
+        force_authenticate(request, user=actor or self.user)
+        with patch("plane.app.views.asset.v2.S3Storage") as storage:
+            storage.return_value.generate_presigned_post.return_value = {"url": "https://storage.invalid", "fields": {}}
+            return (WorkspaceFileAssetEndpoint if workspace else ProjectAssetEndpoint).as_view()(request, slug=self.workspace.slug, **({} if workspace else {"project_id": self.project.pk}))
+
+    def test_comment_accepts_documents_and_empty_draft_identifier(self):
+        from plane.db.models import FileAsset
+        types = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "text/plain", "text/csv", "application/zip", "application/octet-stream", "image/png"]
+        for mime in types:
+            with self.subTest(mime=mime):
+                response = self.upload(mime)
+                self.assertEqual(response.status_code, 200, response.data)
+                asset = FileAsset.objects.get(pk=response.data["asset_id"])
+                self.assertEqual(asset.attributes["type"], mime)
+                self.assertIsNone(asset.comment_id)
+                self.assertEqual(asset.project_id, self.project.pk)
+
+    def test_workspace_comment_accepts_document(self):
+        self.assertEqual(self.upload("application/pdf", workspace=True).status_code, 200)
+
+    def test_cover_still_requires_image_and_unknown_types_are_rejected(self):
+        from plane.db.models import FileAsset
+        self.assertEqual(self.upload("application/pdf", entity="PROJECT_COVER").status_code, 400)
+        self.assertEqual(self.upload("application/x-unknown").status_code, 400)
+        self.assertFalse(FileAsset.objects.exists())
+
+    def test_other_project_user_cannot_upload_comment_file(self):
+        from plane.db.models import FileAsset
+        self.assertEqual(self.upload("application/pdf", actor=self.outsider).status_code, 403)
+        self.assertFalse(FileAsset.objects.exists())

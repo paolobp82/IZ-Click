@@ -1,5 +1,5 @@
 # Preserve the installed state-management API, including previous mail/security fixes.
-FROM ghcr.io/paolobp82/izclick-api@sha256:7ee89ac934d2ff71e793d47fe4d94fcb995ef1749cb6d3391599e1b2aaa04779
+FROM ghcr.io/paolobp82/izclick-api@sha256:bba165ee2439f6cf0659ff82da9cb335702fbbbdb002b2cf3de442d30aba95e5
 COPY apps/api/plane/db/models/izclick_custom_field.py /code/plane/db/models/izclick_custom_field.py
 COPY apps/api/plane/api/views/izclick_custom_fields.py /code/plane/api/views/izclick_custom_fields.py
 COPY apps/api/plane/api/views/izclick_state_retirement.py /code/plane/api/views/izclick_state_retirement.py
@@ -15,3 +15,5 @@ RUN python -m compileall -q /code/plane/api/views/izclick_custom_fields.py /code
 
 COPY apps/api/plane/utils/izclick_workflow_preset.py /code/plane/utils/izclick_workflow_preset.py
 COPY apps/web/app/lib/izclick/production-workflow-presets.json /code/plane/utils/izclick_workflow_presets.json
+
+COPY apps/api/plane/app/views/asset/v2.py /code/plane/app/views/asset/v2.py

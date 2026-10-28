@@ -222,6 +222,40 @@ try {
     assert.deepEqual(await composer.boundingBox(), before);
     await page.screenshot({ path: "qa/artifacts/sprint4-chat.png" });
   });
+  await step("The comment paperclip uploads PDF, Word, Excel, ZIP, CSV and text with persistent downloads", async () => {
+    await page.goto(`${route}/${f.issue_id}`);
+    const composer = page.locator("[data-izclick-chat-composer]");
+    await composer.waitFor();
+    const files = JSON.parse(fs.readFileSync("qa/upload-documents-fixture.json", "utf8"));
+    const [chooser] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      composer.getByRole("button", { name: "Adjuntar archivos al comentario", exact: true }).click(),
+    ]);
+    assert.equal(await chooser.element().getAttribute("accept"), null, "The paperclip must not restrict selection to photos");
+    await chooser.setFiles(files.map(file => ({ name: file.name, mimeType: file.mimeType, buffer: Buffer.from(file.base64, "base64") })));
+    for (const file of files) await composer.getByRole("link", { name: file.name, exact: true }).waitFor({ timeout: 45000 });
+    const [posted, associated] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "POST" && response.url().includes("comment")),
+      page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith("/bulk/")),
+      composer.getByRole("button", { name: "Enviar comentario", exact: true }).click(),
+    ]);
+    assert.ok(posted.ok(), await posted.text());
+    assert.ok(associated.ok(), await associated.text());
+    const comment = await posted.json();
+    assert.ok(associated.url().includes(`/${comment.id}/bulk/`), "Files must bind to the saved comment, not the task ID");
+    await page.reload();
+    const feed = page.locator("[data-izclick-chat-feed]");
+    for (const file of files) {
+      const link = feed.getByRole("link", { name: file.name, exact: true });
+      await link.waitFor();
+      const href = await link.getAttribute("href");
+      assert.ok(href?.includes("/download/"));
+      const response = await context.request.get(new URL(href, base).href);
+      assert.ok(response.ok(), `Download failed for ${file.name}`);
+      assert.deepEqual(await response.body(), Buffer.from(file.base64, "base64"));
+    }
+    await page.screenshot({ path: "qa/artifacts/izclick-comment-documents.png" });
+  });
   await step("Twenty catalogue states keep five segments and independent editable colors", async () => {
     await page.goto(route); await row().waitFor();
     await page.getByRole("button", { name: "Estados", exact: true }).click();
