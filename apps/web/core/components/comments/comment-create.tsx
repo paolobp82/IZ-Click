@@ -123,7 +123,7 @@ export const CommentCreate = observer(function CommentCreate(props: TCommentCrea
         uploadedAssetIdsRef.current.push(asset_id);
         const url = getEditorAssetDownloadSrc({ assetId: asset_id, projectId, workspaceSlug });
         if (!url || !editorRef.current) throw new Error("El comentario no está disponible.");
-        editorRef.current.insertText(commentFileLink(file.name, url), true);
+        editorRef.current.setEditorValueAtCursorPosition(commentFileLink(file.name, url));
       }
     } catch {
       setFileError("No se pudo adjuntar el archivo. Tu comentario se conserva; vuelve a intentarlo.");
