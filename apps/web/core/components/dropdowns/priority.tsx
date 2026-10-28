@@ -9,7 +9,8 @@ import { useRef, useState } from "react";
 import { usePopper } from "react-popper";
 import { SignalHigh } from "lucide-react";
 import { Combobox } from "@headlessui/react";
-import { ISSUE_PRIORITIES } from "@plane/constants";
+import { ISSUE_PRIORITIES as NATIVE_ISSUE_PRIORITIES } from "@plane/constants";
+import { PRIORITY_LABELS } from "@/app/lib/izclick/production-labels";
 import { useTranslation } from "@plane/i18n";
 // types
 import { CheckIcon, PriorityIcon, ChevronDownIcon, SearchIcon } from "@plane/propel/icons";
@@ -26,6 +27,8 @@ import { usePlatformOS } from "@/hooks/use-platform-os";
 import { BACKGROUND_BUTTON_VARIANTS, BORDER_BUTTON_VARIANTS, BUTTON_VARIANTS_WITHOUT_TEXT } from "./constants";
 // types
 import type { TDropdownProps } from "./types";
+
+const ISSUE_PRIORITIES = NATIVE_ISSUE_PRIORITIES.map(priority => ({ ...priority, title: PRIORITY_LABELS[priority.key] ?? priority.title }));
 
 type Props = TDropdownProps & {
   button?: ReactNode;

@@ -1,0 +1,19 @@
+# Preserve the installed state-management API, including previous mail/security fixes.
+FROM ghcr.io/paolobp82/izclick-api@sha256:bba165ee2439f6cf0659ff82da9cb335702fbbbdb002b2cf3de442d30aba95e5
+COPY apps/api/plane/db/models/izclick_custom_field.py /code/plane/db/models/izclick_custom_field.py
+COPY apps/api/plane/api/views/izclick_custom_fields.py /code/plane/api/views/izclick_custom_fields.py
+COPY apps/api/plane/api/views/izclick_state_retirement.py /code/plane/api/views/izclick_state_retirement.py
+COPY apps/api/plane/utils/izclick_state_retirement.py /code/plane/utils/izclick_state_retirement.py
+COPY apps/api/plane/app/urls/project.py /code/plane/app/urls/project.py
+COPY apps/api/plane/app/views/workspace/izclick_production_status.py /code/plane/app/views/workspace/izclick_production_status.py
+COPY apps/api/plane/db/migrations/0125_izclick_assignment_fields.py /code/plane/db/migrations/0125_izclick_assignment_fields.py
+COPY apps/api/plane/api/tests/test_izclick_sprints234.py /code/plane/api/tests/test_izclick_sprints234.py
+COPY apps/api/plane/api/tests/test_izclick_custom_field_validation.py /code/plane/api/tests/test_izclick_custom_field_validation.py
+COPY apps/api/plane/api/tests/test_izclick_custom_field_schema.py /code/plane/api/tests/test_izclick_custom_field_schema.py
+COPY apps/api/plane/api/tests/test_izclick_custom_field_endpoints.py /code/plane/api/tests/test_izclick_custom_field_endpoints.py
+RUN python -m compileall -q /code/plane/api/views/izclick_custom_fields.py /code/plane/api/views/izclick_state_retirement.py /code/plane/utils/izclick_state_retirement.py /code/plane/app/views/workspace/izclick_production_status.py
+
+COPY apps/api/plane/utils/izclick_workflow_preset.py /code/plane/utils/izclick_workflow_preset.py
+COPY apps/web/app/lib/izclick/production-workflow-presets.json /code/plane/utils/izclick_workflow_presets.json
+
+COPY apps/api/plane/app/views/asset/v2.py /code/plane/app/views/asset/v2.py

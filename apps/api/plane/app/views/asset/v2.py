@@ -343,7 +343,7 @@ class WorkspaceFileAssetEndpoint(BaseAPIView):
         type = request.data.get("type", "image/jpeg")
         size = int(request.data.get("size", settings.FILE_SIZE_LIMIT))
         entity_type = request.data.get("entity_type")
-        entity_identifier = request.data.get("entity_identifier", False)
+        entity_identifier = request.data.get("entity_identifier") or None
 
         # Check if the entity type is allowed
         if entity_type not in FileAsset.EntityTypeContext.values:
@@ -371,10 +371,12 @@ class WorkspaceFileAssetEndpoint(BaseAPIView):
             "image/jpg",
             "image/gif",
         ]
+        if entity_type == FileAsset.EntityTypeContext.COMMENT_DESCRIPTION:
+            allowed_types = settings.ATTACHMENT_MIME_TYPES
         if type not in allowed_types:
             return Response(
                 {
-                    "error": "Invalid file type. Only JPEG, PNG, WebP, JPG and GIF files are allowed.",
+                    "error": "Tipo de archivo no admitido para esta subida.",
                     "status": False,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -583,7 +585,7 @@ class ProjectAssetEndpoint(BaseAPIView):
         type = request.data.get("type", "image/jpeg")
         size = int(request.data.get("size", settings.FILE_SIZE_LIMIT))
         entity_type = request.data.get("entity_type", "")
-        entity_identifier = request.data.get("entity_identifier")
+        entity_identifier = request.data.get("entity_identifier") or None
 
         # Check if the entity type is allowed
         if entity_type not in FileAsset.EntityTypeContext.values:
@@ -600,10 +602,12 @@ class ProjectAssetEndpoint(BaseAPIView):
             "image/jpg",
             "image/gif",
         ]
+        if entity_type == FileAsset.EntityTypeContext.COMMENT_DESCRIPTION:
+            allowed_types = settings.ATTACHMENT_MIME_TYPES
         if type not in allowed_types:
             return Response(
                 {
-                    "error": "Invalid file type. Only JPEG, PNG, WebP, JPG and GIF files are allowed.",
+                    "error": "Tipo de archivo no admitido para esta subida.",
                     "status": False,
                 },
                 status=status.HTTP_400_BAD_REQUEST,

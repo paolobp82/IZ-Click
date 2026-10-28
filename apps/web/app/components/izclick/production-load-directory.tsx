@@ -1,3 +1,4 @@
+import { groupLoadsByProducer } from "@/app/lib/izclick/production-producers";
 import { useEffect, useMemo, useState } from "react";
 import { defaultProductionColumns, parseProductionColumns, PRODUCTION_COLUMNS } from "@/app/lib/izclick/production-columns";
 import type { ProductionColumnId } from "@/app/lib/izclick/production-columns";
@@ -8,6 +9,7 @@ type Props = {
   states: readonly ProductionState[];
   projects: readonly { id: string; name: string }[];
   clients?: readonly { id: string; name: string; color: string }[];
+  members?: readonly { id: string; name: string }[];
   workspaceSlug: string;
 };
 
@@ -15,9 +17,12 @@ const priorityNames: Record<string, string> = {
   urgent: "Urgente", high: "Alta", medium: "Media", low: "Baja", none: "Sin prioridad",
 };
 
-export function ProductionLoadDirectory({ issues, states, projects, clients = [], workspaceSlug }: Props) {
+const EMPTY_CLIENTS: NonNullable<Props["clients"]> = [];
+const EMPTY_MEMBERS: NonNullable<Props["members"]> = [];
+
+export function ProductionLoadDirectory({ issues, states, projects, clients = EMPTY_CLIENTS, members = EMPTY_MEMBERS, workspaceSlug }: Props) {
   const [query, setQuery] = useState("");
-  const [view, setView] = useState<"estados" | "tabla">("estados");
+  const [view, setView] = useState<"estados" | "tabla" | "productores">("estados");
   const [page, setPage] = useState(0);
   const [columns, setColumns] = useState(defaultProductionColumns);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
@@ -64,6 +69,7 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
     if (groups.has("__none__")) ordered.push({ key: "__none__", name: "Sin estado", color: "#64748b", issues: groups.get("__none__")! });
     return ordered;
   }, [filtered, states]);
+  const groupedByProducer = useMemo(() => groupLoadsByProducer(filtered, members), [filtered, members]);
   const codeOf = (issue: ProductionWorkItem) =>
     typeof issue.sequence_id === "number" ? String(issue.sequence_id) : "—";
   const issueHref = (issue: ProductionWorkItem) =>
@@ -74,7 +80,7 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
   const visible = filtered.slice(current * pageSize, (current + 1) * pageSize);
 
   return (
-    <section className="rounded-lg border border-subtle bg-surface-1 p-5" aria-label="Directorio de cargas de Producción">
+    <section id="cargas" className="scroll-mt-20 rounded-lg border border-subtle bg-surface-1 p-5" aria-label="Directorio de cargas de Producción">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold">Cargas de todos los proyectos</h2>
@@ -84,6 +90,7 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
           <div className="flex rounded border border-subtle p-0.5" role="group" aria-label="Tipo de vista">
             <button type="button" aria-pressed={view === "estados"} onClick={() => setView("estados")}
               className={`rounded px-3 py-1.5 text-sm ${view === "estados" ? "font-semibold underline" : ""}`}>Por estados</button>
+            <button type="button" aria-pressed={view === "productores"} onClick={() => setView("productores")} className={`rounded px-3 py-1.5 text-sm ${view === "productores" ? "font-semibold underline" : ""}`}>Por productor</button>
             <button type="button" aria-pressed={view === "tabla"} onClick={() => setView("tabla")}
               className={`rounded px-3 py-1.5 text-sm ${view === "tabla" ? "font-semibold underline" : ""}`}>Tabla</button>
           </div>
@@ -106,9 +113,10 @@ export function ProductionLoadDirectory({ issues, states, projects, clients = []
           ))}
         </fieldset>
       )}
-      {view === "estados" && (
-        <div className="flex min-h-48 gap-3 overflow-x-auto pb-4" aria-label="Cargas agrupadas por estado">
-          {groupedByState.map((group) => (
+      {view === "productores" && <p className="mb-3 text-xs text-tertiary">Una carga compartida aparece una vez por cada productor asignado; el total de cargas sigue siendo único.</p>}
+      {(view === "estados" || view === "productores") && (
+        <div className="flex min-h-48 gap-3 overflow-x-auto pb-4" aria-label={view === "estados" ? "Cargas agrupadas por estado" : "Cargas agrupadas por productor"}>
+          {(view === "estados" ? groupedByState : groupedByProducer).map((group) => (
             <section key={group.key} className="w-72 shrink-0 rounded-md border border-subtle bg-surface-1 p-3">
               <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: group.color }} />

@@ -8,6 +8,7 @@ export const LIST_COLUMNS = [
   { id: "assignee", name: "Responsable", width: 144 },
   { id: "due", name: "Vencimiento", width: 144 },
   { id: "attachments", name: "Adjuntos", width: 144 },
+  { id: "commercial", name: "Comercial asignado", width: 184 },
   { id: "client", name: "Cliente", width: 160 },
   { id: "event", name: "Fecha del evento", width: 160 },
   { id: "sig", name: "Código SIG", width: 160 },
@@ -26,7 +27,7 @@ export function getListColumnLayout(prefs: ListColumnPreferences) {
     const entry = prefs[column.id];
     const width = entry.visible ? entry.width : 0;
     widths[column.id] = width;
-    if (column.id === "client" || column.id === "event" || column.id === "sig") {
+    if (column.id === "commercial" || column.id === "client" || column.id === "event" || column.id === "sig") {
       metadataWidth += width;
     } else {
       propertiesWidth += width;

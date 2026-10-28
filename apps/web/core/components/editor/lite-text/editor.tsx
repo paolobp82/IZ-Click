@@ -45,6 +45,7 @@ type LiteTextEditorWrapperProps = MakeOptional<
   parentClassName?: string;
   editorClassName?: string;
   submitButtonText?: string;
+  onAttachFile?: () => void;
 } & (
     | {
         editable: false;
@@ -81,6 +82,7 @@ export const LiteTextEditor = React.forwardRef(function LiteTextEditor(
     editorClassName = "",
     showPlaceholderOnEmpty = true,
     submitButtonText = "common.comment",
+    onAttachFile,
     ...rest
   } = props;
   // states
@@ -176,6 +178,7 @@ export const LiteTextEditor = React.forwardRef(function LiteTextEditor(
         {/* Lite Toolbar - conditionally rendered */}
         {isLiteVariant && editable && (
           <LiteToolbar
+            onAttachFile={onAttachFile}
             executeCommand={(item) => {
               // TODO: update this while toolbar homogenization
               // @ts-expect-error type mismatch here
@@ -185,7 +188,7 @@ export const LiteTextEditor = React.forwardRef(function LiteTextEditor(
               });
             }}
             onSubmit={(e) => rest.onEnterKeyPress?.(e)}
-            isSubmitting={isSubmitting}
+            isSubmitting={isSubmitting || !editorRef}
             isEmpty={isEmpty}
           />
         )}

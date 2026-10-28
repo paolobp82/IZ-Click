@@ -1,7 +1,7 @@
-name: IZCLICK Sprint 1 checks
+name: IZCLICK operational sprint checks
 on:
   pull_request:
-    branches: [izclick/clickup-native-list-detail-20261014]
+    branches: [izclick/clickup-native-list-detail-20261014, sprint/izclick-1-operacion-20261023]
 permissions:
   contents: read
 concurrency:
@@ -44,7 +44,7 @@ jobs:
       - working-directory: apps/api
         run: pip install -r requirements/production.txt
       - working-directory: apps/api
-        run: python manage.py test plane.api.tests.test_izclick_event_date --noinput
+        run: python manage.py test plane.api.tests.test_izclick_event_date plane.api.tests.test_izclick_sprints234 plane.api.tests.test_izclick_custom_field_validation plane.api.tests.test_izclick_custom_field_schema plane.api.tests.test_izclick_custom_field_endpoints --noinput
   web-build:
     runs-on: ubuntu-latest
     timeout-minutes: 50
@@ -71,5 +71,12 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: npm install --prefix "$RUNNER_TEMP/izclick-qa-deps" --no-save jsdom@26.1.0 esbuild@0.28.1
       - run: node qa/sprint1-attachments-dom.mjs
+        env:
+          IZCLICK_QA_DEPS: ${{ runner.temp }}/izclick-qa-deps
+
+      - run: node qa/states-management-dom.mjs
+        env:
+          IZCLICK_QA_DEPS: ${{ runner.temp }}/izclick-qa-deps
+      - run: node qa/completion-checkbox-dom.mjs
         env:
           IZCLICK_QA_DEPS: ${{ runner.temp }}/izclick-qa-deps

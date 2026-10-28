@@ -265,7 +265,7 @@ export const IssueDetailRoot = observer(function IssueDetailRoot(props: TIssueDe
             className="hidden h-full w-[min(36%,420px)] min-w-[320px] flex-shrink-0 flex-col border-l border-subtle bg-surface-1 lg:flex"
             aria-label="Propiedades y actividad de la carga"
           >
-            <div className="max-h-[48%] flex-shrink-0 overflow-y-auto border-b border-subtle">
+            <div className="max-h-[32%] flex-shrink-0 overflow-y-auto border-b border-subtle">
               <IssueDetailsSidebar
                 workspaceSlug={workspaceSlug}
                 projectId={projectId}
@@ -274,7 +274,7 @@ export const IssueDetailRoot = observer(function IssueDetailRoot(props: TIssueDe
                 isEditable={!is_archived && isEditable}
               />
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <div className="min-h-0 flex-1 overflow-hidden p-3">
               <IssueActivity workspaceSlug={workspaceSlug} projectId={projectId} issueId={issueId} disabled={is_archived} />
             </div>
           </aside>

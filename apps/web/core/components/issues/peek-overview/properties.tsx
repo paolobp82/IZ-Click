@@ -203,31 +203,7 @@ export const PeekOverviewProperties = observer(function PeekOverviewProperties(p
           </SidebarPropertyListItem>
         )}
 
-        {projectDetails?.module_view && (
-          <SidebarPropertyListItem icon={ModuleIcon} label={t("common.modules")}>
-            <IssueModuleSelect
-              className="w-full grow"
-              workspaceSlug={workspaceSlug}
-              projectId={projectId}
-              issueId={issueId}
-              issueOperations={issueOperations}
-              disabled={disabled}
-            />
-          </SidebarPropertyListItem>
-        )}
 
-        {projectDetails?.cycle_view && (
-          <SidebarPropertyListItem icon={CycleIcon} label={t("common.cycle")} appendElement={null}>
-            <IssueCycleSelect
-              className="h-7.5 w-full grow"
-              workspaceSlug={workspaceSlug}
-              projectId={projectId}
-              issueId={issueId}
-              issueOperations={issueOperations}
-              disabled={disabled}
-            />
-          </SidebarPropertyListItem>
-        )}
 
         <SidebarPropertyListItem icon={ParentPropertyIcon} label={t("common.parent")}>
           <IssueParentSelectRoot

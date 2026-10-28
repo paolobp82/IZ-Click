@@ -1,3 +1,6 @@
+import { isCompletionState } from "@/app/lib/izclick/production-completion";
+import { CompletionCheckbox } from "@/components/issues/completion-checkbox";
+import { useProjectState } from "@/hooks/store/use-project-state";
 /**
  * Copyright (c) 2023-present Plane Software, Inc. and contributors
  * SPDX-License-Identifier: AGPL-3.0-only
@@ -76,6 +79,7 @@ export const SubIssuesListItem = observer(function SubIssuesListItem(props: Prop
   const { handleRedirection } = useIssuePeekOverviewRedirection();
   const { isMobile } = usePlatformOS();
   const issue = getIssueById(issueId);
+  const { getStateById } = useProjectState();
 
   // derived values
   const projectDetail = (issue && issue.project_id && project.getProjectById(issue.project_id)) || undefined;
@@ -151,6 +155,7 @@ export const SubIssuesListItem = observer(function SubIssuesListItem(props: Prop
             </div>
 
             <div className="flex w-full cursor-pointer items-center gap-3 truncate">
+              {issueServiceType === EIssueServiceType.ISSUES && <CompletionCheckbox issue={issue} disabled={!canEdit} update={data => subIssueOperations.updateSubIssue(workspaceSlug, projectId, parentIssueId, issue.id, data)} />}
               <WithDisplayPropertiesHOC displayProperties={displayProperties || {}} displayPropertyKey="key">
                 <div className="flex-shrink-0">
                   {projectDetail && (
@@ -166,7 +171,7 @@ export const SubIssuesListItem = observer(function SubIssuesListItem(props: Prop
                 </div>
               </WithDisplayPropertiesHOC>
               <Tooltip tooltipContent={issue.name} isMobile={isMobile}>
-                <span className="w-0 flex-1 truncate text-13 text-primary">{issue.name}</span>
+                <span className={cn("w-0 flex-1 truncate text-13", isCompletionState(getStateById(issue.state_id)) ? "text-tertiary line-through opacity-60" : "text-primary")}>{issue.name}</span>
               </Tooltip>
             </div>
 

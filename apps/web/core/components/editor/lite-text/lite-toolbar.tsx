@@ -15,13 +15,16 @@ type LiteToolbarProps = {
   isSubmitting: boolean;
   isEmpty: boolean;
   executeCommand: (item: ToolbarMenuItem) => void;
+  onAttachFile?: () => void;
 };
 
-export function LiteToolbar({ onSubmit, isSubmitting, isEmpty, executeCommand }: LiteToolbarProps) {
+export function LiteToolbar({ onSubmit, isSubmitting, isEmpty, executeCommand, onAttachFile }: LiteToolbarProps) {
   return (
     <div className="flex items-center gap-2 pb-1">
       <button
-        onClick={() => executeCommand(IMAGE_ITEM)}
+        aria-label={onAttachFile ? "Adjuntar archivos al comentario" : "Adjuntar imagen al comentario"}
+        onClick={onAttachFile ?? (() => executeCommand(IMAGE_ITEM))}
+        disabled={isSubmitting}
         type="button"
         className="p-1 text-tertiary transition-colors hover:text-secondary"
       >
@@ -29,6 +32,7 @@ export function LiteToolbar({ onSubmit, isSubmitting, isEmpty, executeCommand }:
       </button>
       <button
         type="button"
+        aria-label="Enviar comentario"
         onClick={(e) => onSubmit(e)}
         disabled={isEmpty || isSubmitting}
         className="rounded-sm bg-accent-primary p-1 text-primary transition-colors hover:bg-accent-primary/80 disabled:bg-layer-1 disabled:text-secondary"

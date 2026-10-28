@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "module": "esnext",
     "rootDirs": [".", "./.react-router/types"],
     "allowImportingTsExtensions": true,
     "paths": {

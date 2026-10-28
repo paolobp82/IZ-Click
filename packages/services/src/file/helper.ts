@@ -96,6 +96,9 @@ const validateAndDetectFileType = async (file: File): Promise<string> => {
 
   try {
     const signatureType = await detectMimeTypeFromSignature(file);
+    if (signatureType === "application/x-cfb" && [
+      "application/msword", "application/vnd.ms-excel", "application/vnd.ms-powerpoint",
+    ].includes(file.type)) return file.type;
     if (signatureType) {
       return signatureType;
     }
@@ -103,8 +106,9 @@ const validateAndDetectFileType = async (file: File): Promise<string> => {
     console.warn("Error detecting file type from signature:", _error);
   }
 
-  // fallback for unknown files
-  return "";
+  // Text, CSV and other valid documents often have no binary signature.
+  // The server still validates this MIME against its attachment policy.
+  return file.type || "application/octet-stream";
 };
 
 /**

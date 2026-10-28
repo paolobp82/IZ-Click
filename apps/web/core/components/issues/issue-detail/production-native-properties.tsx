@@ -1,3 +1,4 @@
+import { CommercialAssignment } from "@/components/issues/commercial-assignment";
 import { useEffect, useMemo, useState } from "react";
 import { invalidateProjectProductionMetadata } from "@/components/issues/issue-layouts/spreadsheet/production-project-metadata";
 import { IssueService } from "@/services/issue";
@@ -135,6 +136,7 @@ export function ProductionNativeProperties({ workspaceSlug, projectId, issueId, 
   return (
     <section aria-label="Campos de Producción" className="mt-5 border-t border-subtle pt-4">
       <h5 className="mb-3 text-body-xs-medium">Producción · Campos</h5>
+      <div className="mb-3 text-xs"><span className="mb-1 block">Comercial asignado</span><CommercialAssignment workspaceSlug={workspaceSlug} projectId={projectId} issueId={issueId} canEdit={isEditable} /></div>
       {loading ? <p role="status" className="text-xs">Consultando campos…</p> : (
         <div className="space-y-3">
           <label className="flex flex-col gap-1 text-xs">

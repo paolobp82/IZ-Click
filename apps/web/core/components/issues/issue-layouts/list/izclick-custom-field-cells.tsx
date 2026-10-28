@@ -1,3 +1,5 @@
+import { MemberDropdown } from "@/components/dropdowns/member/dropdown";
+import { useMember } from "@/hooks/store/use-member";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { customFieldsEvent, getCustomFields, getCustomValues, updateCustomValue } from "./izclick-custom-field-api";
@@ -6,6 +8,7 @@ import type { IzclickCustomField } from "./izclick-custom-field-api";
 export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, canEdit }: {
   workspaceSlug: string; projectId: string; issueId: string; canEdit: boolean;
 }) {
+  const { getUserDetails } = useMember();
   const [fields, setFields] = useState<IzclickCustomField[]>([]);
   const [fieldsAvailable, setFieldsAvailable] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>({});
@@ -23,7 +26,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
       getCustomFields(workspaceSlug, projectId)
         .then(async (availableFields) => {
           if (!mounted) return;
-          setFields(availableFields);
+          setFields(availableFields.filter(field => !(field.type === "member" && field.name === "Comercial asignado")));
           setFieldsAvailable(true);
           if (!availableFields.length) {
             setValues({});
@@ -66,6 +69,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
     };
     updatePosition();
     const outside = (e: PointerEvent) => {
+      if (e.target instanceof Element && e.target.closest("[data-prevent-outside-click]")) return;
       const node = e.target as Node;
       if (!popupRef.current?.contains(node) && !anchor.contains(node) && !busy) setActive(null);
     };
@@ -100,7 +104,7 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
     {fieldsAvailable && fields.map(field => {
       const current = values[field.id];
       const option = field.options?.find(item => item.id === current);
-      const label = field.type === "select" ? (option?.name || "—") : current == null || current === "" ? "—" : String(current);
+      const label = field.type === "member" ? (typeof current === "string" ? getUserDetails(current)?.display_name ?? "Miembro no disponible" : "Sin asignación") : field.type === "select" ? (option?.name || "—") : current == null || current === "" ? "—" : String(current);
       return <div key={field.id} data-izclick-custom-cell={field.id} className="relative flex h-11 min-w-0 shrink-0 items-center border-l border-subtle px-2 text-xs" style={{ display: `var(--izclick-custom-display-${field.id}, flex)`, width: `var(--izclick-custom-width-${field.id}, 176px)`, minWidth: `var(--izclick-custom-width-${field.id}, 176px)`, maxWidth: `var(--izclick-custom-width-${field.id}, 176px)` }} onClick={e => e.stopPropagation()}>
         <button disabled={!canEdit || valuesError} type="button" title={valuesError ? "No se pudieron cargar los valores. Actualiza la lista." : label}
           className="flex w-full min-w-0 items-center gap-1.5 rounded px-1 py-1 text-left hover:bg-layer-1-hover disabled:cursor-default"
@@ -120,7 +124,9 @@ export function IzclickCustomFieldCells({ workspaceSlug, projectId, issueId, can
         style={{ top: popupPosition.top, left: popupPosition.left }}
       >
         <span className="mb-2 block font-medium">{activeField.name}</span>
-        {activeField.type === "select" ? (
+        {activeField.type === "member" ? (
+          <MemberDropdown optionsClassName="!z-[1100]" projectId={projectId} multiple={false} value={draft || null} onChange={id => setDraft(id ?? "")} placeholder="Seleccionar miembro" buttonVariant="border-with-text" showUserDetails />
+        ) : activeField.type === "select" ? (
           <select aria-label={activeField.name} className="w-full rounded border border-subtle bg-surface-1 p-2" value={draft} onChange={event => setDraft(event.target.value)}>
             <option value="">Sin valor</option>
             {(activeField.options || []).map(option => <option value={option.id} key={option.id}>{option.name}</option>)}

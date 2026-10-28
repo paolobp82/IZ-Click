@@ -1,3 +1,7 @@
+import { isCompletionState } from "@/app/lib/izclick/production-completion";
+import { CommercialAssignment } from "@/components/issues/commercial-assignment";
+import { CompletionCheckbox } from "@/components/issues/completion-checkbox";
+import { useProjectState } from "@/hooks/store/use-project-state";
 /**
  * Copyright (c) 2023-present Plane Software, Inc. and contributors
  * SPDX-License-Identifier: AGPL-3.0-only
@@ -48,6 +52,7 @@ interface Props {
   portalElement: React.MutableRefObject<HTMLDivElement | null>;
   nestingLevel: number;
   issueId: string;
+  rowNumber?: string;
   isScrolled: MutableRefObject<boolean>;
   containerRef: MutableRefObject<HTMLTableElement | null>;
   spreadsheetColumnsList: (keyof IIssueDisplayProperties)[];
@@ -61,6 +66,7 @@ export const SpreadsheetIssueRow = observer(function SpreadsheetIssueRow(props: 
   const {
     displayProperties,
     issueId,
+    rowNumber,
     isEstimateEnabled,
     nestingLevel,
     portalElement,
@@ -112,6 +118,7 @@ export const SpreadsheetIssueRow = observer(function SpreadsheetIssueRow(props: 
       >
         <IssueRowDetails
           issueId={issueId}
+          rowNumber={rowNumber}
           displayProperties={displayProperties}
           quickActions={quickActions}
           canEditProperties={canEditProperties}
@@ -131,10 +138,11 @@ export const SpreadsheetIssueRow = observer(function SpreadsheetIssueRow(props: 
 
       {isExpanded &&
         !isEpic &&
-        subIssues?.map((subIssueId: string) => (
+        subIssues?.map((subIssueId: string, index: number) => (
           <SpreadsheetIssueRow
             key={subIssueId}
             issueId={subIssueId}
+            rowNumber={`${rowNumber ?? "1"}.${index + 1}`}
             displayProperties={displayProperties}
             quickActions={quickActions}
             canEditProperties={canEditProperties}
@@ -163,6 +171,7 @@ interface IssueRowDetailsProps {
   portalElement: React.MutableRefObject<HTMLDivElement | null>;
   nestingLevel: number;
   issueId: string;
+  rowNumber?: string;
   isScrolled: MutableRefObject<boolean>;
   isExpanded: boolean;
   setExpanded: Dispatch<SetStateAction<boolean>>;
@@ -176,6 +185,7 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
   const {
     displayProperties,
     issueId,
+    rowNumber,
     isEstimateEnabled,
     nestingLevel,
     portalElement,
@@ -212,6 +222,7 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
   const { subIssues: subIssuesStore, issue } = useIssueDetail();
 
   const issueDetail = issue.getIssueById(issueId);
+  const { getStateById } = useProjectState();
 
   const subIssueIndentation = `${spacingLeft}px`;
 
@@ -360,12 +371,14 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
                 )}
               </div>
 
+              {!isEpic && <span className="shrink-0 text-xs tabular-nums text-tertiary" aria-label="Número de fila">{rowNumber ?? issueDetail.sequence_id}</span>}
               <div className="my-auto flex h-full w-full items-center justify-between gap-2 truncate">
+                {!isEpic && <CompletionCheckbox issue={issueDetail} disabled={disableUserActions || !updateIssue || Boolean(issueDetail.archived_at)} update={async data => { if (updateIssue) await updateIssue(issueDetail.project_id, issueDetail.id, data); }} />}
                 <div className="line-clamp-1 w-full text-14 text-primary">
                   <div className="w-full overflow-hidden">
                     <Tooltip tooltipContent={issueDetail.name} isMobile={isMobile}>
                       <div
-                        className="h-full w-full cursor-pointer truncate pr-4 text-left text-13 text-primary focus:outline-none"
+                        className={cn("h-full w-full cursor-pointer truncate pr-4 text-left text-13 focus:outline-none", isCompletionState(getStateById(issueDetail.state_id)) ? "text-tertiary line-through opacity-60" : "text-primary")}
                         tabIndex={-1}
                       >
                         {issueDetail.name}
@@ -391,6 +404,8 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
       </td>
       {/* Production metadata is read from the same Plane IssueLink records as the native detail. */}
       {!isEpic && projectId && workspaceSlug && issueDetail.project_id && (
+        <>
+        <td className="h-11 min-w-44 border-r border-subtle px-2"><CommercialAssignment workspaceSlug={workspaceSlug.toString()} projectId={issueDetail.project_id} issueId={issueDetail.id} canEdit={!disableUserActions} /></td>
         <ProductionMetadataCells
           workspaceSlug={workspaceSlug.toString()}
           projectId={issueDetail.project_id}
@@ -402,6 +417,7 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
             await updateIssue(issueDetail.project_id, issueDetail.id, { label_ids: ids });
           }}
         />
+        </>
       )}
       {/* Rest of the columns */}
       {spreadsheetColumnsList.map((property) => (

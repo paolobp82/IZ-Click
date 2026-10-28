@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProjectStateService } from "@/services/project";
-import { missingProductionStates } from "@/app/lib/izclick/production-state-presets";
+import { missingProductionStates, segmentProductionStates } from "@/app/lib/izclick/production-state-presets";
 import type { ProductionStatePreset } from "@/app/lib/izclick/production-state-presets";
 
 type Props = { workspaceSlug: string; projectId: string };
@@ -70,12 +70,12 @@ export function ProductionStatesSetup({ workspaceSlug, projectId }: Props) {
       {loading ? <p role="status">Consultando estados…</p> : (
         <>
           <div className="flex flex-wrap gap-2">
-            {missing.length > 0 ? missing.map((state) => (
+            {missing.length > 0 ? segmentProductionStates(missing).filter(segment => segment.states.length > 0).map(segment => <div key={segment.value} className="w-full"><h3 className="my-2 text-sm font-semibold uppercase">{segment.label}</h3><div className="flex flex-wrap gap-2">{segment.states.map((state) => (
               <span key={state.name} className="inline-flex items-center gap-2 rounded border border-subtle px-2 py-1 text-sm">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: state.color }} />
                 {state.name}
               </span>
-            )) : <p className="text-sm">Los seis estados propuestos ya existen en este proyecto.</p>}
+            ))}</div></div>) : <p className="text-sm">Los 20 estados propuestos ya existen en este proyecto.</p>}
           </div>
           {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
           {report && <p role="status" className="mt-3 text-sm">{report}</p>}
