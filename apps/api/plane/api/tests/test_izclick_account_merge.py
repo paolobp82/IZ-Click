@@ -3,7 +3,7 @@ from datetime import timedelta
 import importlib.util
 from pathlib import Path
 from unittest.mock import patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
@@ -26,7 +26,7 @@ class AccountMergeTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.source = User.objects.create_user(email=merge.SOURCE, username="merge-source", password="fixture-only-source")
-        cls.target = User.objects.create_user(email=merge.TARGET, username="merge-target", password="fixture-only-target")
+        cls.target = User.objects.create_user(id=UUID(merge.TARGET_ID), email=merge.TARGET, username="merge-target", password="fixture-only-target")
         cls.other = User.objects.create_user(email="other@example.invalid", username="merge-other")
         cls.personal = Workspace.objects.create(name="Angelica", slug=merge.SOURCE_SLUG, owner=cls.source,
                                                  created_by=cls.source, updated_by=cls.source, )

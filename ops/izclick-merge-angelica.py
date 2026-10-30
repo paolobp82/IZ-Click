@@ -15,6 +15,7 @@ import subprocess
 
 SOURCE = "aestupinan@izango.com"
 TARGET = "aestupinan@izango.com.pe"
+TARGET_ID = "0e43d353-52c9-4375-b55d-01cedb982969"
 SOURCE_SLUG = "angelica"
 TARGET_SLUG = "izango"
 ROOT = Path("/opt/iz-click/plane-app")
@@ -61,6 +62,8 @@ def build_plan():
     User = get_user_model()
     source = User.objects.get(email__iexact=SOURCE)
     target = User.objects.get(email__iexact=TARGET)
+    if str(target.pk) != TARGET_ID:
+        raise MergeStopped("The destination user ID differs from the verified account")
     if source.pk == target.pk or not target.is_active or target.is_bot:
         raise MergeStopped("The destination identity is not an active human account")
     if source.is_staff or source.is_superuser or source.is_bot:
@@ -247,6 +250,9 @@ def main():
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
     os.umask(0o077)
+    apply_started = False
+    final_result = None
+    backup = None
     try:
         if os.geteuid() != 0 or not ROOT.is_dir():
             raise MergeStopped("Run with sudo on the IZCLICK host")
@@ -276,14 +282,25 @@ def main():
             current = json.loads(command(["docker", "inspect", "plane-app-api-1"]))[0]
             if current["Id"] != api["Id"] or not current["State"]["Running"]:
                 raise MergeStopped("The API changed during backup")
+            apply_started = True
             result = execute(api["Id"], apply=True, expected_plan=preflight["plan"])
+            final_result = result
             private_json(backup / "result.json", result)
             # Keep the detailed restoration journal private on the server.
             report(result["check"], **{k: v for k, v in result.items() if k not in {
                 "check", "journal", "member_field_ids", "plan", "previous_last_workspace"}}, backup=str(backup))
             return 0 if result["check"] in {"accounts_merged", "already_merged"} else 1
     except Exception as exc:
-        report("merge_stopped", reason=str(exc) if isinstance(exc, MergeStopped) else type(exc).__name__)
+        reason = str(exc) if isinstance(exc, MergeStopped) else type(exc).__name__
+        if final_result and final_result["check"] == "accounts_merged":
+            report("accounts_merged", login=TARGET, disabled_login=SOURCE,
+                   audit_saved=False, backup=str(backup), reporting_error=reason)
+            return 0
+        if apply_started and final_result is None:
+            report("merge_status_unknown", reason=reason, backup=str(backup),
+                   next_step="Run without --apply to verify status before retrying")
+        else:
+            report("merge_stopped", reason=reason)
         return 1
 
 

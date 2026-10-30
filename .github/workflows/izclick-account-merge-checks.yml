@@ -9,6 +9,9 @@ on:
       - .github/workflows/izclick-account-merge-checks.yml
 permissions:
   contents: read
+concurrency:
+  group: izclick-account-merge-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   transactional-merge:
     runs-on: ubuntu-latest
@@ -36,5 +39,6 @@ jobs:
       - working-directory: apps/api
         run: pip install -r requirements/production.txt
       - run: python3 -m py_compile ops/izclick-merge-angelica.py apps/api/plane/api/tests/test_izclick_account_merge.py
+      - run: python3 -m unittest discover -s ops/tests -p test_account_merge_host.py -v
       - working-directory: apps/api
         run: python manage.py test plane.api.tests.test_izclick_account_merge --noinput -v 2
