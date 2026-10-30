@@ -137,6 +137,21 @@ class AccountMergeTests(TestCase):
         merge.merge_accounts(apply=True)
         self.assertEqual(merge.merge_accounts(apply=True)["check"], "already_merged")
 
+    def test_full_rehearsal_restores_content_credentials_and_inventory_before_real_apply(self):
+        plan = merge.merge_accounts()["plan"]
+        original_password = self.target.password
+        result = merge.rehearse_merge(expected_plan=plan)
+        self.assertEqual(result["check"], "merge_rehearsed")
+        self.assertTrue(result["production_unchanged"])
+        self.assertEqual(result["visible_workspaces"], ["angelica", "izango"])
+        self.assert_original()
+        self.assertEqual(merge.build_plan()[3], plan)
+        self.src_session.refresh_from_db(); self.profile.refresh_from_db(); self.target.refresh_from_db()
+        self.assertGreater(self.src_session.expire_date, timezone.now())
+        self.assertEqual(self.profile.last_workspace_id, self.personal.pk)
+        self.assertEqual(self.target.password, original_password)
+        self.assertEqual(merge.merge_accounts(apply=True, expected_plan=plan)["check"], "accounts_merged")
+
     def test_existing_membership_overlap_stops_without_deleting_or_escalating(self):
         WorkspaceMember.objects.create(workspace=self.personal, member=self.target, role=5)
         with self.assertRaisesRegex(merge.MergeStopped, "overlapping"):

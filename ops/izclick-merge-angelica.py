@@ -206,9 +206,32 @@ def merge_accounts(apply=False, expected_plan=None):
                 "previous_last_workspace": old_last_workspace}
 
 
-def run_in_django(apply=False, expected_plan=None):
+def rehearse_merge(expected_plan=None):
+    """Exercise the complete merge on the installed schema, then ALWAYS undo it.
+
+    Only queryset updates and read-only API calls are used: no signals, emails,
+    tasks, file moves or sequence increments escape the rollback transaction.
+    """
+    from django.db import transaction
+    plan = build_plan()[3]
+    if expected_plan is not None and plan != expected_plan:
+        raise MergeStopped("Account data changed before the rollback rehearsal")
+    if plan["already_merged"]:
+        return {"check": "already_merged", "production_unchanged": True}
+    with transaction.atomic():
+        result = merge_accounts(apply=True, expected_plan=plan)
+        transaction.set_rollback(True)
+    if build_plan()[3] != plan:
+        raise MergeStopped("The rollback rehearsal did not restore the reviewed inventory")
+    return {"check": "merge_rehearsed", "production_unchanged": True,
+            "visible_workspaces": result["visible_workspaces"],
+            "records_preserved": result["records_preserved"],
+            "password_preserved": result["password_preserved"]}
+
+
+def run_in_django(apply=False, expected_plan=None, rehearse=False):
     try:
-        result = merge_accounts(apply=apply, expected_plan=expected_plan)
+        result = rehearse_merge(expected_plan) if rehearse else merge_accounts(apply=apply, expected_plan=expected_plan)
     except MergeStopped as exc:
         result = {"check": "merge_stopped", "reason": str(exc), "transaction_committed": False}
     except Exception as exc:
@@ -235,9 +258,9 @@ def private_json(path, data):
         json.dump(data, handle, default=str, indent=2)
 
 
-def execute(container_id, apply=False, expected_plan=None):
+def execute(container_id, apply=False, expected_plan=None, rehearse=False):
     code = Path(__file__).read_text()
-    payload = "ns = {'__name__': 'izclick_merge'}\nexec(%r, ns)\nns['run_in_django'](apply=%r, expected_plan=%r)\n" % (code, apply, expected_plan)
+    payload = "ns = {'__name__': 'izclick_merge'}\nexec(%r, ns)\nns['run_in_django'](apply=%r, expected_plan=%r, rehearse=%r)\n" % (code, apply, expected_plan, rehearse)
     raw = command(["docker", "exec", "-i", container_id, "python", "manage.py", "shell"], source=payload.encode())
     records = [line[len(MARKER):] for line in raw.decode().splitlines() if line.startswith(MARKER)]
     if len(records) != 1:
@@ -282,6 +305,12 @@ def main():
             current = json.loads(command(["docker", "inspect", "plane-app-api-1"]))[0]
             if current["Id"] != api["Id"] or not current["State"]["Running"]:
                 raise MergeStopped("The API changed during backup")
+            rehearsal = execute(api["Id"], expected_plan=preflight["plan"], rehearse=True)
+            private_json(backup / "rehearsal.json", rehearsal)
+            if rehearsal.get("check") != "merge_rehearsed" or rehearsal.get("production_unchanged") is not True:
+                report("merge_stopped", stage="rollback_rehearsal", result=rehearsal, backup=str(backup))
+                return 1
+            report("merge_rehearsed", production_unchanged=True, visible_workspaces=rehearsal["visible_workspaces"])
             apply_started = True
             result = execute(api["Id"], apply=True, expected_plan=preflight["plan"])
             final_result = result

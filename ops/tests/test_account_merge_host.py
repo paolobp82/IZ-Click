@@ -14,7 +14,7 @@ spec.loader.exec_module(merge)
 
 class AccountMergeHostTests(unittest.TestCase):
     def exercise(self, *, apply=True, backup_valid=True, changed=False, preflight_stopped=False,
-                 lose_result=False, fail_journal=False):
+                 lose_result=False, fail_journal=False, rehearsal_succeeds=True):
         calls, reports = [], []
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -28,8 +28,11 @@ class AccountMergeHostTests(unittest.TestCase):
                     kwargs["output"].write(b"fictional valid dump")
                     return b""
                 raise AssertionError(argv)
-            def execute(container, apply=False, expected_plan=None):
-                calls.append(("core", apply, expected_plan))
+            def execute(container, apply=False, expected_plan=None, rehearse=False):
+                calls.append(("core", "rehearse" if rehearse else apply, expected_plan))
+                if rehearse:
+                    return {"check": "merge_rehearsed" if rehearsal_succeeds else "merge_stopped",
+                            "production_unchanged": True, "visible_workspaces": ["angelica", "izango"]}
                 if apply:
                     if lose_result: raise merge.MergeStopped("Transport interrupted")
                     return {"check": "accounts_merged", "login": merge.TARGET, "disabled_login": merge.SOURCE}
@@ -77,9 +80,16 @@ class AccountMergeHostTests(unittest.TestCase):
         status, calls, reports, modes = self.exercise()
         self.assertEqual(status, 0)
         self.assertIn(("core", True, {"reviewed": True}), calls)
+        self.assertLess(calls.index(("core", "rehearse", {"reviewed": True})), calls.index(("core", True, {"reviewed": True})))
         self.assertEqual(reports[-1][0], "accounts_merged")
         self.assertTrue(modes)
         self.assertTrue(all(mode == 0o600 for mode in modes))
+
+    def test_failed_rollback_rehearsal_prevents_real_apply(self):
+        status, calls, reports, modes = self.exercise(rehearsal_succeeds=False)
+        self.assertEqual(status, 1)
+        self.assertNotIn(("core", True, {"reviewed": True}), calls)
+        self.assertEqual(reports[-1][1]["stage"], "rollback_rehearsal")
 
     def test_interrupted_apply_is_unknown_not_claimed_rolled_back(self):
         status, calls, reports, modes = self.exercise(lose_result=True)
