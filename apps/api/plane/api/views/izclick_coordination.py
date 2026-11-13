@@ -2,7 +2,7 @@
 
 This API is additive and does not alter existing Plane project endpoints.
 """
-from django.db.models import Q
+import uuid
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
@@ -11,7 +11,6 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from plane.api.views.base import BaseAPIView
 from plane.db.models import (
     IzclickProjectCoordination,
-    IzclickWorkspaceRole,
     Project,
     User,
     WorkspaceMember,
@@ -73,7 +72,11 @@ class IzclickProjectAssignmentAPI(BaseAPIView):
             raise ValidationError({"producer_id": "Required"})
         if "expected_producer_id" not in request.data:
             raise ValidationError({"expected_producer_id": "Required, null if unassigned"})
-        producer = get_object_or_404(User, pk=producer_id)
+        try:
+            producer_uuid = uuid.UUID(str(producer_id))
+        except (TypeError, ValueError, AttributeError):
+            raise ValidationError({"producer_id": "Must be a valid UUID"})
+        producer = get_object_or_404(User, pk=producer_uuid)
         row, changed = assign_producer(
             project=project,
             actor=request.user,
