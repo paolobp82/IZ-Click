@@ -12,7 +12,22 @@ from plane.api.views import (
     ProjectSummaryAPIEndpoint,
 )
 
+from plane.api.views.izclick_coordination import (
+    IzclickCoordinationQueueAPI,
+    IzclickProjectAssignmentAPI,
+)
+
 urlpatterns = [
+    path(
+        "workspaces/<str:slug>/izclick/coordination/",
+        IzclickCoordinationQueueAPI.as_view(http_method_names=["get"]),
+        name="izclick-coordination-queue",
+    ),
+    path(
+        "workspaces/<str:slug>/izclick/projects/<uuid:project_id>/assign/",
+        IzclickProjectAssignmentAPI.as_view(http_method_names=["post"]),
+        name="izclick-project-assignment",
+    ),
     path(
         "workspaces/<str:slug>/projects/",
         ProjectListCreateAPIEndpoint.as_view(http_method_names=["get", "post"]),

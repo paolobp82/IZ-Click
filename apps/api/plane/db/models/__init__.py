@@ -19,6 +19,11 @@ from .estimate import Estimate, EstimatePoint
 from .exporter import ExporterHistory
 from .importer import Importer
 from .intake import Intake, IntakeIssue
+from .izclick_coordination import (
+    IzclickWorkspaceRole,
+    IzclickProjectCoordination,
+    IzclickAssignmentHistory,
+)
 from .integration import (
     GithubCommentSync,
     GithubIssueSync,
