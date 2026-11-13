@@ -46,9 +46,9 @@ def assign_producer(*, project, actor, producer, expected_producer_id=None):
         project=project, defaults={"workspace_id": project.workspace_id}
     )
     old_id = coordination.producer_id
-    if str(old_id) if old_id is not None else None != (
-        str(expected_producer_id) if expected_producer_id is not None else None
-    ):
+    current_id = str(old_id) if old_id is not None else None
+    expected_id = str(expected_producer_id) if expected_producer_id is not None else None
+    if current_id != expected_id:
         raise ValidationError("Assignment changed; reload before assigning")
     if old_id == producer.pk:
         return coordination, False
