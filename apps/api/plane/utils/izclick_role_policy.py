@@ -45,12 +45,14 @@ def coordination_recipients(coordinator_user_ids):
 
 
 def event_recipients(event, *, coordinator_ids=(), producer_id=None,
-                     commercial_id=None, participant_ids=(), actor_id=None):
+                     commercial_id=None, previous_producer_id=None, participant_ids=(), actor_id=None):
     """Resolve recipient IDs; delivery channel policy is handled separately."""
     if event == "project_created":
         ids = coordinator_ids
-    elif event in ("producer_assigned", "producer_reassigned"):
+    elif event == "producer_assigned":
         ids = (producer_id, commercial_id)
+    elif event == "producer_reassigned":
+        ids = (previous_producer_id, producer_id, commercial_id)
     elif event in ("status_changed", "comment_created"):
         ids = participant_ids
     elif event in ("quotation_link_created", "quotation_link_updated"):
