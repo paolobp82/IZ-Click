@@ -15,6 +15,7 @@ from plane.api.views import (
 from plane.api.views.izclick_coordination import (
     IzclickCoordinationQueueAPI,
     IzclickProjectAssignmentAPI,
+    IzclickProducerWorkloadAPI,
 )
 
 urlpatterns = [
@@ -22,6 +23,11 @@ urlpatterns = [
         "workspaces/<str:slug>/izclick/coordination/",
         IzclickCoordinationQueueAPI.as_view(http_method_names=["get"]),
         name="izclick-coordination-queue",
+    ),
+    path(
+        "workspaces/<str:slug>/izclick/workload/",
+        IzclickProducerWorkloadAPI.as_view(http_method_names=["get"]),
+        name="izclick-producer-workload",
     ),
     path(
         "workspaces/<str:slug>/izclick/projects/<uuid:project_id>/assign/",
