@@ -36,7 +36,6 @@ class AssignmentServiceTests(SimpleTestCase):
             "plane.utils.izclick_assignment.IzclickProjectCoordination.objects.get_or_create",
             return_value=(row, False),
         ):
-            mocked_type.return_value.objects.select_for_update.return_value.get.return_value = self.project
             roles.return_value.exists.return_value = True
             members.return_value.exists.return_value = True
             with self.assertRaises(ValidationError):
