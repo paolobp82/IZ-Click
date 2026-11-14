@@ -255,6 +255,21 @@ class ProjectListCreateAPIEndpoint(BaseAPIView):
                                 workspace=workspace,
                                 commercial=request.user if business_role == IzclickWorkspaceRole.Role.COMMERCIAL else None,
                             )
+                            from plane.utils.izclick_events import dispatch_project_event
+                            coordinator_ids = list(IzclickWorkspaceRole.objects.filter(
+                                workspace=workspace,
+                                role=IzclickWorkspaceRole.Role.COORDINATOR,
+                                deleted_at__isnull=True,
+                                user__is_active=True,
+                            ).values_list("user_id", flat=True))
+                            dispatch_project_event(
+                                project=serializer.instance,
+                                actor=request.user,
+                                event_id=serializer.instance.pk,
+                                event="project_created",
+                                project_url=f"/{workspace.slug}/projects/{serializer.instance.pk}/",
+                                coordinator_ids=coordinator_ids,
+                            )
 
                     # Add the creator as Administrator of the project.
                     _ = ProjectMember.objects.create(project_id=serializer.instance.id, member=request.user, role=20)
