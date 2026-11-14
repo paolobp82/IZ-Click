@@ -4,6 +4,7 @@ This API is additive and does not alter existing Plane project endpoints.
 """
 import uuid
 from django.conf import settings
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
@@ -140,3 +141,45 @@ class IzclickProducerWorkloadAPI(BaseAPIView):
             entry["active_count"] += 1
             entry["projects"].append(_coordination_payload(row))
         return Response(list(grouped.values()))
+
+
+class IzclickWorkspaceRolesAPI(BaseAPIView):
+    """List and update business roles without modifying Plane memberships."""
+
+    def get(self, request, slug):
+        from plane.db.models import Workspace
+        workspace = get_object_or_404(Workspace, slug=slug)
+        _require_coordination_access(request, workspace)
+        rows = IzclickWorkspaceRole.objects.filter(
+            workspace=workspace, deleted_at__isnull=True,
+        ).select_related("user").order_by("user__email")
+        return Response([
+            {"user_id": str(row.user_id), "email": row.user.email, "role": row.role}
+            for row in rows
+        ])
+
+    @transaction.atomic
+    def patch(self, request, slug):
+        from plane.db.models import Workspace
+        workspace = get_object_or_404(Workspace, slug=slug)
+        _require_coordination_access(request, workspace)
+        if not request.user.is_superuser:
+            raise PermissionDenied("Only superadmins may change business roles")
+        if not isinstance(request.data, dict):
+            raise ValidationError("Expected a JSON object")
+        role = request.data.get("role")
+        if role not in IzclickWorkspaceRole.Role.values:
+            raise ValidationError({"role": "Invalid business role"})
+        try:
+            user_id = uuid.UUID(str(request.data.get("user_id")))
+        except (TypeError, ValueError, AttributeError):
+            raise ValidationError({"user_id": "Must be a valid UUID"})
+        member = get_object_or_404(
+            WorkspaceMember, workspace=workspace, member_id=user_id,
+            is_active=True, deleted_at__isnull=True,
+        )
+        row, _ = IzclickWorkspaceRole.objects.update_or_create(
+            workspace=workspace, user=member.member,
+            defaults={"role": role},
+        )
+        return Response({"user_id": str(row.user_id), "role": row.role})
