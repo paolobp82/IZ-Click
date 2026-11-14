@@ -3,10 +3,11 @@
 This API is additive and does not alter existing Plane project endpoints.
 """
 import uuid
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError, NotFound
 
 from plane.api.views.base import BaseAPIView
 from plane.db.models import (
@@ -25,6 +26,21 @@ def _workspace_member(request, workspace):
         deleted_at__isnull=True,
     ).exists():
         raise PermissionDenied("Workspace membership required")
+
+
+def _require_coordination_access(request, workspace):
+    # Fail closed until the new tables and roles are deployed and verified.
+    if not getattr(settings, "IZCLICK_COORDINATION_ENABLED", False):
+        raise NotFound("IZ-Click coordination is not enabled")
+    _workspace_member(request, workspace)
+    if request.user.is_superuser:
+        return
+    if not IzclickWorkspaceRole.objects.filter(
+        workspace=workspace, user=request.user,
+        role=IzclickWorkspaceRole.Role.COORDINATOR,
+        deleted_at__isnull=True,
+    ).exists():
+        raise PermissionDenied("Coordinator role required")
 
 
 def _coordination_payload(row):
@@ -46,7 +62,7 @@ class IzclickCoordinationQueueAPI(BaseAPIView):
     def get(self, request, slug):
         from plane.db.models import Workspace
         workspace = get_object_or_404(Workspace, slug=slug)
-        _workspace_member(request, workspace)
+        _require_coordination_access(request, workspace)
         # Existing projects without a coordination row are not automatically
         # treated as pending: doing so would misclassify historical projects.
         rows = IzclickProjectCoordination.objects.filter(
@@ -62,7 +78,7 @@ class IzclickProjectAssignmentAPI(BaseAPIView):
     def post(self, request, slug, project_id):
         from plane.db.models import Workspace
         workspace = get_object_or_404(Workspace, slug=slug)
-        _workspace_member(request, workspace)
+        _require_coordination_access(request, workspace)
         project = get_object_or_404(
             Project, pk=project_id, workspace=workspace, deleted_at__isnull=True
         )
@@ -98,7 +114,7 @@ class IzclickProducerWorkloadAPI(BaseAPIView):
     def get(self, request, slug):
         from plane.db.models import Workspace
         workspace = get_object_or_404(Workspace, slug=slug)
-        _workspace_member(request, workspace)
+        _require_coordination_access(request, workspace)
         producer_ids = list(
             IzclickWorkspaceRole.objects.filter(
                 workspace=workspace,
