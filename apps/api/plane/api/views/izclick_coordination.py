@@ -133,9 +133,17 @@ class IzclickProducerWorkloadAPI(BaseAPIView):
             status=IzclickProjectCoordination.Status.ASSIGNED,
             deleted_at__isnull=True,
             project__deleted_at__isnull=True,
-        ).select_related("project")
-        grouped = {str(user_id): {"producer_id": str(user_id), "active_count": 0, "projects": []}
-                   for user_id in producer_ids}
+        ).select_related("project", "producer")
+        producer_users = User.objects.filter(pk__in=producer_ids)
+        grouped = {
+            str(user.pk): {
+                "producer_id": str(user.pk),
+                "producer_name": user.display_name or user.email,
+                "active_count": 0,
+                "projects": [],
+            }
+            for user in producer_users
+        }
         for row in rows:
             entry = grouped[str(row.producer_id)]
             entry["active_count"] += 1
