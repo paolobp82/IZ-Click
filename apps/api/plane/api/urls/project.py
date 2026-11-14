@@ -16,9 +16,15 @@ from plane.api.views.izclick_coordination import (
     IzclickCoordinationQueueAPI,
     IzclickProjectAssignmentAPI,
     IzclickProducerWorkloadAPI,
+    IzclickWorkspaceRolesAPI,
 )
 
 urlpatterns = [
+    path(
+        "workspaces/<str:slug>/izclick/roles/",
+        IzclickWorkspaceRolesAPI.as_view(http_method_names=["get", "patch"]),
+        name="izclick-workspace-roles",
+    ),
     path(
         "workspaces/<str:slug>/izclick/coordination/",
         IzclickCoordinationQueueAPI.as_view(http_method_names=["get"]),
