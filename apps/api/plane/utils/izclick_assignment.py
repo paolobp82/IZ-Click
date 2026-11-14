@@ -1,5 +1,5 @@
 """Transactional producer assignment for IZ-Click coordination."""
-from django.core.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
 from plane.utils.izclick_events import dispatch_project_event
