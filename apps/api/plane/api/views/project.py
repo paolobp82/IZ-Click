@@ -7,6 +7,7 @@ import json
 
 # Django imports
 from django.db import IntegrityError, transaction
+from django.conf import settings
 from django.db.models import Exists, F, Func, OuterRef, Prefetch, Q, Subquery, Count
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -26,6 +27,8 @@ from plane.db.models import (
     Intake,
     Module,
     Project,
+    IzclickWorkspaceRole,
+    IzclickProjectCoordination,
     DeployBoard,
     ProjectMember,
     State,
@@ -235,6 +238,23 @@ class ProjectListCreateAPIEndpoint(BaseAPIView):
             if serializer.is_valid():
                 with transaction.atomic():
                     serializer.save()
+
+                    # IZ-Click coordination is opt-in until schema migrations
+                    # and workspace role setup are verified in staging.
+                    if getattr(settings, "IZCLICK_COORDINATION_ENABLED", False):
+                        business_role = IzclickWorkspaceRole.objects.filter(
+                            workspace=workspace, user=request.user,
+                            deleted_at__isnull=True,
+                        ).values_list("role", flat=True).first()
+                        if business_role in (
+                            IzclickWorkspaceRole.Role.COMMERCIAL,
+                            IzclickWorkspaceRole.Role.COORDINATOR,
+                        ):
+                            IzclickProjectCoordination.objects.create(
+                                project=serializer.instance,
+                                workspace=workspace,
+                                commercial=request.user if business_role == IzclickWorkspaceRole.Role.COMMERCIAL else None,
+                            )
 
                     # Add the creator as Administrator of the project.
                     _ = ProjectMember.objects.create(project_id=serializer.instance.id, member=request.user, role=20)
