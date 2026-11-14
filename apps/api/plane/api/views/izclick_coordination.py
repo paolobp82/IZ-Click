@@ -11,6 +11,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from plane.api.views.base import BaseAPIView
 from plane.db.models import (
     IzclickProjectCoordination,
+    IzclickWorkspaceRole,
     Project,
     User,
     WorkspaceMember,
@@ -89,3 +90,36 @@ class IzclickProjectAssignmentAPI(BaseAPIView):
             ), "changed": changed},
             status=status.HTTP_200_OK,
         )
+
+
+class IzclickProducerWorkloadAPI(BaseAPIView):
+    """Workspace-scoped workload based on explicit IZ-Click assignments."""
+
+    def get(self, request, slug):
+        from plane.db.models import Workspace
+        workspace = get_object_or_404(Workspace, slug=slug)
+        _workspace_member(request, workspace)
+        producer_ids = list(
+            IzclickWorkspaceRole.objects.filter(
+                workspace=workspace,
+                role=IzclickWorkspaceRole.Role.PRODUCER,
+                deleted_at__isnull=True,
+                user__is_active=True,
+                user__workspace_member__is_active=True,
+                user__workspace_member__workspace=workspace,
+            ).values_list("user_id", flat=True).distinct()
+        )
+        rows = IzclickProjectCoordination.objects.filter(
+            workspace=workspace,
+            producer_id__in=producer_ids,
+            status=IzclickProjectCoordination.Status.ASSIGNED,
+            deleted_at__isnull=True,
+            project__deleted_at__isnull=True,
+        ).select_related("project")
+        grouped = {str(user_id): {"producer_id": str(user_id), "active_count": 0, "projects": []}
+                   for user_id in producer_ids}
+        for row in rows:
+            entry = grouped[str(row.producer_id)]
+            entry["active_count"] += 1
+            entry["projects"].append(_coordination_payload(row))
+        return Response(list(grouped.values()))
