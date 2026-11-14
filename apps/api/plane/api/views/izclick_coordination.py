@@ -105,8 +105,9 @@ class IzclickProducerWorkloadAPI(BaseAPIView):
                 role=IzclickWorkspaceRole.Role.PRODUCER,
                 deleted_at__isnull=True,
                 user__is_active=True,
-                user__workspace_member__is_active=True,
-                user__workspace_member__workspace=workspace,
+                user__member_workspace__is_active=True,
+                user__member_workspace__workspace=workspace,
+                user__member_workspace__deleted_at__isnull=True,
             ).values_list("user_id", flat=True).distinct()
         )
         rows = IzclickProjectCoordination.objects.filter(
