@@ -2,6 +2,7 @@
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
+from plane.utils.izclick_events import dispatch_project_event
 from plane.db.models import (
     IzclickAssignmentHistory,
     IzclickProjectCoordination,
@@ -52,7 +53,7 @@ def assign_producer(*, project, actor, producer, expected_producer_id=None):
         raise ValidationError("Assignment changed; reload before assigning")
     if old_id == producer.pk:
         return coordination, False
-    IzclickAssignmentHistory.objects.create(
+    history = IzclickAssignmentHistory.objects.create(
         coordination=coordination,
         actor=actor,
         previous_producer_id=old_id,
@@ -62,4 +63,14 @@ def assign_producer(*, project, actor, producer, expected_producer_id=None):
     coordination.assigned_by = actor
     coordination.status = IzclickProjectCoordination.Status.ASSIGNED
     coordination.save(update_fields=["producer", "assigned_by", "status", "updated_at"])
+    dispatch_project_event(
+        project=project,
+        actor=actor,
+        event_id=history.pk,
+        event="producer_reassigned" if old_id else "producer_assigned",
+        project_url=f"/{project.workspace.slug}/projects/{project.pk}/",
+        producer_id=producer.pk,
+        previous_producer_id=old_id,
+        commercial_id=coordination.commercial_id,
+    )
     return coordination, True
