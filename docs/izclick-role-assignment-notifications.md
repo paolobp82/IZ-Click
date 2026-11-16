@@ -1,9 +1,12 @@
 # IZ-Click — Roles, intake, assignment and event notifications
 
-Status: implementation specification (not deployed). Base: preview.
+Status: implemented on the development branch; not deployed. Base: preview.
+
+Release guide and validation: [izclick-coordination-release.md](izclick-coordination-release.md).
 Date: 2026-11-13.
 
 ## Roles and access
+
 - Superadmin + commercial: Paolo Bastianelli. Superadmin retains unrestricted administrative permissions.
 - Commercial: Luciana Vergoncini, José Manuel Sosa.
 - Coordinator: María Paula Salas, Angélica Estupiñán.
@@ -12,6 +15,7 @@ Date: 2026-11-13.
 - Everyone can READ all agency projects and workload; only authorized actors may WRITE. Preserve current memberships, links, attachments, addresses, statuses, and existing data.
 
 ## Intake and assignment
+
 1. Commercial or coordinator creates a project with customer, description, dates, and existing metadata.
 2. Commercial-created projects enter ONE shared coordination queue, visible to BOTH coordinators; no coordinator selection required.
 3. Coordinator-created projects can enter the same queue or be assigned by the creator.
@@ -21,7 +25,9 @@ Date: 2026-11-13.
 7. Producer can manage assigned work; cannot assign producer. All agency staff can see overall workload.
 
 ## Events and delivery
+
 Events: project_created, producer_assigned, producer_reassigned, status_changed, comment_created, quotation_link_created, quotation_link_updated.
+
 - Persist in-app notification with recipient, project, actor, event ID, timestamp, read flag and deep link.
 - Deliver email asynchronously to relevant recipients: new project -> both coordinators; assignment -> assigned producer and originating commercial; state change -> project stakeholders; comment -> project participants other than author; quote link -> originating commercial and coordinator(s).
 - De-duplicate by (event ID, recipient, channel); retries must be idempotent.
@@ -31,6 +37,7 @@ Events: project_created, producer_assigned, producer_reassigned, status_changed,
 - Confirm which existing Plane notification and mail infrastructure can be extended before adding a second system.
 
 ## Migration and release safeguards
+
 - Inventory existing Plane user roles, project memberships, state transitions, email infrastructure and customizations.
 - Map the named users to verified user IDs before changing roles; never match loosely on names.
 - Preserve all existing data; use additive, reversible migrations.
@@ -39,6 +46,7 @@ Events: project_created, producer_assigned, producer_reassigned, status_changed,
 - No production deployment without backup, migration dry run and explicit release approval.
 
 ## Acceptance scenarios
+
 - Commercial creates project -> both coordinators see same unassigned entry.
 - Coordinator A assigns -> producer and commercial receive one in-app alert and one email each; coordinator B sees assignment without duplicate.
 - Coordinator B reassigns -> previous/new responsible parties are notified appropriately and history remains.

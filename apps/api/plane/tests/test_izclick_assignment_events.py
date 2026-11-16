@@ -1,6 +1,4 @@
 """Assignment event integration regression tests."""
-from types import SimpleNamespace
-from unittest.mock import patch
 
 from django.test import SimpleTestCase
 

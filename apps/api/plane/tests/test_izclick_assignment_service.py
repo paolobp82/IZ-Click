@@ -2,13 +2,13 @@
 from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
 
-from django.test import SimpleTestCase
+from django.test import TestCase
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from plane.utils.izclick_assignment import assign_producer
 
 
-class AssignmentServiceTests(SimpleTestCase):
+class AssignmentServiceTests(TestCase):
     def setUp(self):
         class ProjectStub:
             objects = MagicMock()
@@ -17,7 +17,7 @@ class AssignmentServiceTests(SimpleTestCase):
         self.project.workspace_id = "workspace"
         self.project.workspace = SimpleNamespace(slug="izango")
         self.actor = SimpleNamespace(pk="coordinator", is_superuser=False)
-        self.producer = SimpleNamespace(pk="producer")
+        self.producer = SimpleNamespace(pk="producer", is_active=True, is_bot=False)
 
     def test_non_coordinator_rejected_before_assignment(self):
         with patch("plane.utils.izclick_assignment.IzclickWorkspaceRole.objects.filter") as roles, patch(

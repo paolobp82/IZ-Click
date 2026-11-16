@@ -342,6 +342,7 @@ CELERY_IMPORTS = (
     "plane.bgtasks.file_asset_task",
     "plane.bgtasks.email_notification_task",
     "plane.bgtasks.izclick_due_email_task",
+    "plane.bgtasks.izclick_coordination_email",
     "plane.bgtasks.cleanup_task",
     "plane.license.bgtasks.telemetry_metrics",
     # management tasks
@@ -560,6 +561,7 @@ SCRIPT_CAPABLE_MIME_TYPES: frozenset[str] = frozenset(
 SEED_DIR = os.path.join(BASE_DIR, "seeds")
 
 ENABLE_DRF_SPECTACULAR = os.environ.get("ENABLE_DRF_SPECTACULAR", "0") == "1"
+IZCLICK_COORDINATION_ENABLED = os.environ.get("IZCLICK_COORDINATION_ENABLED", "0") == "1"
 
 if ENABLE_DRF_SPECTACULAR:
     REST_FRAMEWORK["DEFAULT_SCHEMA_CLASS"] = "drf_spectacular.openapi.AutoSchema"

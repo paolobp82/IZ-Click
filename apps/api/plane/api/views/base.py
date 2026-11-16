@@ -47,6 +47,8 @@ class TimezoneMixin:
             timezone.activate(zoneinfo.ZoneInfo(request.user.user_timezone))
         else:
             timezone.deactivate()
+        from plane.utils.izclick_access import enforce_business_access
+        enforce_business_access(request, kwargs)
 
 
 class BaseAPIView(TimezoneMixin, GenericAPIView, ReadReplicaControlMixin, BasePaginator):

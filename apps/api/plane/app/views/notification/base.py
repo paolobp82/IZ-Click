@@ -63,7 +63,7 @@ class NotificationViewSet(BaseViewSet, BasePaginator):
 
         notifications = (
             Notification.objects.filter(workspace__slug=slug, receiver_id=request.user.id)
-            .filter(entity_name="issue")
+            .filter(Q(entity_name="issue") | Q(entity_name__startswith="izclick."))
             .annotate(is_inbox_issue=Exists(intake_issue))
             .annotate(is_intake_issue=Exists(intake_issue))
             .annotate(

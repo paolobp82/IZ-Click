@@ -2,8 +2,9 @@
 
 This adapter connects business events to Plane's existing notification table.
 Call it AFTER persisting a project change, with a stable UUID event ID.
-Email delivery remains a separate work item and is not implied by this API.
+The publisher persists a durable outbox and enqueues email after commit.
 """
+
 from plane.utils.izclick_notifications import publish_project_notifications
 from plane.utils.izclick_role_policy import event_recipients
 

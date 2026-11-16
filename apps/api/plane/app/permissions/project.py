@@ -14,6 +14,9 @@ class ProjectBasePermission(BasePermission):
     def has_permission(self, request, view):
         if request.user.is_anonymous:
             return False
+        from plane.utils.izclick_access import business_role
+        if request.method in SAFE_METHODS and business_role(request.user, view.workspace_slug):
+            return True
 
         ## Safe Methods -> Handle the filtering logic in queryset
         if request.method in SAFE_METHODS:
@@ -57,6 +60,9 @@ class ProjectMemberPermission(BasePermission):
     def has_permission(self, request, view):
         if request.user.is_anonymous:
             return False
+        from plane.utils.izclick_access import business_role
+        if request.method in SAFE_METHODS and business_role(request.user, view.workspace_slug):
+            return True
 
         ## Safe Methods -> Handle the filtering logic in queryset
         if request.method in SAFE_METHODS:
@@ -89,6 +95,9 @@ class ProjectEntityPermission(BasePermission):
     def has_permission(self, request, view):
         if request.user.is_anonymous:
             return False
+        from plane.utils.izclick_access import business_role
+        if request.method in SAFE_METHODS and business_role(request.user, view.workspace_slug):
+            return True
 
         # Handle requests based on project__identifier
         if hasattr(view, "project_identifier") and view.project_identifier:
@@ -137,6 +146,9 @@ class ProjectLitePermission(BasePermission):
     def has_permission(self, request, view):
         if request.user.is_anonymous:
             return False
+        from plane.utils.izclick_access import business_role
+        if request.method in SAFE_METHODS and business_role(request.user, view.workspace_slug):
+            return True
 
         return ProjectMember.objects.filter(
             workspace__slug=view.workspace_slug,

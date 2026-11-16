@@ -27,8 +27,6 @@ from plane.db.models import (
     Intake,
     Module,
     Project,
-    IzclickWorkspaceRole,
-    IzclickProjectCoordination,
     DeployBoard,
     ProjectMember,
     State,
@@ -87,6 +85,8 @@ class ProjectListCreateAPIEndpoint(BaseAPIView):
     use_read_replica = True
 
     def get_queryset(self):
+        from plane.utils.izclick_access import business_role
+        agency_access = business_role(self.request.user, self.kwargs.get("slug"))
         return (
             Project.objects.filter(workspace__slug=self.kwargs.get("slug"))
             .filter(
@@ -95,8 +95,12 @@ class ProjectListCreateAPIEndpoint(BaseAPIView):
                     project_projectmember__is_active=True,
                 )
                 | Q(network=2)
+                | (Q(pk__isnull=False) if agency_access else Q(pk__isnull=True))
             )
             .select_related("project_lead")
+            .prefetch_related(*(
+                ["izclick_coordination__producer"] if getattr(settings, "IZCLICK_COORDINATION_ENABLED", False) else []
+            ))
             .annotate(
                 is_member=Exists(
                     ProjectMember.objects.filter(
@@ -239,37 +243,8 @@ class ProjectListCreateAPIEndpoint(BaseAPIView):
                 with transaction.atomic():
                     serializer.save()
 
-                    # IZ-Click coordination is opt-in until schema migrations
-                    # and workspace role setup are verified in staging.
-                    if getattr(settings, "IZCLICK_COORDINATION_ENABLED", False):
-                        business_role = IzclickWorkspaceRole.objects.filter(
-                            workspace=workspace, user=request.user,
-                            deleted_at__isnull=True,
-                        ).values_list("role", flat=True).first()
-                        if business_role in (
-                            IzclickWorkspaceRole.Role.COMMERCIAL,
-                            IzclickWorkspaceRole.Role.COORDINATOR,
-                        ):
-                            IzclickProjectCoordination.objects.create(
-                                project=serializer.instance,
-                                workspace=workspace,
-                                commercial=request.user if business_role == IzclickWorkspaceRole.Role.COMMERCIAL else None,
-                            )
-                            from plane.utils.izclick_events import dispatch_project_event
-                            coordinator_ids = list(IzclickWorkspaceRole.objects.filter(
-                                workspace=workspace,
-                                role=IzclickWorkspaceRole.Role.COORDINATOR,
-                                deleted_at__isnull=True,
-                                user__is_active=True,
-                            ).values_list("user_id", flat=True))
-                            dispatch_project_event(
-                                project=serializer.instance,
-                                actor=request.user,
-                                event_id=serializer.instance.pk,
-                                event="project_created",
-                                project_url=f"/{workspace.slug}/projects/{serializer.instance.pk}/",
-                                coordinator_ids=coordinator_ids,
-                            )
+                    from plane.utils.izclick_lifecycle import project_created
+                    project_created(serializer.instance, request.user, request.data)
 
                     # Add the creator as Administrator of the project.
                     _ = ProjectMember.objects.create(project_id=serializer.instance.id, member=request.user, role=20)
@@ -383,6 +358,8 @@ class ProjectListLiteAPIEndpoint(BaseAPIView):
     use_read_replica = True
 
     def get_queryset(self):
+        from plane.utils.izclick_access import business_role
+        agency_access = business_role(self.request.user, self.kwargs.get("slug"))
         # Projects the user can access: those they are an active member of, plus
         # public (network=2) ones.
         return (
@@ -393,6 +370,7 @@ class ProjectListLiteAPIEndpoint(BaseAPIView):
                     project_projectmember__is_active=True,
                 )
                 | Q(network=2)
+                | (Q(pk__isnull=False) if agency_access else Q(pk__isnull=True))
             )
             .distinct()
         )
@@ -473,6 +451,8 @@ class ProjectDetailAPIEndpoint(BaseAPIView):
     use_read_replica = True
 
     def get_queryset(self):
+        from plane.utils.izclick_access import business_role
+        agency_access = business_role(self.request.user, self.kwargs.get("slug"))
         return (
             Project.objects.filter(workspace__slug=self.kwargs.get("slug"))
             .filter(
@@ -481,6 +461,7 @@ class ProjectDetailAPIEndpoint(BaseAPIView):
                     project_projectmember__is_active=True,
                 )
                 | Q(network=2)
+                | (Q(pk__isnull=False) if agency_access else Q(pk__isnull=True))
             )
             .select_related("workspace", "workspace__owner", "default_assignee", "project_lead")
             .annotate(

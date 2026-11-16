@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import Link from "next/link";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 import { Collapsible } from "@makeplane/propel/components/collapsible";
@@ -70,6 +71,9 @@ export const SidebarWorkspaceMenu = observer(function SidebarWorkspaceMenu() {
       trailing={<SidebarWorkspaceMenuHeader />}
     >
       <div className="mt-0.5 flex flex-col gap-0.5">
+        <Link className="px-3 py-2 text-13" href={`/${workspaceSlug}/coordination/`}>
+          Coordinación y cargas
+        </Link>
         {SIDEBAR_WORKSPACE_MENU_ITEMS.map((item) => (
           <SidebarWorkspaceMenuItem key={item.key} item={item} />
         ))}
