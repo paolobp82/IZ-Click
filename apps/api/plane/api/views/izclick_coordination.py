@@ -1,3 +1,7 @@
+# Copyright (c) 2023-present Plane Software, Inc. and contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+# See the LICENSE file for details.
+
 """Authenticated IZ-Click coordination API.
 
 This API is additive and does not alter existing Plane project endpoints.

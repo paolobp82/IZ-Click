@@ -1,3 +1,7 @@
+# Copyright (c) 2023-present Plane Software, Inc. and contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+# See the LICENSE file for details.
+
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 from plane.db.models import IzclickRoleChange, IzclickWorkspaceRole, WorkspaceMember

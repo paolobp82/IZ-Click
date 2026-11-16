@@ -1,3 +1,7 @@
+# Copyright (c) 2023-present Plane Software, Inc. and contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+# See the LICENSE file for details.
+
 """Pure workload summary helpers for IZ-Click coordination.
 
 No database writes: callers must supply visible, authorized project records.

@@ -1,3 +1,7 @@
+# Copyright (c) 2023-present Plane Software, Inc. and contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+# See the LICENSE file for details.
+
 """Real PostgreSQL contract tests for roles, intake, assignment and delivery."""
 
 from datetime import timedelta
