@@ -5,7 +5,8 @@
  */
 
 import { observer } from "mobx-react";
-import { usePathname } from "next/navigation";
+import { useIzclickAccess } from "@/hooks/use-izclick-access";
+import { useParams, usePathname } from "next/navigation";
 // i18n
 import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
@@ -32,6 +33,8 @@ export const ProjectsBaseHeader = observer(function ProjectsBaseHeader() {
   const { allowPermissions } = useUserPermissions();
 
   const pathname = usePathname();
+  const { workspaceSlug } = useParams();
+  const businessAccess = useIzclickAccess(workspaceSlug?.toString());
   // auth
   const isAuthorizedUser = allowPermissions(
     [EUserPermissions.ADMIN, EUserPermissions.MEMBER],
@@ -59,7 +62,7 @@ export const ProjectsBaseHeader = observer(function ProjectsBaseHeader() {
         <div className="hidden md:flex">
           <HeaderFilters />
         </div>
-        {isAuthorizedUser && !isArchived ? (
+        {isAuthorizedUser && (!businessAccess.enabled || businessAccess.canCreate) && !isArchived ? (
           <>
             <span className="hidden sm:inline-block">
               <Button

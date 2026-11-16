@@ -4,6 +4,7 @@
  * See the LICENSE file for details.
  */
 
+import { useIzclickAccess } from "@/hooks/use-izclick-access";
 import React, { useRef, useState } from "react";
 import { observer } from "mobx-react";
 import Link from "next/link";
@@ -78,7 +79,8 @@ export const ProjectCard = observer(function ProjectCard(props: Props) {
     EUserPermissionsLevel.WORKSPACE
   );
   // auth
-  const isMemberOfProject = !!project.member_role;
+  const businessAccess = useIzclickAccess(workspaceSlug?.toString());
+  const isMemberOfProject = !!project.member_role || businessAccess.canReadAgency;
   const hasAdminRole = project.member_role === EUserPermissions.ADMIN;
   const hasMemberRole = project.member_role === EUserPermissions.MEMBER;
   // archive
@@ -291,6 +293,11 @@ export const ProjectCard = observer(function ProjectCard(props: Props) {
             "opacity-90": isArchived,
           })}
         >
+          {project.coordination && (
+            <p className="text-12 text-secondary">
+              Productor: {project.coordination.producer_name || "Pendiente de asignar"}
+            </p>
+          )}
           <p className="line-clamp-2 text-13 break-words text-tertiary">
             {project.description && project.description.trim() !== ""
               ? project.description

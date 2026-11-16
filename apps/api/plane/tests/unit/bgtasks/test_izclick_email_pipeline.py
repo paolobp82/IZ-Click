@@ -1,3 +1,7 @@
+# Copyright (c) 2023-present Plane Software, Inc. and contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+# See the LICENSE file for details.
+
 from pathlib import Path
 import ast
 import unittest
@@ -15,7 +19,9 @@ class IzclickEmailPipelineTests(unittest.TestCase):
         code = SOURCE.read_text(encoding="utf-8")
         self.assertIn("delivered = msg.send()", code)
         self.assertIn("if delivered != 1:", code)
-        self.assertLess(code.index("delivered = msg.send()"), code.index("sent_at=timezone.now(), processed_at=timezone.now()"))
+        self.assertLess(
+            code.index("delivered = msg.send()"), code.index("sent_at=timezone.now(), processed_at=timezone.now()")
+        )
 
     def test_batches_are_per_issue(self):
         code = SOURCE.read_text(encoding="utf-8")
@@ -36,7 +42,13 @@ class IzclickEmailPipelineTests(unittest.TestCase):
 
     def test_digest_template_content(self):
         content = (ROOT / "templates" / "emails" / "notifications" / "izclick-digest.html").read_text(encoding="utf-8")
-        for field in ("{{ report_date }}", "{{ today|length }}", "{{ tomorrow|length }}", "{{ overdue|length }}", "{{ item.url }}"):
+        for field in (
+            "{{ report_date }}",
+            "{{ today|length }}",
+            "{{ tomorrow|length }}",
+            "{{ overdue|length }}",
+            "{{ item.url }}",
+        ):
             self.assertIn(field, content)
 
     def test_template_has_required_task_action(self):

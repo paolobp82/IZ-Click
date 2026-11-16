@@ -1,0 +1,106 @@
+# Copyright (c) 2023-present Plane Software, Inc. and contributors
+# SPDX-License-Identifier: AGPL-3.0-only
+# See the LICENSE file for details.
+
+"""Transactional producer assignment for IZ-Click coordination."""
+
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
+
+from plane.utils.izclick_events import dispatch_project_event
+from plane.db.models import (
+    IzclickAssignmentHistory,
+    IzclickProjectCoordination,
+    IzclickWorkspaceRole,
+    WorkspaceMember,
+)
+
+
+@transaction.atomic
+def assign_producer(*, project, actor, producer, expected_producer_id=None, expected_version=None):
+    """Assign or reassign with an optimistic concurrency check.
+
+    expected_producer_id=None means the caller expects an unassigned project.
+    Caller must pass a workspace-scoped project fetched under normal auth.
+    The project lock also serializes the first creation of the coordination row.
+    """
+    type(project).objects.select_for_update().get(pk=project.pk)
+    allowed = (
+        actor.is_superuser
+        or IzclickWorkspaceRole.objects.filter(
+            workspace_id=project.workspace_id,
+            user_id=actor.pk,
+            role=IzclickWorkspaceRole.Role.COORDINATOR,
+            deleted_at__isnull=True,
+        ).exists()
+    )
+    if not allowed:
+        raise PermissionDenied("Only coordinators or superadmins may assign producers")
+    if not WorkspaceMember.objects.filter(
+        workspace_id=project.workspace_id,
+        member_id=actor.pk,
+        is_active=True,
+        deleted_at__isnull=True,
+    ).exists():
+        raise PermissionDenied("Active workspace membership required")
+    if not producer.is_active or producer.is_bot:
+        raise ValidationError("Producer must be an active human user")
+    if not WorkspaceMember.objects.filter(
+        workspace_id=project.workspace_id,
+        member_id=producer.pk,
+        is_active=True,
+        deleted_at__isnull=True,
+    ).exists():
+        raise ValidationError("Producer must be an active workspace member")
+    if not IzclickWorkspaceRole.objects.filter(
+        workspace_id=project.workspace_id,
+        user_id=producer.pk,
+        role=IzclickWorkspaceRole.Role.PRODUCER,
+        deleted_at__isnull=True,
+    ).exists():
+        raise ValidationError("Selected user is not a producer")
+    coordination, _ = IzclickProjectCoordination.objects.get_or_create(
+        project=project, defaults={"workspace_id": project.workspace_id}
+    )
+    if expected_version is not None and expected_version != coordination.version:
+        raise ValidationError("Assignment changed; reload before assigning")
+    old_id = coordination.producer_id
+    current_id = str(old_id) if old_id is not None else None
+    expected_id = str(expected_producer_id) if expected_producer_id is not None else None
+    if current_id != expected_id:
+        raise ValidationError("Assignment changed; reload before assigning")
+    if old_id == producer.pk:
+        return coordination, False
+    history = IzclickAssignmentHistory.objects.create(
+        coordination=coordination,
+        actor=actor,
+        previous_producer_id=old_id,
+        new_producer=producer,
+    )
+    coordination.producer = producer
+    coordination.assigned_by = actor
+    coordination.status = IzclickProjectCoordination.Status.ASSIGNED
+    coordination.version += 1
+    coordination.save(update_fields=["producer", "assigned_by", "status", "version", "updated_at"])
+    # Add access for the new producer without deleting historical memberships.
+    from plane.db.models import ProjectMember
+
+    membership, _ = ProjectMember.objects.get_or_create(
+        project=project,
+        member=producer,
+        defaults={"workspace_id": project.workspace_id, "role": 15, "is_active": True},
+    )
+    if not membership.is_active:
+        membership.is_active = True
+        membership.save(update_fields=["is_active", "updated_at"])
+    dispatch_project_event(
+        project=project,
+        actor=actor,
+        event_id=history.pk,
+        event="producer_reassigned" if old_id else "producer_assigned",
+        project_url=f"/{project.workspace.slug}/coordination/?project={project.pk}",
+        producer_id=producer.pk,
+        previous_producer_id=old_id,
+        commercial_id=coordination.commercial_id,
+    )
+    return coordination, True

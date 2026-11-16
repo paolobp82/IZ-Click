@@ -302,8 +302,14 @@ def send_email_notification(issue_id, notification_data, receiver_id, email_noti
                 "task_url": context["issue_url"],
                 "preferences_url": context["user_preference"],
                 "due_date": issue.target_date.strftime("%d/%m/%Y") if issue.target_date else "",
-                "old_state": _state_name((state_change or {}).get("old_value", [""])[0], issue.project_id) if state_change else "",
-                "new_state": _state_name((state_change or {}).get("new_value", [""])[0], issue.project_id) if state_change else "",
+                "old_state": (
+                    _state_name((state_change or {}).get("old_value", [""])[0], issue.project_id)
+                    if state_change else ""
+                ),
+                "new_state": (
+                    _state_name((state_change or {}).get("new_value", [""])[0], issue.project_id)
+                    if state_change else ""
+                ),
             })
             subject = f"[IZ-Click] {mail_title}"
             html_content = render_to_string("emails/notifications/izclick-event.html", context)

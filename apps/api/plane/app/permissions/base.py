@@ -20,6 +20,18 @@ def allow_permission(allowed_roles, level="PROJECT", creator=False, model=None):
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped_view(instance, request, *args, **kwargs):
+            from plane.utils.izclick_access import business_role, can_write
+            slug = kwargs.get("slug")
+            role = business_role(request.user, slug) if slug else None
+            project_id = kwargs.get("project_id") or kwargs.get("pk")
+            member_operation = any(getattr(item, "value", item) in (5, 15) for item in allowed_roles)
+            if role and level == "PROJECT" and member_operation and request.method in ("GET", "HEAD", "OPTIONS"):
+                return view_func(instance, request, *args, **kwargs)
+            if role in ("coordinator", "superadmin") and level == "PROJECT" and member_operation and project_id:
+                return view_func(instance, request, *args, **kwargs)
+            if role == "producer" and level == "PROJECT" and project_id and can_write(request.user, slug, project_id):
+                if ROLE.MEMBER in allowed_roles or 15 in allowed_roles:
+                    return view_func(instance, request, *args, **kwargs)
             # Check for creator if required
             if creator and model:
                 # check if the user is part of the workspace or not

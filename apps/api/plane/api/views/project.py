@@ -7,6 +7,7 @@ import json
 
 # Django imports
 from django.db import IntegrityError, transaction
+from django.conf import settings
 from django.db.models import Exists, F, Func, OuterRef, Prefetch, Q, Subquery, Count
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -84,6 +85,8 @@ class ProjectListCreateAPIEndpoint(BaseAPIView):
     use_read_replica = True
 
     def get_queryset(self):
+        from plane.utils.izclick_access import business_role
+        agency_access = business_role(self.request.user, self.kwargs.get("slug"))
         return (
             Project.objects.filter(workspace__slug=self.kwargs.get("slug"))
             .filter(
@@ -92,8 +95,12 @@ class ProjectListCreateAPIEndpoint(BaseAPIView):
                     project_projectmember__is_active=True,
                 )
                 | Q(network=2)
+                | (Q(pk__isnull=False) if agency_access else Q(pk__isnull=True))
             )
             .select_related("project_lead")
+            .prefetch_related(*(
+                ["izclick_coordination__producer"] if getattr(settings, "IZCLICK_COORDINATION_ENABLED", False) else []
+            ))
             .annotate(
                 is_member=Exists(
                     ProjectMember.objects.filter(
@@ -236,6 +243,9 @@ class ProjectListCreateAPIEndpoint(BaseAPIView):
                 with transaction.atomic():
                     serializer.save()
 
+                    from plane.utils.izclick_lifecycle import project_created
+                    project_created(serializer.instance, request.user, request.data)
+
                     # Add the creator as Administrator of the project.
                     _ = ProjectMember.objects.create(project_id=serializer.instance.id, member=request.user, role=20)
 
@@ -348,6 +358,8 @@ class ProjectListLiteAPIEndpoint(BaseAPIView):
     use_read_replica = True
 
     def get_queryset(self):
+        from plane.utils.izclick_access import business_role
+        agency_access = business_role(self.request.user, self.kwargs.get("slug"))
         # Projects the user can access: those they are an active member of, plus
         # public (network=2) ones.
         return (
@@ -358,6 +370,7 @@ class ProjectListLiteAPIEndpoint(BaseAPIView):
                     project_projectmember__is_active=True,
                 )
                 | Q(network=2)
+                | (Q(pk__isnull=False) if agency_access else Q(pk__isnull=True))
             )
             .distinct()
         )
@@ -438,6 +451,8 @@ class ProjectDetailAPIEndpoint(BaseAPIView):
     use_read_replica = True
 
     def get_queryset(self):
+        from plane.utils.izclick_access import business_role
+        agency_access = business_role(self.request.user, self.kwargs.get("slug"))
         return (
             Project.objects.filter(workspace__slug=self.kwargs.get("slug"))
             .filter(
@@ -446,6 +461,7 @@ class ProjectDetailAPIEndpoint(BaseAPIView):
                     project_projectmember__is_active=True,
                 )
                 | Q(network=2)
+                | (Q(pk__isnull=False) if agency_access else Q(pk__isnull=True))
             )
             .select_related("workspace", "workspace__owner", "default_assignee", "project_lead")
             .annotate(

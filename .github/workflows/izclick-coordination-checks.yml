@@ -1,0 +1,60 @@
+name: IZ-Click coordination checks
+on:
+  pull_request:
+    branches: [preview]
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+jobs:
+  backend:
+    if: github.head_ref == 'feature/izclick-role-assignment-notifications'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: izclick_test
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: izclick_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    env:
+      DATABASE_URL: postgresql://izclick_test:local-ci-only@localhost:5432/izclick_test
+      REDIS_URL: redis://localhost:6379/15
+      SECRET_KEY: isolated-ci-only
+      WEB_URL: http://localhost:3000
+      DJANGO_SETTINGS_MODULE: plane.settings.test
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version-file: apps/api/pyproject.toml
+          python-version: "3.12.13"
+      - run: uv sync --locked
+        working-directory: apps/api
+      - run: uv run python manage.py migrate --noinput
+        working-directory: apps/api
+      - run: uv run python manage.py makemigrations --check --dry-run
+        working-directory: apps/api
+      - run: uv run pytest plane/tests/test_izclick*.py plane/tests/unit/bgtasks/test_izclick_email_pipeline.py -q
+        working-directory: apps/api
+  frontend:
+    if: github.head_ref == 'feature/izclick-role-assignment-notifications'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web test:coordination
+      - run: pnpm turbo run build --filter=web
+      - run: pnpm --filter web check:types

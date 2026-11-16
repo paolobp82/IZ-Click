@@ -126,3 +126,8 @@ def setup_task_loggers(logger, *args, **kwargs):
 app.autodiscover_tasks()
 
 app.conf.beat_scheduler = "django_celery_beat.schedulers.DatabaseScheduler"
+
+app.conf.beat_schedule["izclick-coordination-outbox"] = {
+    "task": "plane.bgtasks.izclick_coordination_email.drain_coordination_outbox",
+    "schedule": 60.0,
+}
