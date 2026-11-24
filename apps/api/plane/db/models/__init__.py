@@ -100,4 +100,5 @@ from .izclick_production_status import IzClickProductionStatus, IzClickProductio
 
 # IZ-Click optional project-level custom field models
 from .izclick_custom_field import IzclickCustomField, IzclickCustomFieldValue
+from .izclick_issue_coordination import IzclickIssueCoordination, IzclickIssueAssignmentHistory
 from .izclick_coordination import (IzclickWorkspaceRole, IzclickProjectCoordination, IzclickAssignmentHistory, IzclickEmailDelivery, IzclickProjectComment, IzclickRoleChange)

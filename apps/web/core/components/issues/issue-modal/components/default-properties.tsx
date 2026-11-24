@@ -44,6 +44,7 @@ type TIssueDefaultPropertiesProps = {
   targetDate: string | null;
   parentId: string | null;
   isDraft: boolean;
+  hideAssignee?: boolean;
   handleFormChange: () => void;
   setSelectedParentIssue: (issue: ISearchIssueResponse) => void;
 };
@@ -59,6 +60,7 @@ export const IssueDefaultProperties = observer(function IssueDefaultProperties(p
     targetDate,
     parentId,
     isDraft,
+    hideAssignee = false,
     handleFormChange,
     setSelectedParentIssue,
   } = props;
@@ -123,27 +125,29 @@ export const IssueDefaultProperties = observer(function IssueDefaultProperties(p
           </div>
         )}
       />
-      <Controller
-        control={control}
-        name="assignee_ids"
-        render={({ field: { value, onChange } }) => (
-          <div className="h-7">
-            <MemberDropdown
-              projectId={projectId ?? undefined}
-              value={value}
-              onChange={(assigneeIds) => {
-                onChange(assigneeIds);
-                handleFormChange();
-              }}
-              buttonVariant="border-with-text"
-              buttonClassName={value?.length > 0 ? "hover:bg-transparent" : ""}
-              placeholder="Asignar miembros"
-              multiple
-              tabIndex={getIndex("assignee_ids")}
-            />
-          </div>
-        )}
-      />
+      {!hideAssignee && (
+        <Controller
+          control={control}
+          name="assignee_ids"
+          render={({ field: { value, onChange } }) => (
+            <div className="h-7">
+              <MemberDropdown
+                projectId={projectId ?? undefined}
+                value={value}
+                onChange={(assigneeIds) => {
+                  onChange(assigneeIds);
+                  handleFormChange();
+                }}
+                buttonVariant="border-with-text"
+                buttonClassName={value?.length > 0 ? "hover:bg-transparent" : ""}
+                placeholder="Asignar miembros"
+                multiple
+                tabIndex={getIndex("assignee_ids")}
+              />
+            </div>
+          )}
+        />
+      )}
       <Controller
         control={control}
         name="start_date"

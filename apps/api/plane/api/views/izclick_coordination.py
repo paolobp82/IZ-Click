@@ -49,7 +49,8 @@ class IzclickAccessAPI(BaseAPIView):
         workspace = get_object_or_404(Workspace, slug=slug)
         _require_coordination_access(request, workspace, read=True)
         return Response(
-            {"enabled": True, "role": business_role(request.user, slug), "current_user_id": str(request.user.pk)}
+            {"enabled": True, "role": business_role(request.user, slug), "current_user_id": str(request.user.pk),
+             "business_role": IzclickWorkspaceRole.objects.filter(workspace=workspace, user=request.user).values_list("role", flat=True).first()}
         )
 
 

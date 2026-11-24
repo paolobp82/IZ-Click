@@ -14,6 +14,7 @@ export function useIzclickAccess(slug: string | undefined) {
   return {
     enabled: data?.enabled === true,
     role: data?.role,
+    isCommercial: (data?.business_role ?? data?.role) === "commercial",
     canCreate: data?.role === "commercial" || data?.role === "coordinator" || data?.role === "superadmin",
     canReadAgency: !!data?.role,
   };

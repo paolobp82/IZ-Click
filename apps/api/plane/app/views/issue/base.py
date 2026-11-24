@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # See the LICENSE file for details.
 
+from plane.utils.izclick_production import valid_event_date, valid_sig_code_url
+
+from plane.utils.izclick_access import coordination_enabled
+from plane.utils.izclick_issue_intake import issue_created, enqueue_after_commit
+from django.db import transaction
+
 # Python imports
 import copy
 import json
@@ -402,23 +408,25 @@ class IssueViewSet(BaseViewSet):
             )
 
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER])
+    @transaction.atomic
     def create(self, request, slug, project_id):
-        project = Project.objects.get(pk=project_id)
+        project = Project.objects.get(pk=project_id, workspace__slug=slug)
 
         serializer = IssueCreateSerializer(
             data=request.data,
             context={
                 "project_id": project_id,
                 "workspace_id": project.workspace_id,
-                "default_assignee_id": project.default_assignee_id,
+                "default_assignee_id": None if coordination_enabled(slug) and not request.data.get("parent_id", request.data.get("parent")) else project.default_assignee_id,
             },
         )
 
         if serializer.is_valid():
             serializer.save()
+            intake = issue_created(serializer.instance, request.user)
 
             # Track the issue
-            issue_activity.delay(
+            enqueue_after_commit(issue_activity,
                 type="issue.activity.created",
                 requested_data=json.dumps(self.request.data, cls=DjangoJSONEncoder),
                 actor_id=str(request.user.id),
@@ -426,7 +434,7 @@ class IssueViewSet(BaseViewSet):
                 project_id=str(project_id),
                 current_instance=None,
                 epoch=int(timezone.now().timestamp()),
-                notification=True,
+                notification=intake is None,
                 origin=base_host(request=request, is_app=True),
             )
             queryset = self.get_queryset()
@@ -470,7 +478,7 @@ class IssueViewSet(BaseViewSet):
             datetime_fields = ["created_at", "updated_at"]
             issue = user_timezone_converter(issue, datetime_fields, request.user.user_timezone)
             # Send the model activity
-            model_activity.delay(
+            enqueue_after_commit(model_activity,
                 model_name="issue",
                 model_id=str(serializer.data["id"]),
                 requested_data=request.data,
@@ -480,7 +488,7 @@ class IssueViewSet(BaseViewSet):
                 origin=base_host(request=request, is_app=True),
             )
             # updated issue description version
-            issue_description_version_task.delay(
+            enqueue_after_commit(issue_description_version_task,
                 updated_issue=json.dumps(request.data, cls=DjangoJSONEncoder),
                 issue_id=str(serializer.data["id"]),
                 user_id=request.user.id,
@@ -1185,7 +1193,6 @@ class IssueBulkUpdateDateEndpoint(BaseAPIView):
 
 
 
-from plane.utils.izclick_production import valid_event_date, valid_sig_code_url
 
 
 class ProductionSigLinksEndpoint(BaseAPIView):

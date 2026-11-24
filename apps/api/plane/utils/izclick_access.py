@@ -65,6 +65,9 @@ def enforce_business_access(request, kwargs):
         return
     if not coordination_enabled(slug):
         return
+    from plane.utils.izclick_issue_intake import enforce_issue_write
+    if enforce_issue_write(request, kwargs):
+        return
     project_id = kwargs.get("project_id")
     # Project detail routes use pk, while nested entities use project_id.
     path = request.path.rstrip("/")

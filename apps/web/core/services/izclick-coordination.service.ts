@@ -42,6 +42,38 @@ export type ProjectConversation = {
   }[];
 };
 
+export type CoordinationTask = {
+  id: string;
+  project_id: string;
+  name: string;
+  identifier: string;
+  project_name: string;
+  state: string;
+  closed: boolean;
+  clients: string[];
+  start_date: string | null;
+  due_date: string | null;
+  commercial_id: string | null;
+  producer_id: string | null;
+  status: "pending" | "assigned";
+  version: number;
+  url: string;
+  history: {
+    actor_id: string | null;
+    previous_producer_id: string | null;
+    new_producer_id: string | null;
+    created_at: string;
+  }[];
+};
+export type TaskWorkload = {
+  producer_id: string;
+  producer_name: string;
+  active_count: number;
+  overdue_count: number;
+  due_soon_count: number;
+  tasks: CoordinationTask[];
+};
+
 class CoordinationService extends APIService {
   constructor() {
     super(API_BASE_URL);
@@ -49,7 +81,27 @@ class CoordinationService extends APIService {
   private path(slug: string) {
     return `/api/workspaces/${slug}/izclick`;
   }
-  async access(slug: string): Promise<{ enabled: boolean; role: BusinessRole | null; current_user_id: string }> {
+  async tasks(slug: string): Promise<{ role: BusinessRole; current_user_id: string; tasks: CoordinationTask[] }> {
+    return (await this.get(`${this.path(slug)}/tasks/`)).data;
+  }
+  async taskWorkload(slug: string): Promise<TaskWorkload[]> {
+    return (await this.get(`${this.path(slug)}/tasks/workload/`)).data;
+  }
+  async assignTask(slug: string, task: CoordinationTask, producer_id: string) {
+    return this.post(`${this.path(slug)}/tasks/${task.id}/assign/`, {
+      producer_id,
+      expected_version: task.version,
+      expected_producer_id: task.producer_id,
+    });
+  }
+  async access(
+    slug: string
+  ): Promise<{
+    enabled: boolean;
+    role: BusinessRole | null;
+    business_role?: BusinessRole | null;
+    current_user_id: string;
+  }> {
     return (await this.get(`${this.path(slug)}/access/`)).data;
   }
   async createProject(slug: string, data: Record<string, string | null>): Promise<{ id: string }> {

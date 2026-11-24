@@ -3,6 +3,7 @@
 # See the LICENSE file for details.
 
 from django.urls import path
+from plane.api.views.izclick_issue_coordination import IzclickIssueCoordinationAPI, IzclickIssueAssignmentAPI, IzclickIssueWorkloadAPI
 from plane.api.views.izclick_state_retirement import IzclickProjectStateRetirementAPI
 from plane.api.views.izclick_custom_fields import (
     IzclickProjectCustomFieldsAPI,
@@ -36,6 +37,9 @@ from plane.api.views.izclick_coordination import (
 )
 
 urlpatterns = [
+    path("workspaces/<str:slug>/izclick/tasks/", IzclickIssueCoordinationAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/tasks/workload/", IzclickIssueWorkloadAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/tasks/<uuid:task_id>/assign/", IzclickIssueAssignmentAPI.as_view()),
     path("workspaces/<str:slug>/projects/<uuid:project_id>/production-states/<uuid:state_id>/retire/", IzclickProjectStateRetirementAPI.as_view(), name="izclick-retire-project-state"),
     path("workspaces/<str:slug>/projects/<uuid:project_id>/production-commercial/", IzclickCommercialAssignmentsAPI.as_view(), name="izclick-commercial-map"),
     path("workspaces/<str:slug>/projects/<uuid:project_id>/issues/<uuid:issue_id>/production-commercial/", IzclickIssueCommercialAPI.as_view(), name="izclick-issue-commercial"),

@@ -6,7 +6,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import CoordinationPage from "../app/(all)/[workspaceSlug]/(projects)/coordination/page";
+import CoordinationPage from "../core/components/izclick/project-coordination-panel";
 
 const state = vi.hoisted(() => ({ role: "producer", user: "producer", selected: "project", failed: false }));
 vi.mock("react-router", () => ({

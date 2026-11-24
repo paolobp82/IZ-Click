@@ -5,6 +5,9 @@
  */
 
 import React, { useMemo } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useIzclickAccess } from "@/hooks/use-izclick-access";
 import { observer } from "mobx-react";
 import { Ellipsis } from "lucide-react";
 import { Disclosure, Transition } from "@headlessui/react";
@@ -30,6 +33,8 @@ import {
 import { SidebarItemBase } from "./sidebar-item";
 
 export const SidebarMenuItems = observer(function SidebarMenuItems() {
+  const { workspaceSlug } = useParams();
+  const businessAccess = useIzclickAccess(workspaceSlug?.toString());
   // routers
   const { setValue: toggleWorkspaceMenu, storedValue: isWorkspaceMenuOpen } = useLocalStorage<boolean>(
     "is_workspace_menu_open",
@@ -102,6 +107,14 @@ export const SidebarMenuItems = observer(function SidebarMenuItems() {
           <SidebarItemBase key={`static_${_index}`} item={item} />
         ))}
       </div>
+      {businessAccess.enabled && (
+        <Link
+          className="text-sm mx-1 my-2 rounded px-3 py-2 font-medium hover:bg-layer-1"
+          href={`/${workspaceSlug}/coordination/`}
+        >
+          Coordinación y cargas
+        </Link>
+      )}
       <Disclosure as="div" className="flex flex-col" defaultOpen={!!isWorkspaceMenuOpen}>
         <div className="group flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-placeholder hover:bg-layer-transparent-hover">
           <Disclosure.Button

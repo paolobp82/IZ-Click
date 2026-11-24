@@ -3,6 +3,7 @@
 # See the LICENSE file for details.
 
 from django.urls import path
+from plane.api.views.izclick_issue_coordination import IzclickIssueCoordinationAPI, IzclickIssueAssignmentAPI, IzclickIssueWorkloadAPI
 
 from plane.api.views import (
     ProjectListCreateAPIEndpoint,
@@ -18,6 +19,9 @@ from plane.api.views.izclick_coordination import (
 )
 
 urlpatterns = [
+    path("workspaces/<str:slug>/izclick/tasks/", IzclickIssueCoordinationAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/tasks/workload/", IzclickIssueWorkloadAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/tasks/<uuid:task_id>/assign/", IzclickIssueAssignmentAPI.as_view()),
     path("workspaces/<str:slug>/izclick/access/", IzclickAccessAPI.as_view()),
     path("workspaces/<str:slug>/izclick/projects/", IzclickProjectsAPI.as_view()),
     path("workspaces/<str:slug>/izclick/projects/<uuid:project_id>/", IzclickProjectMetadataAPI.as_view()),

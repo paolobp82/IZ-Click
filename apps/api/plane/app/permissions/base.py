@@ -25,10 +25,17 @@ def allow_permission(allowed_roles, level="PROJECT", creator=False, model=None):
             role = business_role(request.user, slug) if slug else None
             project_id = kwargs.get("project_id") or kwargs.get("pk")
             member_operation = any(getattr(item, "value", item) in (5, 15) for item in allowed_roles)
+            if role == "commercial" and level == "PROJECT" and member_operation and request.method == "POST" and request.path.rstrip("/").endswith("/issues"):
+                return view_func(instance, request, *args, **kwargs)
             if role and level == "PROJECT" and member_operation and request.method in ("GET", "HEAD", "OPTIONS"):
                 return view_func(instance, request, *args, **kwargs)
             if role in ("coordinator", "superadmin") and level == "PROJECT" and member_operation and project_id:
                 return view_func(instance, request, *args, **kwargs)
+            if role == "producer" and level == "PROJECT" and member_operation and project_id and "/issues/" in request.path:
+                from plane.utils.izclick_issue_intake import managed_issue
+                row = managed_issue(kwargs.get("issue_id") or kwargs.get("pk"), project_id, slug)
+                if row and row.producer_id == request.user.pk:
+                    return view_func(instance, request, *args, **kwargs)
             if role == "producer" and level == "PROJECT" and project_id and can_write(request.user, slug, project_id):
                 if ROLE.MEMBER in allowed_roles or 15 in allowed_roles:
                     return view_func(instance, request, *args, **kwargs)

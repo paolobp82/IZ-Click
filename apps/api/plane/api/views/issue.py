@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # See the LICENSE file for details.
 
+from plane.utils.izclick_access import coordination_enabled
+from plane.utils.izclick_issue_intake import issue_created, enqueue_after_commit
+from django.db import transaction
+
 # Python imports
 import json
 import uuid
@@ -450,20 +454,21 @@ class IssueListCreateAPIEndpoint(BaseAPIView):
             409: EXTERNAL_ID_EXISTS_RESPONSE,
         },
     )
+    @transaction.atomic
     def post(self, request, slug, project_id):
         """Create work item
 
         Create a new work item in the specified project with the provided details.
         Supports external ID tracking for integration purposes.
         """
-        project = Project.objects.get(pk=project_id)
+        project = Project.objects.get(pk=project_id, workspace__slug=slug)
 
         serializer = IssueSerializer(
             data=request.data,
             context={
                 "project_id": project_id,
                 "workspace_id": project.workspace_id,
-                "default_assignee_id": project.default_assignee_id,
+                "default_assignee_id": None if coordination_enabled(slug) and not request.data.get("parent_id", request.data.get("parent")) else project.default_assignee_id,
             },
         )
 
@@ -493,6 +498,7 @@ class IssueListCreateAPIEndpoint(BaseAPIView):
                 )
 
             serializer.save()
+            intake = issue_created(serializer.instance, request.user)
             # Refetch the issue
             issue = Issue.objects.filter(workspace__slug=slug, project_id=project_id, pk=serializer.data["id"]).first()
             issue.created_at = request.data.get("created_at", timezone.now())
@@ -500,7 +506,7 @@ class IssueListCreateAPIEndpoint(BaseAPIView):
             issue.save(update_fields=["created_at", "created_by"])
 
             # Track the issue
-            issue_activity.delay(
+            enqueue_after_commit(issue_activity,
                 type="issue.activity.created",
                 requested_data=json.dumps(self.request.data, cls=DjangoJSONEncoder),
                 actor_id=str(request.user.id),
@@ -508,12 +514,12 @@ class IssueListCreateAPIEndpoint(BaseAPIView):
                 project_id=str(project_id),
                 current_instance=None,
                 epoch=int(timezone.now().timestamp()),
-                notification=True,
+                notification=intake is None,
                 origin=base_host(request=request, is_app=True),
             )
 
             # Send the model activity
-            model_activity.delay(
+            enqueue_after_commit(model_activity,
                 model_name="issue",
                 model_id=str(serializer.data["id"]),
                 requested_data=request.data,

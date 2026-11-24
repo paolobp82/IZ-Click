@@ -51,7 +51,7 @@ def send_delivery(delivery):
             "task_url": base + path,
             "preferences_url": base + f"/{notification.project.workspace.slug}/notifications/",
             "preferences_label": "Ver notificaciones",
-            "button_label": "Ver proyecto",
+            "button_label": "Ver carga" if notification.entity_name.startswith("izclick.issue_") else "Ver proyecto",
             "quotation_url": notification.data.get("quotation_url", ""),
         },
     )

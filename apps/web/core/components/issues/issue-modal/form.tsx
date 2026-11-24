@@ -8,6 +8,11 @@
  */
 
 import React, { useState, useRef, useEffect } from "react";
+import useSWR from "swr";
+import { useIzclickAccess } from "@/hooks/use-izclick-access";
+import { useLabel } from "@/hooks/store/use-label";
+import { coordinationService } from "@/services/izclick-coordination.service";
+import { CommercialIntakeReview } from "./commercial-intake-review";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
@@ -96,6 +101,9 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
   } = props;
 
   // states
+  const [intakeReview, setIntakeReview] = useState<Partial<TIssue> | null>(null);
+  const [sendingIntake, setSendingIntake] = useState(false);
+  const [intakeError, setIntakeError] = useState("");
   const [gptAssistantModal, setGptAssistantModal] = useState(false);
   const [isMoving, setIsMoving] = useState<boolean>(false);
 
@@ -107,6 +115,14 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
 
   // router
   const { workspaceSlug, projectId: routeProjectId } = useParams();
+  const businessAccess = useIzclickAccess(workspaceSlug?.toString());
+  const { getProjectLabels } = useLabel();
+  const { data: intakeMembers } = useSWR(
+    businessAccess.enabled && businessAccess.isCommercial && workspaceSlug
+      ? ["izclick-intake-members", workspaceSlug]
+      : null,
+    () => coordinationService.roles(String(workspaceSlug))
+  );
 
   // store hooks
   const { getProjectById } = useProject();
@@ -154,7 +170,9 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
     watch: watch,
   });
 
-  const isDisabled = isSubmitting || isApplyingTemplate;
+  const isIntake = businessAccess.enabled && businessAccess.canCreate && !data?.id && !isDraft && !watch("parent_id");
+  const needsCommercialReview = isIntake && businessAccess.isCommercial;
+  const isDisabled = isSubmitting || isApplyingTemplate || sendingIntake;
 
   const { getIndex } = getTabIndex(ETabIndices.ISSUE_FORM, isMobile);
 
@@ -208,7 +226,7 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workItemTemplateId]);
 
-  const handleFormSubmit = async (formData: Partial<TIssue>, is_draft_issue = false) => {
+  const handleFormSubmit = async (formData: Partial<TIssue>, is_draft_issue = false, confirmed = false) => {
     // Check if the editor is ready to discard
     if (!editorRef.current?.isEditorReadyToDiscard()) {
       setToast({
@@ -239,11 +257,20 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
           type_id: getValues<"type_id">("type_id"),
         };
 
+    if (isIntake && !is_draft_issue) submitData.assignee_ids = [];
+    if (needsCommercialReview && !is_draft_issue && !confirmed) {
+      setIntakeError("");
+      setIntakeReview({ ...submitData });
+      return;
+    }
+    if (confirmed) setSendingIntake(true);
+
     // this condition helps to move the issues from draft to project issues
     if (formData.hasOwnProperty("is_draft")) submitData.is_draft = formData.is_draft;
 
     await onSubmit(submitData, is_draft_issue)
       .then(() => {
+        setIntakeReview(null);
         setGptAssistantModal(false);
         if (isCreateMoreToggleEnabled && workItemTemplateId) {
           handleTemplateChange({
@@ -264,6 +291,10 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
       })
       .catch((error) => {
         console.error(error);
+        if (confirmed) setIntakeError("No se pudo enviar la carga. Revisa los datos e inténtalo otra vez.");
+      })
+      .finally(() => {
+        if (confirmed) setSendingIntake(false);
       });
   };
 
@@ -354,11 +385,34 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
     <FormProvider {...methods}>
       <div className="flex gap-2 bg-transparent">
         <div className="w-full rounded-lg">
+          {intakeReview && (
+            <CommercialIntakeReview
+              name={intakeReview.name || ""}
+              project={getProjectById(projectId)?.name || ""}
+              client={(getProjectLabels(projectId) ?? [])
+                .filter(
+                  (label) => (intakeReview.label_ids ?? []).includes(label.id) && /^cliente\s*:/i.test(label.name)
+                )
+                .map((label) => label.name.replace(/^cliente\s*:\s*/i, ""))
+                .join(", ")}
+              startDate={intakeReview.start_date}
+              dueDate={intakeReview.target_date}
+              coordinators={(intakeMembers ?? [])
+                .filter((member) => member.role === "coordinator")
+                .map((member) => member.name)}
+              sending={sendingIntake}
+              error={intakeError}
+              onBack={() => setIntakeReview(null)}
+              onSend={() => {
+                if (!sendingIntake) void handleFormSubmit(intakeReview, false, true);
+              }}
+            />
+          )}
           <form
             ref={formRef}
             data-izclick-task-form
             onSubmit={handleSubmit((data) => handleFormSubmit(data))}
-            className="flex w-full flex-col"
+            className={cn("flex w-full flex-col", intakeReview && "hidden")}
           >
             <div className="rounded-t-lg bg-surface-1 p-5">
               <h3 className="pb-2 text-h4-medium text-secondary">{modalTitle}</h3>
@@ -437,6 +491,7 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
                   targetDate={watch("target_date")}
                   parentId={watch("parent_id")}
                   isDraft={isDraft}
+                  hideAssignee={isIntake}
                   handleFormChange={handleFormChange}
                   setSelectedParentIssue={setSelectedParentIssue}
                 />
@@ -488,7 +543,11 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
                         loading={isSubmitting}
                         disabled={isDisabled}
                       >
-                        {isSubmitting ? primaryButtonText.loading : primaryButtonText.default}
+                        {isSubmitting
+                          ? primaryButtonText.loading
+                          : needsCommercialReview
+                            ? "Revisar envío"
+                            : primaryButtonText.default}
                       </Button>
                     </div>
 
