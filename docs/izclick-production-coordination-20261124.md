@@ -8,13 +8,13 @@ La rama compatible es `release/izclick-coordination-20261124`. La publicación s
 
 - Las migraciones nuevas son `0126_izclick_coordination` y `0127_izclick_role_change`, después de las tres migraciones propias que ya tenía producción. Son aditivas.
 - El flujo se activa únicamente en el espacio `izango`, mediante `IZCLICK_COORDINATION_WORKSPACES`. Otros espacios conservan sus permisos.
-- Las listas y tareas históricas conservan sus permisos, asignaciones, enlaces y campos. No se convierten en proyectos pendientes ni se envían avisos retrospectivos. La restricción por productor se aplica a proyectos incorporados al nuevo flujo.
+- Las listas y tareas históricas conservan sus permisos, asignaciones, enlaces y campos. No se convierten en proyectos pendientes ni se envían avisos retrospectivos. La restricción por productor se aplica a proyectos incorporados al nuevo flujo. La lectura de campos personalizados y su consulta por lotes se integra con los roles de agencia; los valores históricos sin autor registrado siguen siendo editables sin inventar un autor.
 - El superadministrador de negocio se verifica mediante UUID en `IZCLICK_COORDINATION_SUPERADMINS`, además de exigir membresía activa. No se concede acceso global de Django ni se cambia la contraseña de ninguna persona.
 - El manifiesto se contrasta contra UUID y correo de las cuentas existentes: tres comerciales, dos coordinadoras y seis productores. Las cuentas automáticas quedan excluidas.
 
 ## Validación
 
-- 58 pruebas de coordinación, permisos, concurrencia y correo aprobadas localmente en PostgreSQL aislado.
+- 134 pruebas de coordinación, permisos, concurrencia, correo, estados y campos personalizados aprobadas localmente en PostgreSQL aislado.
 - 6 pruebas de interfaz por rol aprobadas.
 - Comprobación Django y coherencia entre modelos y migraciones aprobadas.
 - Tipos y compilación completa del frontend aprobados. Lint: cero errores; 841 advertencias del conjunto existente.

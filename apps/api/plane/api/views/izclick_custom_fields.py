@@ -179,7 +179,9 @@ class IzclickIssueCustomFieldValuesAPI(BaseAPIView):
                         )
                     record.value = value
                     record.updated_by = request.user
-                    record.full_clean()
+                    # Historical imports may have a NULL audit author. Keep it
+                    # intact while validating the actual custom-field value.
+                    record.full_clean(exclude=["created_by"])
                     record.save(disable_auto_set_user=True)
         except (IzclickCustomField.DoesNotExist, ValidationError, ValueError, TypeError, IntegrityError) as exc:
             return Response({"error": str(exc)}, status=400)
@@ -226,7 +228,7 @@ class IzclickIssueCommercialAPI(BaseAPIView):
                 record = record or IzclickCustomFieldValue(field=field, issue=issue, created_by=request.user)
                 record.value = request.data["member_id"]
                 record.updated_by = request.user
-                record.full_clean()
+                record.full_clean(exclude=["created_by"])
                 record.save(disable_auto_set_user=True)
         except (ValidationError, IntegrityError) as exc:
             return Response({"error": str(exc)}, status=400)

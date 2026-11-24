@@ -104,7 +104,7 @@ class WorkflowTests(TestCase):
         state = State.objects.create(project=self.project, workspace=self.workspace, name="Open", group="started")
         issue = Issue.objects.create(project=self.project, workspace=self.workspace, name="Existing task", state=state)
         field = IzclickCustomField.objects.create(project=self.project, name="Reference", field_type="text")
-        IzclickCustomFieldValue.objects.create(field=field, issue=issue, value="Retained reference", created_by=self.users["commercial"])
+        IzclickCustomFieldValue.objects.create(field=field, issue=issue, value="Retained reference")
         root = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.pk}"
         self.login("commercial")
         response = self.client.get(root+"/izclick-custom-fields/")
@@ -123,6 +123,7 @@ class WorkflowTests(TestCase):
         response = self.client.patch(root+f"/issues/{issue.pk}/izclick-custom-field-values/", {"values": {str(field.pk): "Denied edit"}}, format="json")
         self.assertEqual(response.status_code, 403)
         self.assertEqual(IzclickCustomFieldValue.objects.get(field=field, issue=issue).value, "Assigned producer edit")
+        self.assertIsNone(IzclickCustomFieldValue.objects.get(field=field, issue=issue).created_by_id)
 
     def test_intake_reaches_both_coordinators_once_and_outbox(self):
         project_created(self.project, self.users["commercial"])
