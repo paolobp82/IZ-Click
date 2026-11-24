@@ -14,16 +14,17 @@
   },
   "scripts": {
     "dev": "tsdown --watch --no-clean",
-    "build": "pnpm run generate:types && tsdown",
+    "build": "pnpm run generate:locales && pnpm run generate:types && tsdown",
     "generate:types": "tsx scripts/generate-types.ts",
     "sync:check": "tsx scripts/sync-check.ts",
     "check:sync": "tsx scripts/sync-check.ts --ci",
     "check:lint": "oxlint --max-warnings=9 .",
-    "check:types": "pnpm run generate:types && tsc --noEmit",
+    "check:types": "pnpm run generate:locales && pnpm run generate:types && tsc --noEmit",
     "check:format": "oxfmt --check .",
     "fix:lint": "oxlint --fix .",
     "fix:format": "oxfmt .",
-    "clean": "rm -rf .turbo && rm -rf .next && rm -rf node_modules && rm -rf dist"
+    "clean": "rm -rf .turbo && rm -rf .next && rm -rf node_modules && rm -rf dist",
+    "generate:locales": "tsx scripts/generate-locale-loaders.ts"
   },
   "dependencies": {
     "i18next": "catalog:",

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "react-router dev --port 3000",
-    "build": "react-router build",
+    "build": "react-router build && node tests/i18n-build-check.mjs",
     "preview": "react-router build && serve -s build/client -l 3000",
     "start": "serve -s build/client -l 3000",
     "clean": "rm -rf .turbo && rm -rf .next && rm -rf .react-router && rm -rf node_modules && rm -rf dist && rm -rf build",
@@ -15,7 +15,8 @@
     "check:format": "oxfmt --check .",
     "fix:lint": "oxlint --fix .",
     "fix:format": "oxfmt .",
-    "test:coordination": "vitest run --config vitest.coordination.config.ts"
+    "test:coordination": "vitest run --config vitest.coordination.config.ts",
+    "test:i18n-build": "node tests/i18n-build-check.mjs"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "catalog:",
