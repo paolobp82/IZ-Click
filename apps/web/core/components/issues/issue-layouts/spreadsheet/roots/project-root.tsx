@@ -31,6 +31,7 @@ export const ProjectSpreadsheetLayout = observer(function ProjectSpreadsheetLayo
 
   return (
     <BaseSpreadsheetRoot
+      paginated
       QuickActions={ProjectIssueQuickActions}
       canEditPropertiesBasedOnProject={canEditPropertiesBasedOnProject}
     />

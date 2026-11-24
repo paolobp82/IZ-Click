@@ -304,7 +304,11 @@ export class IssueFilterHelperStore implements IIssueFilterHelperStore {
     subGroupId?: string
   ) {
     // if cursor exists, use the cursor. If it doesn't exist construct the cursor based on per page count
-    const pageCursor = cursor ? cursor : groupId ? `${options.perPageCount}:1:0` : `${options.perPageCount}:0:0`;
+    const pageCursor = cursor
+      ? cursor
+      : groupId
+        ? `${options.perPageCount}:1:0`
+        : `${options.perPageCount}:${options.page ? Math.max(0, options.page - 1) : 0}:0`;
 
     // pagination params
     const paginationParams: Partial<Record<TIssueParams, string | boolean>> = {
@@ -312,6 +316,13 @@ export class IssueFilterHelperStore implements IIssueFilterHelperStore {
       cursor: pageCursor,
       per_page: options.perPageCount.toString(),
     };
+
+    if (options.page !== undefined) {
+      paginationParams.order_by = options.orderBy ?? "-created_at";
+      paginationParams.sub_issue = "false";
+      delete paginationParams.group_by;
+      delete paginationParams.sub_group_by;
+    }
 
     // If group by is specifically sent through options, like that for calendar layout, use that to group
     if (options.groupedBy) {

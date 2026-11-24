@@ -10,7 +10,7 @@ import { observer } from "mobx-react";
 import { SPREADSHEET_SELECT_GROUP, SPREADSHEET_PROPERTY_LIST } from "@plane/constants";
 // types
 import type { TIssue, IIssueDisplayFilterOptions, IIssueDisplayProperties } from "@plane/types";
-import { EIssueLayoutTypes } from "@plane/types";
+import { EIssueLayoutTypes, EIssuesStoreType } from "@plane/types";
 // components
 import { MultipleSelectGroup } from "@/components/core/multiple-select";
 import { IssueBulkOperationsRoot } from "@/components/issues/bulk-operations";
@@ -22,6 +22,7 @@ import { useBulkOperationStatus } from "@/hooks/use-bulk-operation-status";
 // local imports
 import type { TRenderQuickActions } from "../list/list-view-types";
 import { QuickAddIssueRoot, SpreadsheetAddIssueButton } from "../quick-add";
+import { SpreadsheetPageNavigation, type SpreadsheetPagination } from "./page-navigation";
 import { SpreadsheetTable } from "./spreadsheet-table";
 
 type Props = {
@@ -40,6 +41,7 @@ type Props = {
   disableIssueCreation?: boolean;
   isWorkspaceLevel?: boolean;
   isEpic?: boolean;
+  pagination?: SpreadsheetPagination;
 };
 
 export const SpreadsheetView = observer(function SpreadsheetView(props: Props) {
@@ -58,6 +60,7 @@ export const SpreadsheetView = observer(function SpreadsheetView(props: Props) {
     loadMoreIssues,
     isWorkspaceLevel = false,
     isEpic = false,
+    pagination,
   } = props;
   // refs
   const containerRef = useRef<HTMLTableElement | null>(null);
@@ -69,7 +72,9 @@ export const SpreadsheetView = observer(function SpreadsheetView(props: Props) {
 
   const isEstimateEnabled: boolean = currentProjectDetails?.estimate !== null;
 
-  const availableColumns = SPREADSHEET_PROPERTY_LIST.filter(property => !["labels", "cycle", "modules"].includes(property));
+  const availableColumns = SPREADSHEET_PROPERTY_LIST.filter(
+    (property) => !["labels", "cycle", "modules"].includes(property)
+  );
   const spreadsheetColumnsList = isWorkspaceLevel
     ? availableColumns
     : availableColumns.filter((property) => {
@@ -78,8 +83,12 @@ export const SpreadsheetView = observer(function SpreadsheetView(props: Props) {
         return true;
       });
 
-  const { issueMap } = useIssues();
-  const visibleIssueIds = isEpic ? (issueIds ?? []) : rootIssueIds(issueIds ?? [], issueMap);
+  const { issueMap, issues: issueStore } = useIssues(EIssuesStoreType.PROJECT);
+  let visibleIssueIds = isEpic ? (issueIds ?? []) : rootIssueIds(issueIds ?? [], issueMap);
+  if (pagination)
+    visibleIssueIds = issueStore
+      .issuesSortWithOrderBy([...visibleIssueIds], displayFilters.order_by ?? "-created_at")
+      .slice(0, pagination.pageSize);
   return (
     <div className="relative flex h-full w-full flex-col overflow-x-hidden bg-layer-1 whitespace-nowrap text-secondary">
       <div ref={portalRef} className="spreadsheet-menu-portal" />
@@ -104,18 +113,20 @@ export const SpreadsheetView = observer(function SpreadsheetView(props: Props) {
                 updateIssue={updateIssue}
                 canEditProperties={canEditProperties}
                 containerRef={containerRef}
-                canLoadMoreIssues={canLoadMoreIssues}
+                canLoadMoreIssues={!pagination && canLoadMoreIssues}
+                rowOffset={pagination ? (pagination.page - 1) * pagination.pageSize : 0}
                 loadMoreIssues={loadMoreIssues}
                 spreadsheetColumnsList={spreadsheetColumnsList}
                 selectionHelpers={helpers}
                 isEpic={isEpic}
               />
               {visibleIssueIds.length === 0 && !canLoadMoreIssues && (
-                <div className="px-6 py-8 text-center text-sm text-secondary" role="status">
+                <div className="text-sm px-6 py-8 text-center text-secondary" role="status">
                   No hay cargas que coincidan con los filtros actuales.
                 </div>
               )}
             </div>
+            {pagination && <SpreadsheetPageNavigation {...pagination} />}
             <div className="border-t border-subtle">
               <div className="sticky bottom-0 left-0 z-5">
                 {enableQuickCreateIssue && !disableIssueCreation && (

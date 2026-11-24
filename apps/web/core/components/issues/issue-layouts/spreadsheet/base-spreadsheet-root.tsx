@@ -5,12 +5,12 @@
  */
 
 import type { FC } from "react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 // plane imports
 import { ALL_ISSUES, EIssueFilterType, EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
-import type { EIssuesStoreType, IIssueDisplayFilterOptions } from "@plane/types";
+import type { EIssuesStoreType, IIssueDisplayFilterOptions, TIssueOrderByOptions } from "@plane/types";
 import { EIssueLayoutTypes } from "@plane/types";
 // hooks
 import { useIssues } from "@/hooks/store/use-issues";
@@ -37,16 +37,30 @@ interface IBaseSpreadsheetRoot {
   isCompletedCycle?: boolean;
   viewId?: string | undefined;
   isEpic?: boolean;
+  paginated?: boolean;
 }
 
 export const BaseSpreadsheetRoot = observer(function BaseSpreadsheetRoot(props: IBaseSpreadsheetRoot) {
-  const { QuickActions, canEditPropertiesBasedOnProject, isCompletedCycle = false, viewId, isEpic = false } = props;
+  const {
+    QuickActions,
+    canEditPropertiesBasedOnProject,
+    isCompletedCycle = false,
+    viewId,
+    isEpic = false,
+    paginated = false,
+  } = props;
   // router
   const { projectId } = useParams();
   // store hooks
   const storeType = useIssueStoreType() as SpreadsheetStoreType;
   const { allowPermissions } = useUserPermissions();
   const { issues, issuesFilter } = useIssues(storeType);
+  const filterKey = JSON.stringify([projectId, storeType, viewId, paginated ? issuesFilter.appliedFilters : null]);
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const [pageError, setPageError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const [tableOrder, setTableOrder] = useState<TIssueOrderByOptions>("-created_at");
   const {
     fetchIssues,
     fetchNextIssues,
@@ -67,13 +81,30 @@ export const BaseSpreadsheetRoot = observer(function BaseSpreadsheetRoot(props: 
   );
 
   useEffect(() => {
-    fetchIssues("init-loader", { canGroup: false, perPageCount: 100 }, viewId);
-  }, [fetchIssues, storeType, viewId]);
+    let active = true;
+    setPageError("");
+    void fetchIssues(
+      "init-loader",
+      {
+        canGroup: false,
+        perPageCount: paginated ? 50 : 100,
+        ...(paginated ? { page, orderBy: tableOrder } : {}),
+      },
+      viewId
+    ).catch(() => {
+      if (active) setPageError("No se pudo cargar esta página. Vuelve a intentarlo.");
+    });
+    return () => {
+      active = false;
+    };
+  }, [fetchIssues, storeType, viewId, paginated, page, filterKey, attempt, tableOrder]);
 
   const canEditProperties = useCallback(
-    (projectId: string | undefined) => {
+    (targetProjectId: string | undefined) => {
       const isEditingAllowedBasedOnProject =
-        canEditPropertiesBasedOnProject && projectId ? canEditPropertiesBasedOnProject(projectId) : isEditingAllowed;
+        canEditPropertiesBasedOnProject && targetProjectId
+          ? canEditPropertiesBasedOnProject(targetProjectId)
+          : isEditingAllowed;
 
       return enableInlineEditing && isEditingAllowedBasedOnProject;
     },
@@ -82,14 +113,22 @@ export const BaseSpreadsheetRoot = observer(function BaseSpreadsheetRoot(props: 
 
   const issueIds = issues.groupedIssueIds?.[ALL_ISSUES] ?? [];
   const nextPageResults = issues.getPaginationData(ALL_ISSUES, undefined)?.nextPageResults;
+  const total = issues.getGroupIssueCount(ALL_ISSUES, undefined, false);
+  const loading = !!issues.getIssueLoader();
+  useEffect(() => {
+    if (!paginated || loading || total === undefined) return;
+    const lastPage = Math.max(1, Math.ceil(total / 50));
+    if (page > lastPage) setPageState({ key: filterKey, page: lastPage });
+  }, [paginated, loading, total, page, filterKey]);
 
   const handleDisplayFiltersUpdate = useCallback(
     (updatedDisplayFilter: Partial<IIssueDisplayFilterOptions>) => {
+      if (paginated && updatedDisplayFilter.order_by) setTableOrder(updatedDisplayFilter.order_by);
       updateFilters(projectId?.toString() ?? "", EIssueFilterType.DISPLAY_FILTERS, {
         ...updatedDisplayFilter,
       });
     },
-    [projectId, updateFilters]
+    [projectId, updateFilters, paginated]
   );
 
   const renderQuickActions: TRenderQuickActions = useCallback(
@@ -108,16 +147,37 @@ export const BaseSpreadsheetRoot = observer(function BaseSpreadsheetRoot(props: 
         placements={placement}
       />
     ),
-    [isCompletedCycle, canEditProperties, removeIssue, updateIssue, removeIssueFromView, archiveIssue, restoreIssue]
+    [
+      QuickActions,
+      isCompletedCycle,
+      canEditProperties,
+      removeIssue,
+      updateIssue,
+      removeIssueFromView,
+      archiveIssue,
+      restoreIssue,
+    ]
   );
 
+  if (pageError)
+    return (
+      <div role="alert" className="p-6">
+        {pageError}
+        <button type="button" className="ml-3 underline" onClick={() => setAttempt((value) => value + 1)}>
+          Reintentar
+        </button>
+      </div>
+    );
   if (!Array.isArray(issueIds)) return null;
 
   return (
     <IssueLayoutHOC layout={EIssueLayoutTypes.SPREADSHEET}>
       <SpreadsheetView
         displayProperties={issuesFilter.issueFilters?.displayProperties ?? {}}
-        displayFilters={issuesFilter.issueFilters?.displayFilters ?? {}}
+        displayFilters={{
+          ...issuesFilter.issueFilters?.displayFilters,
+          ...(paginated ? { order_by: tableOrder } : {}),
+        }}
         handleDisplayFilterUpdate={handleDisplayFiltersUpdate}
         issueIds={issueIds}
         quickActions={renderQuickActions}
@@ -129,6 +189,19 @@ export const BaseSpreadsheetRoot = observer(function BaseSpreadsheetRoot(props: 
         canLoadMoreIssues={!!nextPageResults}
         loadMoreIssues={fetchNextIssues}
         isEpic={isEpic}
+        pagination={
+          paginated
+            ? {
+                page,
+                pageSize: 50,
+                newestFirst: tableOrder === "-created_at",
+                total: total ?? 0,
+                loading,
+                error: pageError,
+                onPageChange: (next) => setPageState({ key: filterKey, page: next }),
+              }
+            : undefined
+        }
       />
     </IssueLayoutHOC>
   );

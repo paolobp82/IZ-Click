@@ -256,6 +256,8 @@ export interface IWorkspaceViewProps {
 }
 
 export interface IssuePaginationOptions {
+  /** One-based explicit page, used by the native project table. */
+  page?: number;
   canGroup: boolean;
   perPageCount: number;
   before?: string;

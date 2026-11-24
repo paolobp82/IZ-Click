@@ -38,6 +38,7 @@ type Props = {
   spreadsheetColumnsList: (keyof IIssueDisplayProperties)[];
   selectionHelpers: TSelectionHelper;
   isEpic?: boolean;
+  rowOffset?: number;
 };
 
 export const SpreadsheetTable = observer(function SpreadsheetTable(props: Props) {
@@ -57,6 +58,7 @@ export const SpreadsheetTable = observer(function SpreadsheetTable(props: Props)
     spreadsheetColumnsList,
     selectionHelpers,
     isEpic = false,
+    rowOffset = 0,
   } = props;
 
   // states
@@ -102,7 +104,12 @@ export const SpreadsheetTable = observer(function SpreadsheetTable(props: Props)
 
   const isPaginating = !!getIssueLoader();
 
-  useIntersectionObserver(containerRef, isPaginating ? null : intersectionElement, loadMoreIssues, `100% 0% 100% 0%`);
+  useIntersectionObserver(
+    containerRef,
+    !canLoadMoreIssues || isPaginating ? null : intersectionElement,
+    loadMoreIssues,
+    `100% 0% 100% 0%`
+  );
 
   const handleKeyBoardNavigation = useTableKeyboardNavigation();
 
@@ -127,7 +134,7 @@ export const SpreadsheetTable = observer(function SpreadsheetTable(props: Props)
           <SpreadsheetIssueRow
             key={id}
             issueId={id}
-            rowNumber={String(index + 1)}
+            rowNumber={String(rowOffset + index + 1)}
             displayProperties={displayProperties}
             quickActions={quickActions}
             canEditProperties={canEditProperties}
