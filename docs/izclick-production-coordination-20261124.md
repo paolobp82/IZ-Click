@@ -78,6 +78,14 @@ Las listas y tareas anteriores siguen en sus pantallas habituales. Su incorporac
 
 La conexión SMTP real fue autenticada sin enviar mensajes de prueba a personas. Las pruebas de entrega usaron transporte simulado: no se verificó recepción en un buzón real. SMTP también conserva su limitación habitual: una caída después de aceptar un mensaje y antes de registrar el éxito puede provocar un reintento; se utiliza un identificador estable del mensaje.
 
+## Corrección posterior de las traducciones
+
+La interfaz publicada dejó referencias dinámicas a los JSON de idiomas fuera del paquete compilado. Esto hacía que se vieran claves como `sidebar.work_items`. La corrección `2464413a15cbf647fdd4313941c0c31eb149adee` genera importaciones literales de los diccionarios antes de compilar, para incluirlos en los recursos publicados. El buscador y los controles Más/Ocultar también utilizan traducciones.
+
+La compilación web ahora ejecuta una comprobación obligatoria del paquete compilado: renderiza 17 etiquetas en español, cambia a inglés y vuelve a español. Se verificaron las 6 pruebas de coordinación, los tipos y la compilación. Se publicó únicamente `izclick-web:i18n-2464413a15cb`, conservando las imágenes de API, trabajador y planificador. Cuatro recursos públicos de traducción se compararon por SHA-256 contra el artefacto validado. El navegador muestra los campos de acceso en español. Las pestañas abiertas antes del cambio requieren una recarga completa.
+
+La configuración y recuperación de esta corrección están en `/root/izclick-i18n-fix-20261124/compose-command.json` y `rollback-command.json`.
+
 ## Mantenimiento de seguridad pendiente
 
 El arranque detecta una clave de firma predeterminada que ya existía en la instalación. También se utiliza para cifrar configuraciones almacenadas, incluido el correo. No se cambió durante esta publicación para conservar esas credenciales y las sesiones existentes. Su renovación requiere una intervención específica: respaldo, ensayo de descifrado y recifrado, actualización coordinada de los servicios y validación SMTP. Puede exigir que el equipo vuelva a iniciar sesión. No se incluyeron claves ni contraseñas en el repositorio o este informe.
