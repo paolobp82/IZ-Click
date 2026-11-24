@@ -89,3 +89,8 @@ La configuración y recuperación de esta corrección están en `/root/izclick-i
 ## Mantenimiento de seguridad pendiente
 
 El arranque detecta una clave de firma predeterminada que ya existía en la instalación. También se utiliza para cifrar configuraciones almacenadas, incluido el correo. No se cambió durante esta publicación para conservar esas credenciales y las sesiones existentes. Su renovación requiere una intervención específica: respaldo, ensayo de descifrado y recifrado, actualización coordinada de los servicios y validación SMTP. Puede exigir que el equipo vuelva a iniciar sesión. No se incluyeron claves ni contraseñas en el repositorio o este informe.
+
+
+## Corrección del alcance sobre tareas nativas
+
+La versión `9d2f163a17fe` sustituye el ingreso comercial sobre proyectos por el flujo acordado sobre tareas dentro de COTIZACIONES IZANGO. Se publicó y verificó posteriormente el mismo día. Las instrucciones actuales, los resultados y la recuperación están en [el informe del flujo nativo](izclick-native-task-intake-20261124.md). El panel anterior se conserva para sus enlaces históricos.
