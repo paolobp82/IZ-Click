@@ -35,3 +35,49 @@ Los archivos de diagnóstico y las configuraciones con credenciales se conservan
 7. Retirar la clave administrativa temporal al terminar.
 
 Para recuperación, usar la configuración anterior protegida y los identificadores de imágenes anteriores, con `IZCLICK_COORDINATION_ENABLED=0`. No revertir migraciones pobladas ni borrar las tablas nuevas. Los correos pendientes permanecen almacenados para su recuperación posterior. No ejecutar los despliegues antiguos del operador restringido: fijan versiones previas a las personalizaciones actuales.
+
+## Resultado de la publicación
+
+Publicación completada el 24 de noviembre de 2026 a las 11:59, hora de Lima (16:59 UTC). Código instalado: `8997ecd5d79ad9bfaf2bf3e4bde030b689b24c6d`.
+
+Acceso: [Coordinación y cargas](https://izclick.izango.com.pe/izango/coordination/). Se utiliza la cuenta habitual de IZ-Click. Si la pestaña estaba abierta antes de la actualización, recargarla para mostrar el nuevo menú.
+
+| Validación final | Resultado |
+| --- | --- |
+| Backend local, incluyendo estados y campos históricos | 134 pruebas aprobadas |
+| Backend aislado en PostgreSQL 15 del servidor | 122 pruebas aprobadas |
+| Interfaz por rol | 6 pruebas aprobadas |
+| Migraciones en producción | 0126 y 0127 aplicadas; ninguna pendiente |
+| Tipos y compilación de la interfaz | Aprobados |
+| Lint de la interfaz completa | 0 errores; 841 advertencias |
+| Restauración del respaldo de ensayo | 113 tablas anteriores comparadas; 189 archivos idénticos por SHA-256 |
+| Acceso con las 11 identidades verificadas | Aprobado en ensayo y producción |
+| Configuración realmente activa, sin sustituciones de pruebas | Flujo encendido en izango; superadministración de Paolo verificada |
+| Páginas públicas y recursos | 3 páginas y 43 recursos correctos |
+| Acceso público a la API de roles sin sesión | HTTP 401 |
+| Trabajador y recuperación periódica de correos | Activos |
+| SMTP de API y trabajador | Conexión y autenticación correctas |
+| Clave administrativa temporal | Retirada; acceso con esa clave rechazado |
+
+Los 3 proyectos, 39 estados y 167 tareas conservan sus identificadores antes y después del cambio. Esos totales incluyen registros históricos y eliminados lógicamente; la interfaz muestra los registros activos según sus filtros. No se crearon proyectos ficticios en producción. Los servicios aislados de ensayo quedaron detenidos y sus archivos conservados.
+
+Respaldo adicional inmediatamente anterior al corte: `/home/izango/izclick-automated-20261124T165704Z`. Los respaldos son locales al servidor. El ensayo de restauración se realizó sobre el respaldo anterior de preparación; el respaldo de corte se generó y comprobó mediante el mismo procedimiento.
+
+Imágenes instaladas: `izclick-api:coordination-8997ecd5d79a` y `izclick-web:coordination-8997ecd5d79a`. API, trabajador y planificador utilizan la misma versión. La configuración completa de publicación y la orden de recuperación están protegidas en `/root/izclick-release-20261124/compose-command.json` y `rollback-command.json`. La recuperación conserva las tablas nuevas y los datos; cambia los servicios a sus imágenes previas con el flujo apagado.
+
+El PR #14 mantiene el desarrollo original contra preview en borrador. Su descripción enlaza esta adaptación instalada. Los resultados de CI del PR original corresponden a `025301390`; las pruebas anteriores corresponden a la adaptación publicada. Los cambios posteriores de documentación no requieren otra publicación.
+
+## Uso inicial y límites verificados
+
+1. Entrar al enlace con la cuenta habitual y abrir **Coordinación y cargas**.
+2. Comercial o coordinación crea un nuevo proyecto con cliente y fechas. Ambas coordinadoras ven la misma cola.
+3. Coordinación consulta las cargas y asigna al productor. Las reasignaciones conservan el historial y bloquean la edición del productor anterior en ese flujo.
+4. El productor trabaja en su proyecto; los participantes reciben las notificaciones correspondientes a asignación, comentarios, estado y cotización.
+
+Las listas y tareas anteriores siguen en sus pantallas habituales. Su incorporación al nuevo flujo requiere una acción explícita; esta publicación no interpreta responsables antiguos ni genera avisos retrospectivos. El panel nuevo puede comenzar sin proyectos hasta que se registre la primera alta.
+
+La conexión SMTP real fue autenticada sin enviar mensajes de prueba a personas. Las pruebas de entrega usaron transporte simulado: no se verificó recepción en un buzón real. SMTP también conserva su limitación habitual: una caída después de aceptar un mensaje y antes de registrar el éxito puede provocar un reintento; se utiliza un identificador estable del mensaje.
+
+## Mantenimiento de seguridad pendiente
+
+El arranque detecta una clave de firma predeterminada que ya existía en la instalación. También se utiliza para cifrar configuraciones almacenadas, incluido el correo. No se cambió durante esta publicación para conservar esas credenciales y las sesiones existentes. Su renovación requiere una intervención específica: respaldo, ensayo de descifrado y recifrado, actualización coordinada de los servicios y validación SMTP. Puede exigir que el equipo vuelva a iniciar sesión. No se incluyeron claves ni contraseñas en el repositorio o este informe.

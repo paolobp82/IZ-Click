@@ -1,8 +1,8 @@
 # IZ-Click — Roles, intake, assignment and event notifications
 
-Status: implemented on the development branch; not deployed. Base: preview.
+Status: published in the izango workspace on 2026-11-24 through the production-compatible release branch. The original development base was preview.
 
-Release guide and validation: [izclick-coordination-release.md](izclick-coordination-release.md).
+Current release, validation and recovery: [izclick-production-coordination-20261124.md](izclick-production-coordination-20261124.md). Original development validation: [izclick-coordination-release.md](izclick-coordination-release.md).
 Date: 2026-11-13.
 
 ## Roles and access

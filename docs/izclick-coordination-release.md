@@ -1,5 +1,7 @@
 # IZ-Click: coordinación, roles y notificaciones
 
+Actualización del 24 de noviembre: la adaptación compatible ya está publicada. Para la instalación real, las migraciones 0126/0127 y los resultados finales, consultar [el informe de producción](izclick-production-coordination-20261124.md). Este documento conserva la validación del desarrollo original del 16 de noviembre contra preview.
+
 Fecha: 16 de noviembre de 2026. Rama: `feature/izclick-role-assignment-notifications`. PR: [#14](https://github.com/paolobp82/IZ-Click/pull/14), contra `preview`.
 
 ## Alcance implementado
