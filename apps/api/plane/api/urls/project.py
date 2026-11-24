@@ -12,7 +12,37 @@ from plane.api.views import (
     ProjectSummaryAPIEndpoint,
 )
 
+from plane.api.views.izclick_coordination import (
+    IzclickAccessAPI, IzclickProjectsAPI, IzclickProjectMetadataAPI, IzclickProjectCommentsAPI,
+    IzclickCoordinationQueueAPI, IzclickProducerWorkloadAPI, IzclickWorkspaceRolesAPI, IzclickProjectAssignmentAPI,
+)
+
 urlpatterns = [
+    path("workspaces/<str:slug>/izclick/access/", IzclickAccessAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/projects/", IzclickProjectsAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/projects/<uuid:project_id>/", IzclickProjectMetadataAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/projects/<uuid:project_id>/comments/", IzclickProjectCommentsAPI.as_view()),
+
+    path(
+        "workspaces/<str:slug>/izclick/roles/",
+        IzclickWorkspaceRolesAPI.as_view(http_method_names=["get", "patch"]),
+        name="izclick-workspace-roles",
+    ),
+    path(
+        "workspaces/<str:slug>/izclick/coordination/",
+        IzclickCoordinationQueueAPI.as_view(http_method_names=["get"]),
+        name="izclick-coordination-queue",
+    ),
+    path(
+        "workspaces/<str:slug>/izclick/workload/",
+        IzclickProducerWorkloadAPI.as_view(http_method_names=["get"]),
+        name="izclick-producer-workload",
+    ),
+    path(
+        "workspaces/<str:slug>/izclick/projects/<uuid:project_id>/assign/",
+        IzclickProjectAssignmentAPI.as_view(http_method_names=["post"]),
+        name="izclick-project-assignment",
+    ),
     path(
         "workspaces/<str:slug>/projects/",
         ProjectListCreateAPIEndpoint.as_view(http_method_names=["get", "post"]),

@@ -59,6 +59,8 @@ export const coreRoutes: RouteConfigEntry[] = [
         // WORKSPACE LEVEL ROUTES
         // --------------------------------------------------------------------
 
+        route(":workspaceSlug/coordination", "./(all)/[workspaceSlug]/(projects)/coordination/page.tsx"),
+
         // Workspace Home
         route(":workspaceSlug", "./(all)/[workspaceSlug]/(projects)/page.tsx"),
 

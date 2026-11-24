@@ -30,6 +30,11 @@ from plane.app.views import (
 )
 
 
+from plane.api.views.izclick_coordination import (
+    IzclickAccessAPI, IzclickProjectsAPI, IzclickProjectMetadataAPI, IzclickProjectCommentsAPI,
+    IzclickCoordinationQueueAPI, IzclickProducerWorkloadAPI, IzclickWorkspaceRolesAPI, IzclickProjectAssignmentAPI,
+)
+
 urlpatterns = [
     path("workspaces/<str:slug>/projects/<uuid:project_id>/production-states/<uuid:state_id>/retire/", IzclickProjectStateRetirementAPI.as_view(), name="izclick-retire-project-state"),
     path("workspaces/<str:slug>/projects/<uuid:project_id>/production-commercial/", IzclickCommercialAssignmentsAPI.as_view(), name="izclick-commercial-map"),
@@ -38,6 +43,15 @@ urlpatterns = [
     path("workspaces/<str:slug>/projects/<uuid:project_id>/izclick-custom-fields/<uuid:field_id>/", IzclickProjectCustomFieldDetailAPI.as_view(), name="izclick-custom-field-detail"),
     path("workspaces/<str:slug>/projects/<uuid:project_id>/issues/<uuid:issue_id>/izclick-custom-field-values/", IzclickIssueCustomFieldValuesAPI.as_view(), name="izclick-issue-custom-field-values"),
     path("workspaces/<str:slug>/projects/<uuid:project_id>/izclick-custom-field-values/batch/", IzclickProjectCustomFieldBulkValuesAPI.as_view(), name="izclick-custom-values-batch"),
+    path("workspaces/<str:slug>/izclick/access/", IzclickAccessAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/projects/", IzclickProjectsAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/projects/<uuid:project_id>/", IzclickProjectMetadataAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/projects/<uuid:project_id>/comments/", IzclickProjectCommentsAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/coordination/", IzclickCoordinationQueueAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/workload/", IzclickProducerWorkloadAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/roles/", IzclickWorkspaceRolesAPI.as_view()),
+    path("workspaces/<str:slug>/izclick/projects/<uuid:project_id>/assign/", IzclickProjectAssignmentAPI.as_view()),
+
     path(
         "workspaces/<str:slug>/projects/",
         ProjectViewSet.as_view({"get": "list", "post": "create"}),

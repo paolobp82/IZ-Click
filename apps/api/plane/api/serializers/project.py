@@ -1,3 +1,4 @@
+from plane.utils.izclick_project_serializer import CoordinationProjectSerializerMixin
 # Copyright (c) 2023-present Plane Software, Inc. and contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 # See the LICENSE file for details.
@@ -206,7 +207,7 @@ class ProjectUpdateSerializer(ProjectCreateSerializer):
         return super().update(instance, validated_data)
 
 
-class ProjectSerializer(BaseSerializer):
+class ProjectSerializer(CoordinationProjectSerializerMixin, BaseSerializer):
     """
     Comprehensive project serializer with metrics and member context.
 

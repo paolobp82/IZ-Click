@@ -1,3 +1,4 @@
+from plane.utils.izclick_project_serializer import CoordinationProjectSerializerMixin
 # Copyright (c) 2023-present Plane Software, Inc. and contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 # See the LICENSE file for details.
@@ -112,7 +113,7 @@ class ProjectLiteSerializer(BaseSerializer):
         read_only_fields = fields
 
 
-class ProjectListSerializer(DynamicBaseSerializer):
+class ProjectListSerializer(CoordinationProjectSerializerMixin, DynamicBaseSerializer):
     is_favorite = serializers.BooleanField(read_only=True)
     sort_order = serializers.FloatField(read_only=True)
     member_role = serializers.IntegerField(read_only=True)

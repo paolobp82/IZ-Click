@@ -117,3 +117,6 @@ packages/i18n/src/types/keys.generated.ts
 
 # Local security notes (not for version control)
 /security/
+
+# Generated static assets copied from runtime images
+/apps/api/plane/static-assets/collected-static/

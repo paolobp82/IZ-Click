@@ -43,6 +43,13 @@ export interface IPartialProject {
 }
 
 export interface IProject extends IPartialProject {
+  coordination?: {
+    producer_id: string | null;
+    producer_name: string | null;
+    commercial_id: string | null;
+    status: string;
+    version: number;
+  } | null;
   archive_in?: number;
   close_in?: number;
   // only for uploading the cover image

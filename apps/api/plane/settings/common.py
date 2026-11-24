@@ -341,6 +341,8 @@ CELERY_IMPORTS = (
     "plane.bgtasks.exporter_expired_task",
     "plane.bgtasks.file_asset_task",
     "plane.bgtasks.email_notification_task",
+    "plane.bgtasks.izclick_due_email_task",
+    "plane.bgtasks.izclick_coordination_email",
     "plane.bgtasks.cleanup_task",
     "plane.license.bgtasks.telemetry_metrics",
     # management tasks
@@ -360,10 +362,6 @@ GITHUB_ACCESS_TOKEN = os.environ.get("GITHUB_ACCESS_TOKEN", False)
 # Analytics
 ANALYTICS_SECRET_KEY = os.environ.get("ANALYTICS_SECRET_KEY", False)
 ANALYTICS_BASE_API = os.environ.get("ANALYTICS_BASE_API", False)
-
-# Posthog settings
-POSTHOG_API_KEY = os.environ.get("POSTHOG_API_KEY", False)
-POSTHOG_HOST = os.environ.get("POSTHOG_HOST", False)
 
 # Skip environment variable configuration
 SKIP_ENV_VAR = os.environ.get("SKIP_ENV_VAR", "1") == "1"
@@ -563,8 +561,12 @@ SCRIPT_CAPABLE_MIME_TYPES: frozenset[str] = frozenset(
 SEED_DIR = os.path.join(BASE_DIR, "seeds")
 
 ENABLE_DRF_SPECTACULAR = os.environ.get("ENABLE_DRF_SPECTACULAR", "0") == "1"
+IZCLICK_COORDINATION_ENABLED = os.environ.get("IZCLICK_COORDINATION_ENABLED", "0") == "1"
 
 if ENABLE_DRF_SPECTACULAR:
     REST_FRAMEWORK["DEFAULT_SCHEMA_CLASS"] = "drf_spectacular.openapi.AutoSchema"
     INSTALLED_APPS.append("drf_spectacular")
     from .openapi import SPECTACULAR_SETTINGS  # noqa: F401
+
+IZCLICK_COORDINATION_WORKSPACES = [x.strip() for x in os.environ.get("IZCLICK_COORDINATION_WORKSPACES", "").split(",") if x.strip()]
+IZCLICK_COORDINATION_SUPERADMINS = [x.strip() for x in os.environ.get("IZCLICK_COORDINATION_SUPERADMINS", "").split(",") if x.strip()]

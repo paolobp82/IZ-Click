@@ -21,7 +21,7 @@ def validate_status_fields(data, partial=False):
         values["color"] = color.lower()
     if not partial or "group" in data:
         group = data.get("group", "unstarted")
-        if group not in GROUPS:
+        if not isinstance(group, str) or group not in GROUPS:
             return None, "Grupo operativo no válido."
         values["group"] = group
     if not partial or "sequence" in data:

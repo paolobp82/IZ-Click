@@ -40,7 +40,7 @@ export const NotificationItem = observer(function NotificationItem(props: TNotif
   const issueId = notification?.data?.issue?.id || undefined;
   const workspace = getWorkspaceBySlug(workspaceSlug);
 
-  const notificationField = notification?.data?.issue_activity.field || undefined;
+  const notificationField = notification?.data?.issue_activity?.field || undefined;
   const notificationTriggeredBy = notification.triggered_by_details || undefined;
 
   const handleNotificationIssuePeekOverview = async () => {
@@ -64,6 +64,26 @@ export const NotificationItem = observer(function NotificationItem(props: TNotif
       }
     }
   };
+
+  if (
+    notification?.entity_name?.startsWith("izclick.") &&
+    notification.data?.url?.startsWith("/") &&
+    !notification.data.url.startsWith("//")
+  ) {
+    return (
+      <a
+        className="block border-b border-subtle p-4"
+        href={notification.data.url}
+        onClick={() => {
+          if (!notification.read_at) void markNotificationAsRead(workspaceSlug);
+        }}
+      >
+        <strong>{notification.title}</strong>
+        <p>{notification.message_stripped}</p>
+        {!notification.read_at && <span className="text-accent-primary">Sin leer</span>}
+      </a>
+    );
+  }
 
   if (!workspaceSlug || !notificationId || !notification?.id || !notificationField || !workspace?.id || !projectId)
     return <></>;

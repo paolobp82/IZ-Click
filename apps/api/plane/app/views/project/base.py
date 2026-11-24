@@ -8,12 +8,15 @@ import json
 
 # Django imports
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db import transaction
+from django.conf import settings
 from django.db.models import Exists, F, OuterRef, Prefetch, Q, Subquery, Count
 from django.utils import timezone
 
 # Third Party imports
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 
 # Module imports
 from plane.app.permissions import ROLE, ProjectMemberPermission, allow_permission
@@ -42,6 +45,7 @@ from plane.db.models import (
     WorkspaceMember,
 )
 from plane.db.models.intake import IntakeIssueStatus
+from plane.utils.izclick_access import business_role
 from plane.utils.host import base_host
 from plane.utils.order_queryset import PROJECT_ORDER_BY_ALLOWLIST, sanitize_order_by
 
@@ -63,6 +67,9 @@ class ProjectViewSet(BaseViewSet):
             .get_queryset()
             .filter(workspace__slug=self.kwargs.get("slug"))
             .select_related("workspace", "workspace__owner", "default_assignee", "project_lead")
+            .prefetch_related(*(
+                ["izclick_coordination__producer"] if getattr(settings, "IZCLICK_COORDINATION_ENABLED", False) else []
+            ))
             .annotate(
                 is_favorite=Exists(
                     UserFavorite.objects.filter(
@@ -104,7 +111,7 @@ class ProjectViewSet(BaseViewSet):
     def list_detail(self, request, slug):
         fields = [field for field in request.GET.get("fields", "").split(",") if field]
         projects = self.get_queryset().order_by("sort_order", "name")
-        if WorkspaceMember.objects.filter(
+        if not business_role(request.user, slug) and WorkspaceMember.objects.filter(
             member=request.user,
             workspace__slug=slug,
             is_active=True,
@@ -115,7 +122,7 @@ class ProjectViewSet(BaseViewSet):
                 project_projectmember__is_active=True,
             )
 
-        if WorkspaceMember.objects.filter(
+        if not business_role(request.user, slug) and WorkspaceMember.objects.filter(
             member=request.user,
             workspace__slug=slug,
             is_active=True,
@@ -155,6 +162,9 @@ class ProjectViewSet(BaseViewSet):
         projects = (
             Project.objects.filter(workspace__slug=self.kwargs.get("slug"))
             .select_related("workspace", "workspace__owner", "default_assignee", "project_lead")
+            .prefetch_related(*(
+                ["izclick_coordination__producer"] if getattr(settings, "IZCLICK_COORDINATION_ENABLED", False) else []
+            ))
             .annotate(
                 member_role=ProjectMember.objects.filter(
                     project_id=OuterRef("pk"),
@@ -198,7 +208,7 @@ class ProjectViewSet(BaseViewSet):
             "updated_by",
         )
 
-        if WorkspaceMember.objects.filter(
+        if not business_role(request.user, slug) and WorkspaceMember.objects.filter(
             member=request.user,
             workspace__slug=slug,
             is_active=True,
@@ -209,7 +219,7 @@ class ProjectViewSet(BaseViewSet):
                 project_projectmember__is_active=True,
             )
 
-        if WorkspaceMember.objects.filter(
+        if not business_role(request.user, slug) and WorkspaceMember.objects.filter(
             member=request.user,
             workspace__slug=slug,
             is_active=True,
@@ -233,7 +243,8 @@ class ProjectViewSet(BaseViewSet):
 
         member_ids = [str(project_member.member_id) for project_member in project.members_list]
 
-        if str(request.user.id) not in member_ids:
+        from plane.utils.izclick_access import business_role
+        if not business_role(request.user, slug) and str(request.user.id) not in member_ids:
             if project.network == ProjectNetwork.SECRET.value:
                 return Response(
                     {"error": "You do not have permission"},
@@ -257,12 +268,17 @@ class ProjectViewSet(BaseViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER], level="WORKSPACE")
+    @transaction.atomic
     def create(self, request, slug):
+        if not isinstance(request.data, dict):
+            raise ValidationError("Expected a JSON object")
         workspace = Workspace.objects.get(slug=slug)
 
         serializer = ProjectSerializer(data={**request.data}, context={"workspace_id": workspace.id})
         if serializer.is_valid():
             serializer.save()
+            from plane.utils.izclick_lifecycle import project_created
+            project_created(serializer.instance, request.user, request.data)
 
             # Add the user as Administrator to the project
             _ = ProjectMember.objects.create(
@@ -330,16 +346,15 @@ class ProjectViewSet(BaseViewSet):
 
             project = self.get_queryset().filter(pk=serializer.data["id"]).first()
 
-            # Create the model activity
-            model_activity.delay(
-                model_name="project",
-                model_id=str(project.id),
-                requested_data=request.data,
-                current_instance=None,
-                actor_id=request.user.id,
-                slug=slug,
-                origin=base_host(request=request, is_app=True),
-            )
+            # Broker failure must not undo a valid intake. The durable outbox
+            # has its own periodic recovery path.
+            def enqueue_activity():
+                model_activity.delay(
+                    model_name="project", model_id=str(project.id), requested_data=request.data,
+                    current_instance=None, actor_id=request.user.id, slug=slug,
+                    origin=base_host(request=request, is_app=True),
+                )
+            transaction.on_commit(enqueue_activity, robust=True)
 
             serializer = ProjectListSerializer(project)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -363,7 +378,9 @@ class ProjectViewSet(BaseViewSet):
         ).exists()
 
         # Return error for if the user is neither workspace admin nor project admin
-        if not is_project_admin and not is_workspace_admin:
+        from plane.utils.izclick_access import can_write
+        business_write = getattr(settings, "IZCLICK_COORDINATION_ENABLED", False) and can_write(request.user, slug, pk)
+        if not business_write and not is_project_admin and not is_workspace_admin:
             return Response(
                 {"error": "You don't have the required permissions."},
                 status=status.HTTP_403_FORBIDDEN,

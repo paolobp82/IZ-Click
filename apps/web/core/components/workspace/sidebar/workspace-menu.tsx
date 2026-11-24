@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import Link from "next/link";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 import { Disclosure, Transition } from "@headlessui/react";
@@ -70,6 +71,9 @@ export const SidebarWorkspaceMenu = observer(function SidebarWorkspaceMenu() {
       >
         {isWorkspaceMenuOpen && (
           <Disclosure.Panel as="div" className="mt-0.5 flex flex-col gap-0.5" static>
+            <Link className="text-sm px-3 py-2" href={`/${workspaceSlug}/coordination/`}>
+              Coordinación y cargas
+            </Link>
             {SIDEBAR_WORKSPACE_MENU_ITEMS.map((item) => (
               <SidebarWorkspaceMenuItem key={item.key} item={item} />
             ))}

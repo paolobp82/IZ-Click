@@ -19,6 +19,11 @@ from .estimate import Estimate, EstimatePoint
 from .exporter import ExporterHistory
 from .importer import Importer
 from .intake import Intake, IntakeIssue
+from .izclick_coordination import (
+    IzclickWorkspaceRole,
+    IzclickProjectCoordination,
+    IzclickAssignmentHistory,
+)
 from .integration import (
     GithubCommentSync,
     GithubIssueSync,
@@ -95,3 +100,4 @@ from .izclick_production_status import IzClickProductionStatus, IzClickProductio
 
 # IZ-Click optional project-level custom field models
 from .izclick_custom_field import IzclickCustomField, IzclickCustomFieldValue
+from .izclick_coordination import (IzclickWorkspaceRole, IzclickProjectCoordination, IzclickAssignmentHistory, IzclickEmailDelivery, IzclickProjectComment, IzclickRoleChange)
