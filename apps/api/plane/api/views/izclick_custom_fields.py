@@ -8,12 +8,18 @@ from plane.db.models import (
     Project, ProjectMember, Issue, IzclickCustomField, IzclickCustomFieldValue,
 )
 from plane.app.views.base import BaseAPIView
+from plane.utils.izclick_access import business_role, can_write
 
 
 def project_access(request, slug, project_id, write=False, schema=False):
     project = Project.objects.filter(id=project_id, workspace__slug=slug, archived_at__isnull=True).first()
     if not project:
         return None
+    role = business_role(request.user, slug)
+    if role == "superadmin" or (role and not write and not schema):
+        return project
+    if role and write and not schema and can_write(request.user, slug, project_id):
+        return project
     member = ProjectMember.objects.filter(
         project_id=project_id, member=request.user, is_active=True
     ).first()
@@ -25,6 +31,9 @@ def project_access(request, slug, project_id, write=False, schema=False):
 
 def visible_project_issues(request, project_id):
     issues = Issue.objects.filter(project_id=project_id)
+    project = Project.objects.filter(pk=project_id).select_related("workspace").first()
+    if project and business_role(request.user, project.workspace.slug):
+        return issues
     if ProjectMember.objects.filter(project_id=project_id, member=request.user, is_active=True,
                                     role=5, project__guest_view_all_features=False).exists():
         issues = issues.filter(created_by=request.user)

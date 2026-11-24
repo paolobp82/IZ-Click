@@ -72,6 +72,10 @@ def enforce_business_access(request, kwargs):
         project_id = kwargs.get("pk")
     if request.method in ("GET", "HEAD", "OPTIONS"):
         return
+    # This legacy endpoint uses POST only to submit a list of IDs to read.
+    # Its own project-access check still requires authenticated agency access.
+    if request.method == "POST" and path.endswith("/izclick-custom-field-values/batch"):
+        return
     if project_id:
         # Historical lists retain their existing permissions until explicitly
         # adopted into coordination. Never reinterpret existing task assignments.

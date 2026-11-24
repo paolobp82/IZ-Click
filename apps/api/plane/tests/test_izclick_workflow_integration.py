@@ -99,6 +99,31 @@ class WorkflowTests(TestCase):
             self.login("producer")
             self.assertEqual(self.client.get(f"{self.prefix}/access/").status_code, 404)
 
+    def test_agency_can_read_custom_fields_and_post_bulk_read_without_schema_write(self):
+        from plane.db.models import Issue, State, IzclickCustomField, IzclickCustomFieldValue
+        state = State.objects.create(project=self.project, workspace=self.workspace, name="Open", group="started")
+        issue = Issue.objects.create(project=self.project, workspace=self.workspace, name="Existing task", state=state)
+        field = IzclickCustomField.objects.create(project=self.project, name="Reference", field_type="text")
+        IzclickCustomFieldValue.objects.create(field=field, issue=issue, value="Retained reference", created_by=self.users["commercial"])
+        root = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.pk}"
+        self.login("commercial")
+        response = self.client.get(root+"/izclick-custom-fields/")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data[0]["id"], str(field.pk))
+        response = self.client.post(root+"/izclick-custom-field-values/batch/", {"issue_ids": [str(issue.pk)]}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIn("Retained reference", str(response.data))
+        response = self.client.post(root+"/izclick-custom-fields/", {"name": "Denied", "type": "text"}, format="json")
+        self.assertEqual(response.status_code, 403)
+        self.assign()
+        self.login("producer")
+        response = self.client.patch(root+f"/issues/{issue.pk}/izclick-custom-field-values/", {"values": {str(field.pk): "Assigned producer edit"}}, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assign(producer="other", expected=self.users["producer"].pk)
+        response = self.client.patch(root+f"/issues/{issue.pk}/izclick-custom-field-values/", {"values": {str(field.pk): "Denied edit"}}, format="json")
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(IzclickCustomFieldValue.objects.get(field=field, issue=issue).value, "Assigned producer edit")
+
     def test_intake_reaches_both_coordinators_once_and_outbox(self):
         project_created(self.project, self.users["commercial"])
         notices = Notification.objects.filter(project=self.project)
