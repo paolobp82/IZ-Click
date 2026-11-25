@@ -4,7 +4,7 @@
 
 """Coordination of native work items; no conversion of historical records."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 from functools import partial
 from django.db import transaction
 from django.utils import timezone
@@ -120,7 +120,7 @@ def enforce_issue_write(request, kwargs):
                 raise PermissionDenied(
                     "Solo comercial o coordinación puede enviar una carga nueva"
                 )
-            if data.get("assignee_ids") or data.get("assignees"):
+            if role == "commercial" and (data.get("assignee_ids") or data.get("assignees")):
                 raise ValidationError(
                     "Envía la carga a coordinación; el productor se asigna desde la cola compartida"
                 )
@@ -190,19 +190,38 @@ def notify(row, actor, event, recipients, message):
 
 
 @transaction.atomic
-def issue_created(issue, actor):
+def issue_created(issue, actor, producer_ids=None):
     if (
         not coordination_enabled(issue.workspace.slug)
         or issue.parent_id
         or issue.is_draft
     ):
         return None
-    if business_role(actor, issue.workspace.slug) not in (
+    role = business_role(actor, issue.workspace.slug)
+    if role not in (
         "commercial",
         "coordinator",
         "superadmin",
     ):
         raise PermissionDenied("Solo comercial o coordinación puede enviar cargas")
+    producer_ids = producer_ids or []
+    if producer_ids:
+        if role not in ("coordinator", "superadmin"):
+            raise PermissionDenied("Solo coordinación puede asignar productores")
+        if not isinstance(producer_ids, list) or len(producer_ids) != 1:
+            raise ValidationError("Selecciona un solo productor para la carga")
+        try:
+            producer_ids = [UUID(str(producer_ids[0]))]
+        except (ValueError, TypeError, AttributeError):
+            raise ValidationError("Identificador de productor inválido")
+        if not IzclickWorkspaceRole.objects.filter(
+            workspace_id=issue.workspace_id, user_id=producer_ids[0],
+            role="producer", user__is_active=True, user__is_bot=False,
+            user__member_workspace__workspace_id=issue.workspace_id,
+            user__member_workspace__is_active=True,
+            user__member_workspace__deleted_at__isnull=True,
+        ).exists():
+            raise ValidationError("Selecciona un productor activo de este espacio")
     if issue.state and issue.state.group in ("completed", "cancelled"):
         raise ValidationError("Una carga nueva debe enviarse en un estado activo")
     row, created = IzclickIssueCoordination.objects.get_or_create(
@@ -233,6 +252,12 @@ def issue_created(issue, actor):
         coordinators,
         "Nueva carga enviada a la cola compartida de coordinación",
     )
+    if producer_ids:
+        row, _ = assign_issue(
+            issue_id=issue.pk, slug=issue.workspace.slug, actor=actor,
+            producer_id=producer_ids[0], expected_version=row.version,
+            expected_producer_id=None,
+        )
     return row
 
 

@@ -1,3 +1,4 @@
+import { CoordinatorProducerSelect } from "@/components/issues/coordinator-producer-select";
 // oxlint-disable promise/always-return
 // oxlint-disable no-shadow
 // oxlint-disable jsx_a11y/prefer-tag-over-role
@@ -257,7 +258,7 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
           type_id: getValues<"type_id">("type_id"),
         };
 
-    if (isIntake && !is_draft_issue) submitData.assignee_ids = [];
+    if (needsCommercialReview && !is_draft_issue) submitData.assignee_ids = [];
     if (needsCommercialReview && !is_draft_issue && !confirmed) {
       setIntakeError("");
       setIntakeReview({ ...submitData });
@@ -496,6 +497,13 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
                   setSelectedParentIssue={setSelectedParentIssue}
                 />
               </div>
+              {isIntake && !businessAccess.isCommercial && (
+                <label className="block px-4 py-2 text-xs">Productor
+                  <CoordinatorProducerSelect slug={String(workspaceSlug)}
+                    value={watch("assignee_ids")?.[0] ?? ""} disabled={isDisabled}
+                    onChange={id => setValue("assignee_ids", id ? [id] : [], { shouldDirty: true })} />
+                </label>
+              )}
               {showActionButtons && (
                 <div
                   className="flex items-center justify-end gap-4 border-t-[0.5px] border-subtle pt-6 pb-3"
