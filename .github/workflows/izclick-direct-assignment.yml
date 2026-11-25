@@ -24,6 +24,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://izclick_test:izclick_test@127.0.0.1:5432/izclick_test
       REDIS_URL: redis://127.0.0.1:6379/0
+      WEB_URL: http://localhost
+      APP_BASE_URL: http://localhost
       SECRET_KEY: ephemeral-direct-assignment-tests-only
     steps:
       - uses: actions/checkout@v4
