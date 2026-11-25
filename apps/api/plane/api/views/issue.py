@@ -1496,137 +1496,1113 @@ class IssueCommentListCreateAPIEndpoint(BaseAPIView):
             issue_comment = IssueComment.objects.get(pk=serializer.instance.id)
             # Update the created_at and the created_by and save the comment
             issue_comment.created_at = request.data.get("created_at", timezone.now())
-            issue_comment.created_by_id = request.data.get("created_b…29118 tokens truncated… self.client.force_authenticate(outsider)
-        response = self.client.get(self.api)
-        self.assertEqual(response.status_code, 403, response.data)
+            issue_comment.created_by_id = request.data.get("created_by", request.user.id)
+            issue_comment.actor_id = request.data.get("created_by", request.user.id)
+            issue_comment.save(update_fields=["created_at", "created_by"])
 
-    def test_closed_task_cannot_be_assigned(self):
-        issue = self.create()
-        issue.state = State.objects.create(
-            name="Completado",
-            group="completed",
-            project=self.project,
-            workspace=self.workspace,
-        )
-        issue.save()
-        with self.assertRaises(ValidationError):
-            self.assign(issue)
-        self.assertFalse(IssueAssignee.objects.filter(issue=issue).exists())
+            issue_activity.delay(
+                type="comment.activity.created",
+                requested_data=json.dumps(serializer.data, cls=DjangoJSONEncoder),
+                actor_id=str(issue_comment.created_by_id),
+                issue_id=str(self.kwargs.get("issue_id")),
+                project_id=str(self.kwargs.get("project_id")),
+                current_instance=None,
+                epoch=int(timezone.now().timestamp()),
+            )
 
-    def test_reassignment_preserves_task_and_history_and_revokes_previous_producer(
-        self,
-    ):
-        issue = self.create()
-        self.assign(issue)
-        self.client.force_authenticate(self.users["producer"])
-        changed = self.client.patch(
-            self.native + f"{issue.pk}/", {"name": "Trabajo asignado"}, format="json"
-        )
-        self.assertEqual(changed.status_code, 204, changed.data)
-        self.assign(
-            issue, producer="producer2", version=1, previous=self.users["producer"].pk
-        )
-        denied = self.client.patch(
-            self.native + f"{issue.pk}/", {"name": "Cambio no permitido"}, format="json"
-        )
-        self.assertEqual(denied.status_code, 403, denied.data)
-        issue.refresh_from_db()
-        self.assertEqual(issue.name, "Trabajo asignado")
-        self.assertEqual(IzclickIssueAssignmentHistory.objects.count(), 2)
-        self.assertEqual(
-            list(
-                IssueAssignee.objects.filter(issue=issue).values_list(
-                    "assignee_id", flat=True
+            # Send the model activity
+            model_activity.delay(
+                model_name="issue_comment",
+                model_id=str(serializer.instance.id),
+                requested_data=request.data,
+                current_instance=None,
+                actor_id=request.user.id,
+                slug=slug,
+                origin=base_host(request=request, is_app=True),
+            )
+
+            serializer = IssueCommentSerializer(issue_comment)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class IssueCommentDetailAPIEndpoint(BaseAPIView):
+    """Work Item Comment Detail Endpoint"""
+
+    serializer_class = IssueCommentSerializer
+    model = IssueComment
+    webhook_event = "issue_comment"
+    permission_classes = [ProjectLitePermission]
+    use_read_replica = True
+
+    def get_queryset(self):
+        return (
+            IssueComment.objects.filter(workspace__slug=self.kwargs.get("slug"))
+            .filter(project_id=self.kwargs.get("project_id"))
+            .filter(issue_id=self.kwargs.get("issue_id"))
+            .filter(
+                project__project_projectmember__member=self.request.user,
+                project__project_projectmember__is_active=True,
+            )
+            .filter(project__archived_at__isnull=True)
+            .select_related("workspace", "project", "issue", "actor")
+            .annotate(
+                is_member=Exists(
+                    ProjectMember.objects.filter(
+                        workspace__slug=self.kwargs.get("slug"),
+                        project_id=self.kwargs.get("project_id"),
+                        member_id=self.request.user.id,
+                        is_active=True,
+                    )
                 )
+            )
+            .order_by(self.kwargs.get("order_by", "-created_at"))
+            .distinct()
+        )
+
+    @issue_comment_docs(
+        operation_id="retrieve_work_item_comment",
+        description="Retrieve details of a specific comment.",
+        parameters=[
+            ISSUE_ID_PARAMETER,
+            COMMENT_ID_PARAMETER,
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Work item comments",
+                response=IssueCommentSerializer,
+                examples=[ISSUE_COMMENT_EXAMPLE],
             ),
-            [self.users["producer2"].pk],
-        )
-        self.assertTrue(
-            ProjectMember.objects.filter(
-                project=self.project, member=self.users["producer"]
+            400: INVALID_REQUEST_RESPONSE,
+            404: ISSUE_NOT_FOUND_RESPONSE,
+        },
+    )
+    def get(self, request, slug, project_id, issue_id, pk):
+        """Retrieve issue comment
+
+        Retrieve details of a specific comment.
+        """
+        issue_comment = self.get_queryset().get(pk=pk)
+        serializer = IssueCommentSerializer(issue_comment, fields=self.fields, expand=self.expand)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @issue_comment_docs(
+        operation_id="update_work_item_comment",
+        description="Modify the content of an existing comment on a work item.",
+        parameters=[
+            ISSUE_ID_PARAMETER,
+            COMMENT_ID_PARAMETER,
+        ],
+        request=OpenApiRequest(
+            request=IssueCommentCreateSerializer,
+            examples=[ISSUE_COMMENT_UPDATE_EXAMPLE],
+        ),
+        responses={
+            200: OpenApiResponse(
+                description="Work item comment updated successfully",
+                response=IssueCommentSerializer,
+                examples=[ISSUE_COMMENT_EXAMPLE],
+            ),
+            400: INVALID_REQUEST_RESPONSE,
+            404: COMMENT_NOT_FOUND_RESPONSE,
+            409: EXTERNAL_ID_EXISTS_RESPONSE,
+        },
+    )
+    def patch(self, request, slug, project_id, issue_id, pk):
+        """Update work item comment
+
+        Modify the content of an existing comment on a work item.
+        Validates external ID uniqueness if provided.
+        """
+        issue_comment = IssueComment.objects.get(workspace__slug=slug, project_id=project_id, issue_id=issue_id, pk=pk)
+        requested_data = json.dumps(self.request.data, cls=DjangoJSONEncoder)
+        current_instance = json.dumps(IssueCommentSerializer(issue_comment).data, cls=DjangoJSONEncoder)
+
+        # Validation check if the issue already exists
+        if (
+            request.data.get("external_id")
+            and (issue_comment.external_id != str(request.data.get("external_id")))
+            and IssueComment.objects.filter(
+                project_id=project_id,
+                workspace__slug=slug,
+                external_source=request.data.get("external_source", issue_comment.external_source),
+                external_id=request.data.get("external_id"),
             ).exists()
-        )
-
-    def test_stale_assignment_and_foreign_producer_are_rejected(self):
-        issue = self.create()
-        self.assign(issue)
-        with self.assertRaises(ValidationError):
-            self.assign(issue, producer="producer2")
-        self.assertEqual(IzclickIssueAssignmentHistory.objects.count(), 1)
-
-    def test_workload_includes_historical_native_assignments_without_adoption(self):
-        issue = Issue.objects.create(
-            name="Carga anterior",
-            project=self.project,
-            workspace=self.workspace,
-            state=self.state,
-        )
-        IssueAssignee.objects.create(
-            issue=issue,
-            assignee=self.users["producer"],
-            project=self.project,
-            workspace=self.workspace,
-        )
-        self.client.force_authenticate(self.users["commercial"])
-        response = self.client.get(self.api + "workload/")
-        self.assertEqual(response.status_code, 200, response.data)
-        producer = next(
-            row
-            for row in response.data
-            if row["producer_id"] == str(self.users["producer"].pk)
-        )
-        self.assertEqual(producer["active_count"], 1)
-        self.assertFalse(IzclickIssueCoordination.objects.filter(issue=issue).exists())
-
-    def test_failed_transaction_keeps_notifications_and_task_atomic(self):
-        from unittest.mock import patch
-
-        self.client.force_authenticate(self.users["commercial"])
-        with patch(
-            "plane.utils.izclick_issue_intake.notify",
-            side_effect=RuntimeError("test rollback"),
         ):
-            response = self.client.post(
-                self.native, {"name": "Rolled back"}, format="json"
+            return Response(
+                {
+                    "error": "Work item comment with the same external id and external source already exists",
+                    "id": str(issue_comment.id),
+                },
+                status=status.HTTP_409_CONFLICT,
             )
-        self.assertEqual(response.status_code, 500)
-        self.assertFalse(Issue.objects.filter(name="Rolled back").exists())
-        self.assertFalse(IzclickIssueCoordination.objects.exists())
-        self.assertFalse(IzclickEmailDelivery.objects.exists())
 
-
-@override_settings(
-    IZCLICK_COORDINATION_ENABLED=True,
-    IZCLICK_COORDINATION_WORKSPACES=[],
-    CELERY_BROKER_URL="memory://",
-)
-class IssueAssignmentRaceTests(IntakeFixture, TransactionTestCase):
-    def test_two_coordinators_cannot_overwrite_a_pending_intake(self):
-        from concurrent.futures import ThreadPoolExecutor
-        from threading import Barrier
-        from django.db import close_old_connections
-
-        self.prepare()
-        issue = self.create()
-        barrier = Barrier(2)
-
-        def attempt(actor, producer):
-            close_old_connections()
-            try:
-                barrier.wait(timeout=10)
-                self.assign(issue, actor=actor, producer=producer)
-                return "assigned"
-            except ValidationError:
-                return "conflict"
-            finally:
-                close_old_connections()
-
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = [
-                pool.submit(attempt, "coordinator", "producer"),
-                pool.submit(attempt, "coordinator2", "producer2"),
-            ]
-            self.assertCountEqual(
-                [f.result(timeout=30) for f in futures], ["assigned", "conflict"]
+        serializer = IssueCommentCreateSerializer(issue_comment, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            issue_activity.delay(
+                type="comment.activity.updated",
+                requested_data=requested_data,
+                actor_id=str(request.user.id),
+                issue_id=str(issue_id),
+                project_id=str(project_id),
+                current_instance=current_instance,
+                epoch=int(timezone.now().timestamp()),
             )
-        self.assertEqual(IzclickIssueAssignmentHistory.objects.count(), 1)
+            # Send the model activity
+            model_activity.delay(
+                model_name="issue_comment",
+                model_id=str(pk),
+                requested_data=request.data,
+                current_instance=current_instance,
+                actor_id=request.user.id,
+                slug=slug,
+                origin=base_host(request=request, is_app=True),
+            )
+
+            issue_comment = IssueComment.objects.get(pk=serializer.instance.id)
+            serializer = IssueCommentSerializer(issue_comment)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @issue_comment_docs(
+        operation_id="delete_work_item_comment",
+        description="Permanently remove a comment from a work item. Records deletion activity for audit purposes.",
+        parameters=[
+            ISSUE_ID_PARAMETER,
+            COMMENT_ID_PARAMETER,
+        ],
+        responses={
+            204: OpenApiResponse(description="Work item comment deleted successfully"),
+            404: COMMENT_NOT_FOUND_RESPONSE,
+        },
+    )
+    def delete(self, request, slug, project_id, issue_id, pk):
+        """Delete issue comment
+
+        Permanently remove a comment from a work item.
+        Records deletion activity for audit purposes.
+        """
+        issue_comment = IssueComment.objects.get(workspace__slug=slug, project_id=project_id, issue_id=issue_id, pk=pk)
+        current_instance = json.dumps(IssueCommentSerializer(issue_comment).data, cls=DjangoJSONEncoder)
+        issue_comment.delete()
+        issue_activity.delay(
+            type="comment.activity.deleted",
+            requested_data=json.dumps({"comment_id": str(pk)}),
+            actor_id=str(request.user.id),
+            issue_id=str(issue_id),
+            project_id=str(project_id),
+            current_instance=current_instance,
+            epoch=int(timezone.now().timestamp()),
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class IssueActivityListAPIEndpoint(BaseAPIView):
+    permission_classes = [ProjectEntityPermission]
+    use_read_replica = True
+
+    @issue_activity_docs(
+        operation_id="list_work_item_activities",
+        description="Retrieve all activities for a work item. Supports filtering by activity type and date range.",
+        parameters=[
+            ISSUE_ID_PARAMETER,
+            CURSOR_PARAMETER,
+            PER_PAGE_PARAMETER,
+            ORDER_BY_PARAMETER,
+            FIELDS_PARAMETER,
+            EXPAND_PARAMETER,
+        ],
+        responses={
+            200: create_paginated_response(
+                IssueActivitySerializer,
+                "PaginatedIssueActivityResponse",
+                "Paginated list of issue activities",
+                "Paginated Issue Activities",
+            ),
+            400: INVALID_REQUEST_RESPONSE,
+            404: ISSUE_NOT_FOUND_RESPONSE,
+        },
+    )
+    def get(self, request, slug, project_id, issue_id):
+        """List issue activities
+
+        Retrieve chronological activity logs for an issue.
+        Excludes comment, vote, reaction, and draft activities.
+        """
+        issue_activities = (
+            IssueActivity.objects.filter(issue_id=issue_id, workspace__slug=slug, project_id=project_id)
+            .filter(
+                ~Q(field__in=["comment", "vote", "reaction", "draft"]),
+                project__project_projectmember__member=self.request.user,
+                project__project_projectmember__is_active=True,
+            )
+            .filter(project__archived_at__isnull=True)
+            .select_related("actor", "workspace", "issue", "project")
+        ).order_by(
+            sanitize_order_by(request.GET.get("order_by", "created_at"), ACTIVITY_ORDER_BY_ALLOWLIST, "created_at")
+        )
+
+        return self.paginate(
+            request=request,
+            queryset=(issue_activities),
+            on_results=lambda issue_activity: (
+                IssueActivitySerializer(issue_activity, many=True, fields=self.fields, expand=self.expand).data
+            ),
+        )
+
+
+class IssueActivityDetailAPIEndpoint(BaseAPIView):
+    """Issue Activity Detail Endpoint"""
+
+    permission_classes = [ProjectEntityPermission]
+    use_read_replica = True
+
+    @issue_activity_docs(
+        operation_id="retrieve_work_item_activity",
+        description="Retrieve details of a specific activity.",
+        parameters=[
+            ISSUE_ID_PARAMETER,
+            ACTIVITY_ID_PARAMETER,
+            CURSOR_PARAMETER,
+            PER_PAGE_PARAMETER,
+            ORDER_BY_PARAMETER,
+            FIELDS_PARAMETER,
+            EXPAND_PARAMETER,
+        ],
+        responses={
+            200: create_paginated_response(
+                IssueActivitySerializer,
+                "PaginatedIssueActivityDetailResponse",
+                "Paginated list of work item activities",
+                "Work Item Activity Details",
+            ),
+            400: INVALID_REQUEST_RESPONSE,
+            404: ISSUE_NOT_FOUND_RESPONSE,
+        },
+    )
+    def get(self, request, slug, project_id, issue_id, pk):
+        """Retrieve issue activity
+
+        Retrieve details of a specific activity.
+        Excludes comment, vote, reaction, and draft activities.
+        """
+        issue_activity = (
+            (
+                IssueActivity.objects.filter(issue_id=issue_id, workspace__slug=slug, project_id=project_id, id=pk)
+                .filter(
+                    ~Q(field__in=["comment", "vote", "reaction", "draft"]),
+                    project__project_projectmember__member=self.request.user,
+                    project__project_projectmember__is_active=True,
+                )
+                .filter(project__archived_at__isnull=True)
+                .select_related("actor", "workspace", "issue", "project")
+            )
+            .order_by(
+                sanitize_order_by(request.GET.get("order_by", "created_at"), ACTIVITY_ORDER_BY_ALLOWLIST, "created_at")
+            )
+            .first()
+        )
+
+        if not issue_activity:
+            return Response({"message": "Activity not found.", "code": "NOT_FOUND"}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(
+            IssueActivitySerializer(issue_activity, fields=self.fields, expand=self.expand).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class IssueAttachmentListCreateAPIEndpoint(BaseAPIView):
+    """Issue Attachment List and Create Endpoint"""
+
+    serializer_class = IssueAttachmentSerializer
+    model = FileAsset
+    use_read_replica = True
+
+    @issue_attachment_docs(
+        operation_id="create_work_item_attachment",
+        description="Generate presigned URL for uploading file attachments to a work item.",
+        parameters=[
+            ISSUE_ID_PARAMETER,
+        ],
+        request=OpenApiRequest(
+            request=IssueAttachmentUploadSerializer,
+            examples=[ISSUE_ATTACHMENT_UPLOAD_EXAMPLE],
+        ),
+        responses={
+            200: OpenApiResponse(
+                description="Presigned download URL generated successfully",
+                examples=[
+                    OpenApiExample(
+                        name="Work Item Attachment Response",
+                        value={
+                            "upload_data": {
+                                "url": "https://s3.amazonaws.com/bucket/file.pdf?signed-url",
+                                "fields": {
+                                    "key": "file.pdf",
+                                    "AWSAccessKeyId": "AKIAIOSFODNN7EXAMPLE",
+                                    "policy": "EXAMPLE",
+                                    "signature": "EXAMPLE",
+                                    "acl": "public-read",
+                                    "Content-Type": "application/pdf",
+                                },
+                            },
+                            "asset_id": "550e8400-e29b-41d4-a716-446655440000",
+                            "asset_url": "https://s3.amazonaws.com/bucket/file.pdf?signed-url",
+                            "attachment": {
+                                "id": "550e8400-e29b-41d4-a716-446655440000",
+                                "name": "file.pdf",
+                                "type": "application/pdf",
+                                "size": 1234567890,
+                                "url": "https://s3.amazonaws.com/bucket/file.pdf?signed-url",
+                            },
+                        },
+                    )
+                ],
+            ),
+            400: OpenApiResponse(
+                description="Validation error",
+                examples=[
+                    OpenApiExample(
+                        name="Missing required fields",
+                        value={
+                            "error": "Name and size are required fields.",
+                            "status": False,
+                        },
+                    ),
+                    OpenApiExample(
+                        name="Invalid file type",
+                        value={"error": "Invalid file type.", "status": False},
+                    ),
+                ],
+            ),
+            404: OpenApiResponse(
+                description="Issue or Project or Workspace not found",
+                examples=[
+                    OpenApiExample(
+                        name="Workspace not found",
+                        value={"error": "Workspace not found"},
+                    ),
+                    OpenApiExample(name="Project not found", value={"error": "Project not found"}),
+                    OpenApiExample(name="Issue not found", value={"error": "Issue not found"}),
+                ],
+            ),
+        },
+    )
+    def post(self, request, slug, project_id, issue_id):
+        """Create work item attachment
+
+        Generate presigned URL for uploading file attachments to a work item.
+        Validates file type and size before creating the attachment record.
+        """
+        issue = Issue.objects.get(pk=issue_id, workspace__slug=slug, project_id=project_id)
+        # if the user is creator or admin,member then allow the upload
+        if not user_has_issue_permission(
+            request.user.id,
+            project_id=project_id,
+            issue=issue,
+            allowed_roles=[ROLE.ADMIN.value, ROLE.MEMBER.value, ROLE.GUEST.value],
+            allow_creator=True,
+        ):
+            return Response(
+                {"error": "You are not allowed to upload this attachment"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        name = sanitize_filename(request.data.get("name"))
+        type = request.data.get("type", False)
+        # Clients may send size as a numeric string ("53314").
+        # 1e400 parses as inf (OverflowError). Non-positive values must not
+        # reach the S3 content-length-range, which is [1, size].
+        try:
+            size = int(request.data.get("size") or 0)
+        except (TypeError, ValueError, OverflowError):
+            size = 0
+        external_id = request.data.get("external_id")
+        external_source = request.data.get("external_source")
+
+        # Check if the request is valid
+        if not name or size <= 0:
+            return Response(
+                {"error": "Invalid request.", "status": False},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        size_limit = min(size, settings.FILE_SIZE_LIMIT)
+
+        if not type or type not in settings.ATTACHMENT_MIME_TYPES:
+            return Response(
+                {"error": "Invalid file type.", "status": False},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get the workspace
+        workspace = Workspace.objects.get(slug=slug)
+
+        # asset key
+        asset_key = f"{workspace.id}/{uuid.uuid4().hex}-{name}"
+
+        if (
+            request.data.get("external_id")
+            and request.data.get("external_source")
+            and FileAsset.objects.filter(
+                project_id=project_id,
+                workspace__slug=slug,
+                external_source=request.data.get("external_source"),
+                external_id=request.data.get("external_id"),
+                issue_id=issue_id,
+                entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+            ).exists()
+        ):
+            asset = FileAsset.objects.filter(
+                project_id=project_id,
+                workspace__slug=slug,
+                external_source=request.data.get("external_source"),
+                external_id=request.data.get("external_id"),
+                issue_id=issue_id,
+                entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+            ).first()
+            return Response(
+                {
+                    "error": "Issue with the same external id and external source already exists",
+                    "id": str(asset.id),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Create a File Asset
+        asset = FileAsset.objects.create(
+            attributes={"name": name, "type": type, "size": size_limit},
+            asset=asset_key,
+            size=size_limit,
+            workspace_id=workspace.id,
+            created_by=request.user,
+            issue_id=issue_id,
+            project_id=project_id,
+            entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+            external_id=external_id,
+            external_source=external_source,
+        )
+
+        # Get the presigned URL
+        storage = S3Storage(request=request)
+        # Generate a presigned URL to share an S3 object
+        presigned_url = storage.generate_presigned_post(object_name=asset_key, file_type=type, file_size=size_limit)
+        # Return the presigned URL
+        return Response(
+            {
+                "upload_data": presigned_url,
+                "asset_id": str(asset.id),
+                "attachment": IssueAttachmentSerializer(asset).data,
+                "asset_url": asset.asset_url,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @issue_attachment_docs(
+        operation_id="list_work_item_attachments",
+        description="Retrieve all attachments for a work item.",
+        parameters=[
+            ISSUE_ID_PARAMETER,
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Work item attachment",
+                response=IssueAttachmentSerializer,
+                examples=[ISSUE_ATTACHMENT_EXAMPLE],
+            ),
+            400: INVALID_REQUEST_RESPONSE,
+            404: ATTACHMENT_NOT_FOUND_RESPONSE,
+        },
+    )
+    def get(self, request, slug, project_id, issue_id):
+        """List issue attachments
+
+        List all attachments for an issue.
+        """
+        # Get all the attachments
+        issue_attachments = FileAsset.objects.filter(
+            issue_id=issue_id,
+            entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+            workspace__slug=slug,
+            project_id=project_id,
+            is_uploaded=True,
+        )
+        # Serialize the attachments
+        serializer = IssueAttachmentSerializer(issue_attachments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class IssueAttachmentDetailAPIEndpoint(BaseAPIView):
+    """Issue Attachment Detail Endpoint"""
+
+    serializer_class = IssueAttachmentSerializer
+    model = FileAsset
+    use_read_replica = True
+
+    @issue_attachment_docs(
+        operation_id="delete_work_item_attachment",
+        description="Permanently remove an attachment from a work item. Records deletion activity for audit purposes.",
+        parameters=[
+            ATTACHMENT_ID_PARAMETER,
+        ],
+        responses={
+            204: OpenApiResponse(description="Work item attachment deleted successfully"),
+            404: ATTACHMENT_NOT_FOUND_RESPONSE,
+        },
+    )
+    def delete(self, request, slug, project_id, issue_id, pk):
+        """Delete work item attachment
+
+        Soft delete an attachment from a work item by marking it as deleted.
+        Records deletion activity and triggers metadata cleanup.
+        """
+        issue = Issue.objects.get(pk=issue_id, workspace__slug=slug, project_id=project_id)
+        # if the request user is creator or admin then delete the attachment
+        if not user_has_issue_permission(
+            request.user.id,
+            project_id=project_id,
+            issue=issue,
+            allowed_roles=[ROLE.ADMIN.value, ROLE.MEMBER.value, ROLE.GUEST.value],
+            allow_creator=True,
+        ):
+            return Response(
+                {"error": "You are not allowed to delete this attachment"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        issue_attachment = FileAsset.objects.get(pk=pk, workspace__slug=slug, project_id=project_id)
+        issue_attachment.is_deleted = True
+        issue_attachment.deleted_at = timezone.now()
+        issue_attachment.save()
+
+        issue_activity.delay(
+            type="attachment.activity.deleted",
+            requested_data=None,
+            actor_id=str(self.request.user.id),
+            issue_id=str(issue_id),
+            project_id=str(project_id),
+            current_instance=None,
+            epoch=int(timezone.now().timestamp()),
+            notification=True,
+            origin=base_host(request=request, is_app=True),
+        )
+
+        # Get the storage metadata
+        if not issue_attachment.storage_metadata:
+            get_asset_object_metadata.delay(str(issue_attachment.id))
+        issue_attachment.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @issue_attachment_docs(
+        operation_id="retrieve_work_item_attachment",
+        description="Download attachment file. Returns a redirect to the presigned download URL.",
+        parameters=[
+            ATTACHMENT_ID_PARAMETER,
+        ],
+        responses={
+            302: OpenApiResponse(
+                description="Redirect to presigned download URL",
+            ),
+            400: OpenApiResponse(
+                description="Asset not uploaded",
+                response={
+                    "type": "object",
+                    "properties": {
+                        "error": {
+                            "type": "string",
+                            "description": "Error message",
+                            "example": "The asset is not uploaded.",
+                        },
+                        "status": {
+                            "type": "boolean",
+                            "description": "Request status",
+                            "example": False,
+                        },
+                    },
+                },
+                examples=[ISSUE_ATTACHMENT_NOT_UPLOADED_EXAMPLE],
+            ),
+            404: ATTACHMENT_NOT_FOUND_RESPONSE,
+        },
+    )
+    def get(self, request, slug, project_id, issue_id, pk):
+        """Retrieve work item attachment
+
+        Retrieve details of a specific attachment.
+        """
+        # if the user is part of the project then allow the download
+        if not user_has_issue_permission(
+            request.user.id,
+            project_id=project_id,
+            issue=None,
+            allowed_roles=None,
+            allow_creator=False,
+        ):
+            return Response(
+                {"error": "You are not allowed to download this attachment"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Get the asset
+        asset = FileAsset.objects.get(id=pk, workspace__slug=slug, project_id=project_id)
+
+        # Check if the asset is uploaded
+        if not asset.is_uploaded:
+            return Response(
+                {"error": "The asset is not uploaded.", "status": False},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        storage = S3Storage(request=request)
+        presigned_url = storage.generate_presigned_url(
+            object_name=asset.asset.name,
+            disposition="attachment",
+            filename=asset.attributes.get("name"),
+        )
+        return HttpResponseRedirect(presigned_url)
+
+    @issue_attachment_docs(
+        operation_id="upload_work_item_attachment",
+        description="Mark an attachment as uploaded after successful file transfer to storage.",
+        parameters=[
+            ATTACHMENT_ID_PARAMETER,
+        ],
+        request=OpenApiRequest(
+            request={
+                "application/json": {
+                    "type": "object",
+                    "properties": {
+                        "is_uploaded": {
+                            "type": "boolean",
+                            "description": "Mark attachment as uploaded",
+                        }
+                    },
+                }
+            },
+            examples=[ATTACHMENT_UPLOAD_CONFIRM_EXAMPLE],
+        ),
+        responses={
+            204: OpenApiResponse(description="Work item attachment uploaded successfully"),
+            400: INVALID_REQUEST_RESPONSE,
+            404: ATTACHMENT_NOT_FOUND_RESPONSE,
+        },
+    )
+    def patch(self, request, slug, project_id, issue_id, pk):
+        """Confirm attachment upload
+
+        Mark an attachment as uploaded after successful file transfer to storage.
+        Triggers activity logging and metadata extraction.
+        """
+
+        issue = Issue.objects.get(pk=issue_id, workspace__slug=slug, project_id=project_id)
+        # if the user is creator or admin then allow the upload
+        if not user_has_issue_permission(
+            request.user.id,
+            project_id=project_id,
+            issue=issue,
+            allowed_roles=[ROLE.ADMIN.value, ROLE.MEMBER.value, ROLE.GUEST.value],
+            allow_creator=True,
+        ):
+            return Response(
+                {"error": "You are not allowed to upload this attachment"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        issue_attachment = FileAsset.objects.get(pk=pk, workspace__slug=slug, project_id=project_id)
+        serializer = IssueAttachmentSerializer(issue_attachment)
+
+        # Send this activity only if the attachment is not uploaded before
+        if not issue_attachment.is_uploaded:
+            issue_activity.delay(
+                type="attachment.activity.created",
+                requested_data=None,
+                actor_id=str(self.request.user.id),
+                issue_id=str(self.kwargs.get("issue_id", None)),
+                project_id=str(self.kwargs.get("project_id", None)),
+                current_instance=json.dumps(serializer.data, cls=DjangoJSONEncoder),
+                epoch=int(timezone.now().timestamp()),
+                notification=True,
+                origin=base_host(request=request, is_app=True),
+            )
+
+            # Update the attachment
+            issue_attachment.is_uploaded = True
+            issue_attachment.created_by = request.user
+
+        # Get the storage metadata
+        if not issue_attachment.storage_metadata:
+            get_asset_object_metadata.delay(str(issue_attachment.id))
+        issue_attachment.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class IssueSearchEndpoint(BaseAPIView):
+    """Endpoint to search across multiple fields in the issues"""
+
+    use_read_replica = True
+
+    @extend_schema(
+        operation_id="search_work_items",
+        tags=["Work Items"],
+        description="Perform semantic search across issue names, sequence IDs, and project identifiers.",
+        parameters=[
+            WORKSPACE_SLUG_PARAMETER,
+            SEARCH_PARAMETER_REQUIRED,
+            LIMIT_PARAMETER,
+            WORKSPACE_SEARCH_PARAMETER,
+            PROJECT_ID_QUERY_PARAMETER,
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Work item search results",
+                response=IssueSearchSerializer,
+                examples=[ISSUE_SEARCH_EXAMPLE],
+            ),
+            400: BAD_SEARCH_REQUEST_RESPONSE,
+            401: UNAUTHORIZED_RESPONSE,
+            403: FORBIDDEN_RESPONSE,
+            404: WORKSPACE_NOT_FOUND_RESPONSE,
+        },
+    )
+    def get(self, request, slug):
+        """Search work items
+
+        Perform semantic search across work item names, sequence IDs, and project identifiers.
+        Supports workspace-wide or project-specific search with configurable result limits.
+        """
+        query = request.query_params.get("search", False)
+        limit = request.query_params.get("limit", 10)
+        workspace_search = request.query_params.get("workspace_search", "false")
+        project_id = request.query_params.get("project_id", False)
+
+        if not query:
+            return Response({"issues": []}, status=status.HTTP_200_OK)
+
+        # Build search query
+        fields = ["name", "sequence_id", "project__identifier"]
+        q = Q()
+        for field in fields:
+            if field == "sequence_id":
+                # Match whole integers only (exclude decimal numbers)
+                sequences = re.findall(r"\b\d+\b", query)
+                for sequence_id in sequences:
+                    q |= Q(**{"sequence_id": sequence_id})
+            else:
+                q |= Q(**{f"{field}__icontains": query})
+
+        # Filter issues
+        issues = Issue.issue_objects.filter(
+            q,
+            project__project_projectmember__member=self.request.user,
+            project__project_projectmember__is_active=True,
+            project__archived_at__isnull=True,
+            workspace__slug=slug,
+        )
+
+        # Apply project filter if not searching across workspace
+        if workspace_search == "false" and project_id:
+            issues = issues.filter(project_id=project_id)
+
+        # Get results
+        issue_results = issues.distinct().values(
+            "name",
+            "id",
+            "sequence_id",
+            "project__identifier",
+            "project_id",
+            "workspace__slug",
+        )[: int(limit)]
+
+        return Response({"issues": issue_results}, status=status.HTTP_200_OK)
+
+
+class IssueRelationListCreateAPIEndpoint(BaseAPIView):
+    """Issue Relation List and Create Endpoint"""
+
+    serializer_class = IssueRelationSerializer
+    model = IssueRelation
+    permission_classes = [ProjectEntityPermission]
+    use_read_replica = True
+
+    @work_item_relation_docs(
+        operation_id="list_work_item_relations",
+        summary="List work item relations",
+        description="Retrieve all relationships for a work item including blocking, blocked_by, duplicate, relates_to, start_before, start_after, finish_before, and finish_after relations.",  # noqa E501
+        parameters=[
+            ISSUE_ID_PARAMETER,
+            CURSOR_PARAMETER,
+            PER_PAGE_PARAMETER,
+            ORDER_BY_PARAMETER,
+            FIELDS_PARAMETER,
+            EXPAND_PARAMETER,
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Work item relations grouped by relation type",
+                response=IssueRelationResponseSerializer,
+                examples=[
+                    OpenApiExample(
+                        name="Work Item Relations Response",
+                        value={
+                            "blocking": [
+                                {
+                                    "project_id": "550e8400-e29b-41d4-a716-446655440010",
+                                    "issue_id": "550e8400-e29b-41d4-a716-446655440000",
+                                },
+                                {
+                                    "project_id": "550e8400-e29b-41d4-a716-446655440010",
+                                    "issue_id": "550e8400-e29b-41d4-a716-446655440001",
+                                },
+                            ],
+                            "blocked_by": [
+                                {
+                                    "project_id": "550e8400-e29b-41d4-a716-446655440011",
+                                    "issue_id": "550e8400-e29b-41d4-a716-446655440002",
+                                },
+                            ],
+                            "duplicate": [],
+                            "relates_to": [
+                                {
+                                    "project_id": "550e8400-e29b-41d4-a716-446655440010",
+                                    "issue_id": "550e8400-e29b-41d4-a716-446655440003",
+                                },
+                            ],
+                            "start_after": [],
+                            "start_before": [
+                                {
+                                    "project_id": "550e8400-e29b-41d4-a716-446655440012",
+                                    "issue_id": "550e8400-e29b-41d4-a716-446655440004",
+                                },
+                            ],
+                            "finish_after": [],
+                            "finish_before": [],
+                        },
+                    )
+                ],
+            ),
+            400: INVALID_REQUEST_RESPONSE,
+            404: ISSUE_NOT_FOUND_RESPONSE,
+        },
+    )
+    def get(self, request, slug, project_id, issue_id):
+        """List work item relations
+
+        Retrieve all relationships for a work item organized by relation type.
+        Returns a structured response with relations grouped by type.
+        """
+        relations = IssueRelation.objects.filter(
+            Q(issue_id=issue_id) | Q(related_issue_id=issue_id),
+            workspace__slug=slug,
+        ).values(
+            "relation_type",
+            "issue_id",
+            "related_issue_id",
+            issue_project_id=F("issue__project_id"),
+            related_issue_project_id=F("related_issue__project_id"),
+        )
+
+        response_data = {
+            "blocking": [],
+            "blocked_by": [],
+            "duplicate": [],
+            "relates_to": [],
+            "start_after": [],
+            "start_before": [],
+            "finish_after": [],
+            "finish_before": [],
+        }
+        seen_duplicate = set()
+        seen_relates_to = set()
+
+        for rel in relations:
+            rt = rel["relation_type"]
+            if rt == "blocked_by":
+                if str(rel["related_issue_id"]) == str(issue_id):
+                    response_data["blocking"].append(
+                        {"project_id": str(rel["issue_project_id"]), "issue_id": str(rel["issue_id"])}
+                    )
+                if str(rel["issue_id"]) == str(issue_id):
+                    response_data["blocked_by"].append(
+                        {"project_id": str(rel["related_issue_project_id"]), "issue_id": str(rel["related_issue_id"])}
+                    )
+            elif rt == "duplicate":
+                if str(rel["issue_id"]) == str(issue_id) and rel["related_issue_id"] not in seen_duplicate:
+                    seen_duplicate.add(rel["related_issue_id"])
+                    response_data["duplicate"].append(
+                        {"project_id": str(rel["related_issue_project_id"]), "issue_id": str(rel["related_issue_id"])}
+                    )
+                if str(rel["related_issue_id"]) == str(issue_id) and rel["issue_id"] not in seen_duplicate:
+                    seen_duplicate.add(rel["issue_id"])
+                    response_data["duplicate"].append(
+                        {"project_id": str(rel["issue_project_id"]), "issue_id": str(rel["issue_id"])}
+                    )
+            elif rt == "relates_to":
+                if str(rel["issue_id"]) == str(issue_id) and rel["related_issue_id"] not in seen_relates_to:
+                    seen_relates_to.add(rel["related_issue_id"])
+                    response_data["relates_to"].append(
+                        {"project_id": str(rel["related_issue_project_id"]), "issue_id": str(rel["related_issue_id"])}
+                    )
+                if str(rel["related_issue_id"]) == str(issue_id) and rel["issue_id"] not in seen_relates_to:
+                    seen_relates_to.add(rel["issue_id"])
+                    response_data["relates_to"].append(
+                        {"project_id": str(rel["issue_project_id"]), "issue_id": str(rel["issue_id"])}
+                    )
+            elif rt == "start_before":
+                if str(rel["related_issue_id"]) == str(issue_id):
+                    response_data["start_after"].append(
+                        {"project_id": str(rel["issue_project_id"]), "issue_id": str(rel["issue_id"])}
+                    )
+                if str(rel["issue_id"]) == str(issue_id):
+                    response_data["start_before"].append(
+                        {"project_id": str(rel["related_issue_project_id"]), "issue_id": str(rel["related_issue_id"])}
+                    )
+            elif rt == "finish_before":
+                if str(rel["related_issue_id"]) == str(issue_id):
+                    response_data["finish_after"].append(
+                        {"project_id": str(rel["issue_project_id"]), "issue_id": str(rel["issue_id"])}
+                    )
+                if str(rel["issue_id"]) == str(issue_id):
+                    response_data["finish_before"].append(
+                        {"project_id": str(rel["related_issue_project_id"]), "issue_id": str(rel["related_issue_id"])}
+                    )
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    @work_item_relation_docs(
+        operation_id="create_work_item_relation",
+        summary="Create work item relation",
+        description="Create relationships between work items. Supports various relation types including blocking, blocked_by, duplicate, relates_to, start_before, start_after, finish_before, and finish_after.",  # noqa E501
+        parameters=[
+            ISSUE_ID_PARAMETER,
+        ],
+        request=OpenApiRequest(
+            request=IssueRelationCreateSerializer,
+            examples=[
+                OpenApiExample(
+                    name="Create blocking relation",
+                    value={
+                        "relation_type": "blocking",
+                        "issues": [
+                            "550e8400-e29b-41d4-a716-446655440000",
+                            "550e8400-e29b-41d4-a716-446655440001",
+                        ],
+                    },
+                )
+            ],
+        ),
+        responses={
+            201: OpenApiResponse(
+                description="Work item relations created successfully",
+                response=IssueRelationSerializer(many=True),
+                examples=[
+                    OpenApiExample(
+                        name="Relations created",
+                        value=[
+                            {
+                                "id": "550e8400-e29b-41d4-a716-446655440000",
+                                "name": "Fix authentication bug",
+                                "sequence_id": 42,
+                                "project_id": "550e8400-e29b-41d4-a716-446655440001",
+                                "relation_type": "blocked_by",
+                                "state_id": "550e8400-e29b-41d4-a716-446655440002",
+                                "priority": "high",
+                                "created_at": "2024-01-15T10:00:00Z",
+                                "updated_at": "2024-01-15T10:00:00Z",
+                                "created_by": "550e8400-e29b-41d4-a716-446655440004",
+                                "updated_by": "550e8400-e29b-41d4-a716-446655440004",
+                            }
+                        ],
+                    )
+                ],
+            ),
+            400: INVALID_REQUEST_RESPONSE,
+            404: ISSUE_NOT_FOUND_RESPONSE,
+        },
+    )
+    def post(self, request, slug, project_id, issue_id):
+        """Create work item relation
+
+        Create relationships between work items with specified relation type.
+        Automatically tracks relation creation activity.
+        """
+        # Validate request data using serializer
+        serializer = IssueRelationCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        relation_type = serializer.validated_data["relation_type"]
+        issues = serializer.validated_data["issues"]
+        project = Project.objects.get(pk=project_id, workspace__slug=slug)
+
+        actual_relation = get_actual_relation(relation_type)
+        is_reverse = relation_type in ["blocking", "start_after", "finish_after"]
+
+        # Scope to workspace to prevent cross-tenant IDOR
+        # Relations can cross projects so only workspace scope is enforced
+        issues = list(
+            Issue.issue_objects.filter(
+                workspace__slug=slug,
+                pk__in=issues,
+            ).values_list("id", flat=True)
+        )
+
+        IssueRelation.objects.bulk_create(
+            [
+                IssueRelation(
+                    issue_id=(issue if is_reverse else issue_id),
+                    related_issue_id=(issue_id if is_reverse else issue),
+                    relation_type=actual_relation,
+                    project_id=project_id,
+                    workspace_id=project.workspace_id,
+                    created_by=request.user,
+                    updated_by=request.user,
+                )
+                for issue in issues
+            ],
+            batch_size=10,
+            ignore_conflicts=True,
+        )
+
+        issue_activity.delay(
+            type="issue_relation.activity.created",
+            requested_data=json.dumps(request.data, cls=DjangoJSONEncoder),
+            actor_id=str(request.user.id),
+            issue_id=str(issue_id),
+            project_id=str(project_id),
+            current_instance=None,
+            epoch=int(timezone.now().timestamp()),
+            notification=True,
+            origin=base_host(request=request, is_app=True),
+        )
+
+        # Re-fetch with select_related to avoid N+1 queries in serializers.
+        # bulk_create with ignore_conflicts=True may not return PKs,
+        # so query by the issue/related_issue pairs and relation type.
+        if is_reverse:
+            refetch_filter = Q(
+                issue_id__in=issues,
+                related_issue_id=issue_id,
+                relation_type=actual_relation,
+            )
+        else:
+            refetch_filter = Q(
+                issue_id=issue_id,
+                related_issue_id__in=issues,
+                relation_type=actual_relation,
+            )
+
+        refetched_relations = IssueRelation.objects.filter(
+            refetch_filter,
+            workspace__slug=slug,
+        ).select_related(
+            "issue__state",
+            "related_issue__state",
+        )
+
+        serializer_class = RelatedIssueSerializer if is_reverse else IssueRelationSerializer
+        return Response(
+            serializer_class(refetched_relations, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
