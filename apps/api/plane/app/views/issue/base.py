@@ -423,7 +423,7 @@ class IssueViewSet(BaseViewSet):
 
         if serializer.is_valid():
             serializer.save()
-            intake = issue_created(serializer.instance, request.user)
+            intake = issue_created(serializer.instance, request.user, request.data.get("assignee_ids", []))
 
             # Track the issue
             enqueue_after_commit(issue_activity,

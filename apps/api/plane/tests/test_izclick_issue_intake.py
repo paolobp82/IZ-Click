@@ -135,6 +135,39 @@ class NativeIssueIntakeTests(IntakeFixture, TestCase):
             self.assertEqual(response.status_code, 200, response.data)
             self.assertEqual(response.data["tasks"][0]["id"], str(issue.pk))
 
+    def test_coordinator_creates_and_assigns_workspace_producer_atomically(self):
+        self.client.force_authenticate(self.users["coordinator"])
+        response = self.client.post(self.native, {
+            "name": "Carga directa", "state_id": str(self.state.pk),
+            "assignee_ids": [str(self.users["producer"].pk)],
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        issue = Issue.objects.get(pk=response.data["id"])
+        row = IzclickIssueCoordination.objects.get(issue=issue)
+        self.assertEqual(row.producer_id, self.users["producer"].pk)
+        self.assertEqual(row.assigned_by_id, self.users["coordinator"].pk)
+        self.assertEqual(row.status, "assigned")
+        self.assertEqual(IssueAssignee.objects.get(issue=issue).assignee_id, row.producer_id)
+        self.assertTrue(ProjectMember.objects.filter(project=self.project, member_id=row.producer_id, is_active=True).exists())
+        self.assertEqual(row.assignment_history.count(), 1)
+
+    def test_direct_assignment_rejects_nonproducer_without_creating_issue(self):
+        self.client.force_authenticate(self.users["coordinator"])
+        count = Issue.objects.count()
+        response = self.client.post(self.native, {
+            "name": "Invalid assignment", "assignee_ids": [str(self.users["commercial"].pk)],
+        }, format="json")
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(Issue.objects.count(), count)
+
+    def test_coordinator_can_create_pending_without_producer(self):
+        self.client.force_authenticate(self.users["coordinator"])
+        response = self.client.post(self.native, {"name": "Pendiente"}, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        row = IzclickIssueCoordination.objects.get(issue_id=response.data["id"])
+        self.assertEqual(row.status, "pending")
+        self.assertIsNone(row.producer_id)
+
     def test_commercial_and_producer_cannot_assign(self):
         issue = self.create()
         for actor in ["commercial", "producer"]:
