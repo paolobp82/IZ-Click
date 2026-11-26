@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Pinned, guarded upgrade of the existing native-task coordination installation."""
 import argparse
+import ast
 import datetime
 import fcntl
 import hashlib
@@ -21,6 +22,7 @@ FILES = {
  'plane/app/views/issue/base.py': '00bd2a381d255039547899abf5092faa8e61595b8473db539491c0a2ba73d4ce',
  'plane/utils/izclick_issue_intake.py': 'cf7d977b535ee1b6e0c1740d4675fb76d36a2ca4f18893346973f0d7af159cfd',
 }
+AST_HASHES = {'plane/api/views/issue.py': 'd844860a6830a4e4a0ff7622657b96df406f3d6b1474460e1753c7f48e52acb3', 'plane/app/views/issue/base.py': '31e6637b09f4e2fe81c6b122ea779196a52326bee2b7b2ff8e591c2518da87b0', 'plane/utils/izclick_issue_intake.py': 'eb7726346178f8b6aec225d6062c19a0cc532fea5071b02c257d85669d3953a3'}
 SERVICES = ['api', 'worker', 'beat-worker', 'web']
 
 
@@ -57,6 +59,15 @@ def save(path, data):
 def fingerprint(container_id, path):
     data = subprocess.check_output(['docker', 'exec', container_id, 'cat', '/code/' + path])
     return hashlib.sha256(data).hexdigest()
+
+
+def canonical_digest(source):
+    return hashlib.sha256(ast.dump(ast.parse(source)).encode()).hexdigest()
+
+
+def canonical_fingerprint(container_id, path):
+    source = subprocess.check_output(['docker', 'exec', container_id, 'cat', '/code/' + path])
+    return canonical_digest(source.decode('utf-8'))
 
 
 def healthy():
@@ -111,7 +122,7 @@ def main():
             if container['Image'] != expected:
                 raise RuntimeError('API/worker/planificador no coinciden')
         for path, expected in FILES.items():
-            if fingerprint(api['Id'], path) != expected:
+            if fingerprint(api['Id'], path) != expected and canonical_fingerprint(api['Id'], path) != AST_HASHES[path]:
                 raise RuntimeError('Codigo instalado distinto en ' + path)
         if not healthy():
             raise RuntimeError('El sitio no supera la comprobacion inicial')

@@ -27,6 +27,22 @@ class ReleaseGuards(unittest.TestCase):
             m.main()
             return mutate
 
+    def test_formatting_changes_preserve_canonical_identity(self):
+        self.assertEqual(m.canonical_digest('x = 1\n'), m.canonical_digest('# comment\nx=1\n\n'))
+
+    def test_logic_changes_do_not_preserve_canonical_identity(self):
+        self.assertNotEqual(m.canonical_digest('x = 1\n'), m.canonical_digest('x = 2\n'))
+
+    def test_semantically_changed_installed_file_blocks_apply(self):
+        with patch.object(m, 'fingerprint', return_value='different'), patch.object(m, 'canonical_fingerprint', return_value='different'):
+            # attempt() patches fingerprint itself; test full guard through the AST branch.
+            with patch.object(m, 'FILES', {path: 'unknown-raw' for path in m.FILES}):
+                # Force the canonical branch independently of attempt's raw mock.
+                with patch.object(m, 'ROOT', self.root), patch.object(m.os, 'chdir'), patch.object(m.os, 'geteuid', return_value=0), patch.object(m.os, 'umask'), patch.object(m, 'inspect', side_effect=lambda name: self.containers[name]), patch.object(m, 'healthy', return_value=True), patch('sys.argv', ['release', '--apply']):
+                    with self.assertRaisesRegex(RuntimeError, 'Codigo instalado distinto'):
+                        m.main()
+        self.assertFalse(list(self.root.glob('direct-assignment-backup-*')))
+
     def test_default_only_inspects_and_never_builds_or_recreates(self):
         self.attempt().assert_not_called()
         self.assertFalse(list(self.root.glob('direct-assignment-backup-*')))
