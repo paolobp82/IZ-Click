@@ -27,6 +27,17 @@ class ReleaseGuards(unittest.TestCase):
             m.main()
             return mutate
 
+    def test_build_uses_verified_local_tag_instead_of_image_id(self):
+        container = self.containers['plane-app-api-1']
+        with patch.object(m, 'inspect', return_value={'Id': container['Image']}) as check:
+            self.assertEqual(m.verified_local_base(container), m.BASE_API)
+            check.assert_called_once_with(m.BASE_API)
+
+    def test_changed_local_tag_cannot_change_build_base_silently(self):
+        with patch.object(m, 'inspect', return_value={'Id': 'unexpected'}):
+            with self.assertRaisesRegex(RuntimeError, 'etiqueta local'):
+                m.verified_local_base(self.containers['plane-app-api-1'])
+
     def test_formatting_changes_preserve_canonical_identity(self):
         self.assertEqual(m.canonical_digest('x = 1\n'), m.canonical_digest('# comment\nx=1\n\n'))
 

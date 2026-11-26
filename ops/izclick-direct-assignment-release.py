@@ -82,6 +82,15 @@ def healthy():
     return True
 
 
+def verified_local_base(container):
+    # A Docker image ID is not a valid FROM repository reference for BuildKit.
+    # Use the existing local tag only after proving it still names this image.
+    tag = container['Config']['Image']
+    if inspect(tag)['Id'] != container['Image']:
+        raise RuntimeError('La etiqueta local de API ya no corresponde a la imagen instalada')
+    return tag
+
+
 def build(args, directory, name):
     log = directory / (name + '.log')
     emit('build_starting', component=name, log=str(log))
@@ -158,10 +167,10 @@ def main():
         api_tag = 'izclick-api:direct-' + REV[:12]
         web_tag = 'izclick-web:direct-' + REV[:12]
         dockerfile = directory / 'Dockerfile.api'
-        dockerfile.write_text('FROM ' + api['Image'] + '\n' + ''.join(
+        dockerfile.write_text('FROM ' + verified_local_base(api) + '\n' + ''.join(
             'COPY apps/api/' + path + ' /code/' + path + '\n' for path in FILES
         ) + 'RUN python -m compileall -q /code/plane\n')
-        build(['docker', 'build', '-t', api_tag, '-f', str(dockerfile), str(source)], directory, 'api')
+        build(['docker', 'build', '--pull=false', '-t', api_tag, '-f', str(dockerfile), str(source)], directory, 'api')
         # Compile and check types before modifying any running service.
         # The generated production image explicitly includes its health-check client.
         webfile = directory / 'Dockerfile.web'
