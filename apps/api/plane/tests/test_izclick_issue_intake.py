@@ -415,12 +415,12 @@ class CreationAttachmentTests(IntakeFixture, TestCase):
         response = self.submit([str(first.pk), str(second.pk)])
         self.assertEqual(response.status_code, 201, response.data)
         first.refresh_from_db(); second.refresh_from_db()
-        self.assertEqual(str(first.issue_id), response.data["id"])
+        self.assertEqual(str(first.issue_id), str(response.data["id"]))
         self.assertEqual(first.issue_id, second.issue_id)
         self.client.force_authenticate(self.users["coordinator"])
         result = self.client.get(self.assets_url + f"issues/{first.issue_id}/attachments/")
         self.assertEqual(result.status_code, 200, result.data)
-        self.assertEqual({item["id"] for item in result.data}, {str(first.pk), str(second.pk)})
+        self.assertEqual({str(item["id"]) for item in result.data}, {str(first.pk), str(second.pk)})
 
     def test_invalid_files_roll_back_task_intake_and_notifications(self):
         from plane.db.models import FileAsset
@@ -477,6 +477,8 @@ class CreationAttachmentTests(IntakeFixture, TestCase):
         with patch("plane.app.views.asset.v2.get_asset_object_metadata.delay"):
             confirmed = self.client.patch(self.assets_url + response.data["asset_id"] + "/", {}, format="json")
         self.assertEqual(confirmed.status_code, 204, confirmed.data)
+        created = self.submit([str(response.data["asset_id"])])
+        self.assertEqual(created.status_code, 201, created.data)
         foreign = self.staged(created_by=self.users["producer"], is_uploaded=False)
         denied = self.client.patch(self.assets_url + str(foreign.pk) + "/", {}, format="json")
         self.assertEqual(denied.status_code, 403, denied.data)
