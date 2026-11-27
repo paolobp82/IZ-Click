@@ -13,7 +13,7 @@ import tarfile
 import time
 import urllib.request
 
-REV = 'd771c76ccae7ebf457ac7c308febf20eaf0b3d57'
+REV = '233de3a9411e5dab1a0e372e17aa2a9049ff785b'
 ROOT = Path('/opt/iz-click/plane-app')
 BASE_API = 'izclick-api:direct-d26fa6e2b3dc'
 BASE_WEB = 'izclick-web:spreadsheet-7b5389c5401d'
