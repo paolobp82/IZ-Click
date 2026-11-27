@@ -401,7 +401,9 @@ class CreationAttachmentTests(IntakeFixture, TestCase):
             asset=f"{self.workspace.pk}/{uuid4()}-brief.pdf", is_uploaded=True,
             attributes={"name": "brief.pdf", "type": "application/pdf", "creation_staged": True})
         values.update(changes)
-        return FileAsset.objects.create(**values)
+        asset = FileAsset(**values)
+        asset.save(disable_auto_set_user=True)
+        return asset
 
     def submit(self, ids, **changes):
         data = {"name": "Brief adjunto", "state_id": str(self.state.pk), "attachment_asset_ids": ids}
