@@ -461,6 +461,9 @@ class CreationAttachmentTests(IntakeFixture, TestCase):
 
     def test_commercial_without_project_membership_can_stage_pdf_and_confirm_only_own(self):
         from unittest.mock import patch
+        from plane.db.models import IzclickProjectCoordination
+        IzclickProjectCoordination.objects.create(project=self.project, workspace=self.workspace,
+            commercial=self.users["commercial"])
         self.assertFalse(ProjectMember.objects.filter(member=self.users["commercial"]).exists())
         with patch("plane.app.views.asset.v2.S3Storage") as storage:
             storage.return_value.generate_presigned_post.return_value = {"url": "https://example.test/upload", "fields": {}}
