@@ -65,6 +65,9 @@ def enforce_business_access(request, kwargs):
         return
     if not coordination_enabled(slug):
         return
+    from plane.utils.izclick_creation_attachments import can_stage_creation_attachment
+    if can_stage_creation_attachment(request, kwargs):
+        return
     from plane.utils.izclick_issue_intake import enforce_issue_write
     if enforce_issue_write(request, kwargs):
         return

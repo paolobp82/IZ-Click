@@ -135,6 +135,39 @@ class NativeIssueIntakeTests(IntakeFixture, TestCase):
             self.assertEqual(response.status_code, 200, response.data)
             self.assertEqual(response.data["tasks"][0]["id"], str(issue.pk))
 
+    def test_coordinator_creates_and_assigns_workspace_producer_atomically(self):
+        self.client.force_authenticate(self.users["coordinator"])
+        response = self.client.post(self.native, {
+            "name": "Carga directa", "state_id": str(self.state.pk),
+            "assignee_ids": [str(self.users["producer"].pk)],
+        }, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        issue = Issue.objects.get(pk=response.data["id"])
+        row = IzclickIssueCoordination.objects.get(issue=issue)
+        self.assertEqual(row.producer_id, self.users["producer"].pk)
+        self.assertEqual(row.assigned_by_id, self.users["coordinator"].pk)
+        self.assertEqual(row.status, "assigned")
+        self.assertEqual(IssueAssignee.objects.get(issue=issue).assignee_id, row.producer_id)
+        self.assertTrue(ProjectMember.objects.filter(project=self.project, member_id=row.producer_id, is_active=True).exists())
+        self.assertEqual(row.assignment_history.count(), 1)
+
+    def test_direct_assignment_rejects_nonproducer_without_creating_issue(self):
+        self.client.force_authenticate(self.users["coordinator"])
+        count = Issue.objects.count()
+        response = self.client.post(self.native, {
+            "name": "Invalid assignment", "assignee_ids": [str(self.users["commercial"].pk)],
+        }, format="json")
+        self.assertEqual(response.status_code, 400, response.data)
+        self.assertEqual(Issue.objects.count(), count)
+
+    def test_coordinator_can_create_pending_without_producer(self):
+        self.client.force_authenticate(self.users["coordinator"])
+        response = self.client.post(self.native, {"name": "Pendiente"}, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+        row = IzclickIssueCoordination.objects.get(issue_id=response.data["id"])
+        self.assertEqual(row.status, "pending")
+        self.assertIsNone(row.producer_id)
+
     def test_commercial_and_producer_cannot_assign(self):
         issue = self.create()
         for actor in ["commercial", "producer"]:
@@ -352,3 +385,125 @@ class IssueAssignmentRaceTests(IntakeFixture, TransactionTestCase):
                 [f.result(timeout=30) for f in futures], ["assigned", "conflict"]
             )
         self.assertEqual(IzclickIssueAssignmentHistory.objects.count(), 1)
+
+
+@override_settings(IZCLICK_COORDINATION_ENABLED=True, IZCLICK_COORDINATION_WORKSPACES=[], CELERY_BROKER_URL="memory://")
+class CreationAttachmentTests(IntakeFixture, TestCase):
+    def setUp(self):
+        self.prepare()
+        self.client.force_authenticate(self.users["commercial"])
+        self.assets_url = f"/api/assets/v2/workspaces/{self.workspace.slug}/projects/{self.project.pk}/"
+
+    def staged(self, **changes):
+        from plane.db.models import FileAsset
+        values = dict(workspace=self.workspace, project=self.project,
+            created_by=self.users["commercial"], entity_type="ISSUE_ATTACHMENT",
+            asset=f"{self.workspace.pk}/{uuid4()}-brief.pdf", is_uploaded=True,
+            attributes={"name": "brief.pdf", "type": "application/pdf", "creation_staged": True})
+        values.update(changes)
+        asset = FileAsset(**values)
+        asset.save(disable_auto_set_user=True)
+        return asset
+
+    def submit(self, ids, **changes):
+        data = {"name": "Brief adjunto", "state_id": str(self.state.pk), "attachment_asset_ids": ids}
+        data.update(changes)
+        return self.client.post(self.native, data, format="json")
+
+    def test_commercial_creates_with_multiple_files_visible_to_coordination(self):
+        first, second = self.staged(), self.staged()
+        response = self.submit([str(first.pk), str(second.pk)])
+        self.assertEqual(response.status_code, 201, response.data)
+        first.refresh_from_db(); second.refresh_from_db()
+        self.assertEqual(str(first.issue_id), str(response.data["id"]))
+        self.assertEqual(first.issue_id, second.issue_id)
+        self.client.force_authenticate(self.users["coordinator"])
+        result = self.client.get(self.assets_url + f"issues/{first.issue_id}/attachments/")
+        self.assertEqual(result.status_code, 200, result.data)
+        self.assertEqual({str(item["id"]) for item in result.data}, {str(first.pk), str(second.pk)})
+
+    def test_invalid_files_roll_back_task_intake_and_notifications(self):
+        from plane.db.models import FileAsset
+        valid = self.staged()
+        foreign_project = Project.objects.create(name="Other", identifier="OTHER", workspace=self.workspace)
+        for changes in [
+            {"created_by": self.users["producer"]}, {"is_uploaded": False},
+            {"project": foreign_project}, {"is_deleted": True},
+            {"entity_type": "ISSUE_DESCRIPTION"},
+        ]:
+            bad = self.staged(**changes)
+            response = self.submit([str(valid.pk), str(bad.pk)])
+            self.assertEqual(response.status_code, 400, response.data)
+            self.assertFalse(Issue.objects.exists())
+            self.assertFalse(IzclickIssueCoordination.objects.exists())
+            self.assertFalse(Notification.objects.exists())
+            valid.refresh_from_db(); self.assertIsNone(valid.issue_id)
+        self.assertEqual(FileAsset.objects.filter(issue__isnull=False).count(), 0)
+
+    def test_rejects_invalid_duplicate_and_already_used_assets(self):
+        asset = self.staged()
+        for ids in ["not-a-list", None, ["bad-id"], [str(asset.pk), str(asset.pk)], [str(uuid4())]]:
+            response = self.submit(ids)
+            self.assertEqual(response.status_code, 400, response.data)
+            self.assertFalse(Issue.objects.exists())
+        first = self.submit([str(asset.pk)])
+        self.assertEqual(first.status_code, 201, first.data)
+        again = self.submit([str(asset.pk)])
+        self.assertEqual(again.status_code, 400, again.data)
+        self.assertEqual(Issue.objects.count(), 1)
+
+    def test_coordinator_can_create_assign_and_attach_in_one_transaction(self):
+        self.client.force_authenticate(self.users["coordinator"])
+        asset = self.staged(created_by=self.users["coordinator"])
+        response = self.submit([str(asset.pk)], assignee_ids=[str(self.users["producer"].pk)])
+        self.assertEqual(response.status_code, 201, response.data)
+        asset.refresh_from_db()
+        self.assertEqual(IzclickIssueCoordination.objects.get(issue_id=asset.issue_id).producer_id,
+            self.users["producer"].pk)
+
+    def test_commercial_without_project_membership_can_stage_pdf_and_confirm_only_own(self):
+        from unittest.mock import patch
+        from plane.db.models import IzclickProjectCoordination
+        IzclickProjectCoordination.objects.create(project=self.project, workspace=self.workspace,
+            commercial=self.users["commercial"])
+        self.assertFalse(ProjectMember.objects.filter(member=self.users["commercial"]).exists())
+        with patch("plane.app.views.asset.v2.S3Storage") as storage:
+            storage.return_value.generate_presigned_post.return_value = {"url": "https://example.test/upload", "fields": {}}
+            response = self.client.post(self.assets_url, {
+                "name": "brief.pdf", "type": "application/pdf", "size": 100,
+                "entity_type": "ISSUE_ATTACHMENT", "entity_identifier": "",
+            }, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        with patch("plane.app.views.asset.v2.get_asset_object_metadata.delay"):
+            confirmed = self.client.patch(self.assets_url + response.data["asset_id"] + "/", {}, format="json")
+        self.assertEqual(confirmed.status_code, 204, confirmed.data)
+        created = self.submit([str(response.data["asset_id"])])
+        self.assertEqual(created.status_code, 201, created.data)
+        foreign = self.staged(created_by=self.users["producer"], is_uploaded=False)
+        denied = self.client.patch(self.assets_url + str(foreign.pk) + "/", {}, format="json")
+        self.assertEqual(denied.status_code, 403, denied.data)
+
+    def test_rejects_oversized_unsupported_or_existing_issue_staging(self):
+        for data in [
+            {"type": "application/pdf", "size": 999999999999},
+            {"type": "not/allowed", "size": 100},
+            {"type": "application/pdf", "size": 100, "entity_identifier": str(uuid4())},
+        ]:
+            response = self.client.post(self.assets_url, {
+                "name": "brief.pdf", "entity_type": "ISSUE_ATTACHMENT", **data,
+            }, format="json")
+            self.assertIn(response.status_code, [400, 403], response.data)
+
+    def test_cleanup_removes_abandoned_staging_but_preserves_attached_and_recent_files(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from plane.db.models import FileAsset
+        from plane.bgtasks.file_asset_task import delete_unuploaded_file_asset
+        abandoned, attached, recent = self.staged(), self.staged(), self.staged()
+        response = self.submit([str(attached.pk)])
+        self.assertEqual(response.status_code, 201, response.data)
+        FileAsset.objects.filter(pk__in=[abandoned.pk, attached.pk]).update(created_at=timezone.now() - timedelta(days=8))
+        delete_unuploaded_file_asset()
+        self.assertFalse(FileAsset.objects.filter(pk=abandoned.pk).exists())
+        self.assertTrue(FileAsset.objects.filter(pk=attached.pk).exists())
+        self.assertTrue(FileAsset.objects.filter(pk=recent.pk).exists())

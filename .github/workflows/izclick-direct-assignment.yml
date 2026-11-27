@@ -1,0 +1,49 @@
+name: Coordinator direct assignment checks
+on:
+  push:
+    branches: ['fix/coordinator-direct-assignment-20261125']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: izclick_test
+          POSTGRES_PASSWORD: izclick_test
+          POSTGRES_DB: izclick_test
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U izclick_test" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+    env:
+      DATABASE_URL: postgresql://izclick_test:izclick_test@127.0.0.1:5432/izclick_test
+      REDIS_URL: redis://127.0.0.1:6379/0
+      WEB_URL: http://localhost
+      APP_BASE_URL: http://localhost
+      SECRET_KEY: ephemeral-direct-assignment-tests-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r apps/api/requirements/production.txt
+      - working-directory: apps/api
+        run: python manage.py test plane.tests.test_izclick_issue_intake plane.tests.test_izclick_producer_roster --noinput --settings=plane.settings.test
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --prefix "$RUNNER_TEMP/direct-checks" --no-save vitest@3.2.4 react@18.3.1 react-dom@18.3.1 jsdom@26.1.0 react-router@7.18.1 mobx-react@9.1.1 mobx@6.12.0 swr@2.2.5
+      - run: ln -s "$RUNNER_TEMP/direct-checks/node_modules" node_modules
+      - working-directory: apps/web
+        run: "$RUNNER_TEMP/direct-checks/node_modules/.bin/vitest run --config vitest.coordination.config.ts tests/direct-assignment-coordination.test.tsx tests/spreadsheet-assignment-coordination.test.tsx tests/creation-attachments-coordination.test.tsx tests/project-workload-coordination.test.tsx"

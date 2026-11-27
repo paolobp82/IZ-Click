@@ -1,3 +1,6 @@
+import { useSearchParams } from "react-router";
+import { useIzclickAccess } from "@/hooks/use-izclick-access";
+import { projectWorkloadHref } from "@/components/izclick/project-workload";
 /**
  * Copyright (c) 2023-present Plane Software, Inc. and contributors
  * SPDX-License-Identifier: AGPL-3.0-only
@@ -51,12 +54,14 @@ export const ProjectNavigation = observer(function ProjectNavigation(props: TPro
   } = useIssueDetail();
   // pathname
   const pathname = usePathname();
+  const [searchParams] = useSearchParams();
   // derived values
   const workItemId = workItemIdentifierFromRoute
     ? getIssueIdByIdentifier(workItemIdentifierFromRoute?.toString())
     : undefined;
   const workItem = workItemId ? getIssueById(workItemId) : undefined;
   const project = getPartialProjectById(projectId);
+  const businessAccess = useIzclickAccess(workspaceSlug);
   // handlers
   const handleProjectClick = () => {
     if (window.innerWidth < 768) {
@@ -79,6 +84,12 @@ export const ProjectNavigation = observer(function ProjectNavigation(props: TPro
         access: [EUserPermissions.ADMIN, EUserPermissions.MEMBER, EUserPermissions.GUEST],
         shouldRender: true,
         sortOrder: 1,
+      },
+      {
+        i18n_key: "", key: "workload", name: "Cargas",
+        href: projectWorkloadHref(workspaceSlug, projectId), icon: WorkItemsIcon,
+        access: [EUserPermissions.ADMIN, EUserPermissions.MEMBER, EUserPermissions.GUEST],
+        shouldRender: businessAccess.enabled && businessAccess.canReadAgency, sortOrder: 1.5,
       },
       {
         i18n_key: "sidebar.cycles",
@@ -131,7 +142,7 @@ export const ProjectNavigation = observer(function ProjectNavigation(props: TPro
         sortOrder: 6,
       },
     ],
-    [project]
+    [project, businessAccess.enabled, businessAccess.canReadAgency]
   );
 
   // memoized navigation items and adding additional navigation items
@@ -156,6 +167,7 @@ export const ProjectNavigation = observer(function ProjectNavigation(props: TPro
 
   const isActive = useCallback(
     (item: TNavigationItem) => {
+      if (item.key === "workload") return pathname === `/${workspaceSlug}/coordination` && searchParams.get("workload_project") === projectId;
       // work item condition
       const workItemCondition = workItemId && workItem && !workItem?.is_epic && workItem?.project_id === projectId;
       // epic condition
@@ -168,7 +180,7 @@ export const ProjectNavigation = observer(function ProjectNavigation(props: TPro
       // return
       return isWorkItemActive || isEpicActive || isPathnameActive;
     },
-    [pathname, workItem, workItemId, projectId]
+    [pathname, workItem, workItemId, projectId, workspaceSlug, searchParams]
   );
 
   if (!project) return null;
@@ -191,7 +203,7 @@ export const ProjectNavigation = observer(function ProjectNavigation(props: TPro
                   <item.icon
                     className={`size-4 flex-shrink-0 ${item.name === "Intake" ? "stroke-1" : "stroke-[1.5]"}`}
                   />
-                  <span className="text-11 font-medium">{t(item.i18n_key)}</span>
+                  <span className="text-11 font-medium">{item.key === "workload" ? item.name : t(item.i18n_key)}</span>
                 </div>
                 {shouldShowCount && <span className="text-11 font-medium text-tertiary">{project.intake_count}</span>}
               </div>

@@ -1,3 +1,4 @@
+import { ManagedProducerAssignment } from "@/components/issues/coordinator-producer-select";
 /**
  * Copyright (c) 2023-present Plane Software, Inc. and contributors
  * SPDX-License-Identifier: AGPL-3.0-only
@@ -100,6 +101,7 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
             </SidebarPropertyListItem>
 
             <SidebarPropertyListItem icon={MembersPropertyIcon} label={t("common.assignees")}>
+              <ManagedProducerAssignment slug={workspaceSlug} issueId={issueId}>
               <MemberDropdown
                 value={issue?.assignee_ids ?? undefined}
                 onChange={(val) => issueOperations.update(workspaceSlug, projectId, issueId, { assignee_ids: val })}
@@ -115,6 +117,7 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
                 dropdownArrow
                 dropdownArrowClassName="h-3.5 w-3.5 hidden group-hover:inline"
               />
+              </ManagedProducerAssignment>
             </SidebarPropertyListItem>
 
             <SidebarPropertyListItem icon={PriorityPropertyIcon} label={t("common.priority")}>

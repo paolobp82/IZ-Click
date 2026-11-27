@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { useIzclickAccess } from "@/hooks/use-izclick-access";
+import { projectWorkloadHref } from "@/components/izclick/project-workload";
 /**
  * Copyright (c) 2023-present Plane Software, Inc. and contributors
  * SPDX-License-Identifier: AGPL-3.0-only
@@ -43,6 +46,7 @@ export const IssuesHeader = observer(function IssuesHeader() {
   // router
   const router = useAppRouter();
   const { workspaceSlug, projectId } = useParams();
+  const businessAccess = useIzclickAccess(workspaceSlug?.toString());
   // store hooks
   const {
     issues: { getGroupIssueCount },
@@ -77,7 +81,9 @@ export const IssuesHeader = observer(function IssuesHeader() {
               component={
                 <BreadcrumbLink
                   label="Cargas"
-                  href={`/${workspaceSlug}/projects/${projectId}/issues/`}
+                  href={businessAccess.enabled && businessAccess.canReadAgency
+                    ? projectWorkloadHref(String(workspaceSlug), String(projectId))
+                    : `/${workspaceSlug}/projects/${projectId}/issues/`}
                   icon={<WorkItemsIcon className="h-4 w-4 text-tertiary" />}
                   isLast
                 />
@@ -91,7 +97,9 @@ export const IssuesHeader = observer(function IssuesHeader() {
               tooltipContent={`Este proyecto contiene ${issuesCount} ${issuesCount === 1 ? "carga" : "cargas"}`}
               position="bottom"
             >
-              <CountChip count={issuesCount} />
+              {businessAccess.enabled && businessAccess.canReadAgency
+                ? <Link href={projectWorkloadHref(String(workspaceSlug), String(projectId))} aria-label="Ver distribución de cargas por productor"><CountChip count={issuesCount} /></Link>
+                : <CountChip count={issuesCount} />}
             </Tooltip>
           ) : null}
         </div>

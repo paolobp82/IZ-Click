@@ -39,6 +39,10 @@ def allow_permission(allowed_roles, level="PROJECT", creator=False, model=None):
             if role == "producer" and level == "PROJECT" and project_id and can_write(request.user, slug, project_id):
                 if ROLE.MEMBER in allowed_roles or 15 in allowed_roles:
                     return view_func(instance, request, *args, **kwargs)
+            if level == "PROJECT" and member_operation:
+                from plane.utils.izclick_creation_attachments import can_stage_creation_attachment
+                if can_stage_creation_attachment(request, kwargs):
+                    return view_func(instance, request, *args, **kwargs)
             # Check for creator if required
             if creator and model:
                 # check if the user is part of the workspace or not

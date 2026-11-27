@@ -1,3 +1,4 @@
+import { ASSIGNMENT_CONTROL_CLASS } from "@/components/issues/assignment-control";
 /**
  * Copyright (c) 2023-present Plane Software, Inc. and contributors
  * SPDX-License-Identifier: AGPL-3.0-only
@@ -5,6 +6,8 @@
  */
 
 import React from "react";
+import { useParams } from "react-router";
+import { ManagedProducerAssignment } from "@/components/issues/coordinator-producer-select";
 import { observer } from "mobx-react";
 // types
 import type { TIssue } from "@plane/types";
@@ -20,9 +23,11 @@ type Props = {
 
 export const SpreadsheetAssigneeColumn = observer(function SpreadsheetAssigneeColumn(props: Props) {
   const { issue, onChange, disabled, onClose } = props;
+  const { workspaceSlug } = useParams();
 
   return (
-    <div className="h-11 border-b-[0.5px] border-subtle">
+    <div className="h-11 border-b-[0.5px] border-subtle px-1 py-1">
+      <ManagedProducerAssignment slug={String(workspaceSlug ?? "")} issueId={issue.id} disabled={disabled}>
       <MemberDropdown
         value={issue?.assignee_ids ?? []}
         onChange={(data) => {
@@ -38,15 +43,17 @@ export const SpreadsheetAssigneeColumn = observer(function SpreadsheetAssigneeCo
         projectId={issue?.project_id ?? undefined}
         disabled={disabled}
         multiple
-        placeholder="Assignees"
-        buttonVariant={
-          issue?.assignee_ids && issue.assignee_ids.length > 1 ? "transparent-without-text" : "transparent-with-text"
-        }
-        buttonClassName="text-left rounded-none group-[.selected-issue-row]:bg-accent-primary/5 group-[.selected-issue-row]:hover:bg-accent-primary/10 px-page-x"
+        placeholder="Seleccionar productor"
+        dropdownArrow
+        hideIcon
+        showUserDetails
+        buttonVariant="transparent-with-text"
+        buttonClassName={`${ASSIGNMENT_CONTROL_CLASS} !justify-between !gap-2 !px-2 !text-xs [&_span]:text-xs [&_span]:font-normal group-[.selected-issue-row]:bg-accent-primary/5 group-[.selected-issue-row]:hover:bg-accent-primary/10`}
         buttonContainerClassName="w-full"
         optionsClassName="z-[9]"
         onClose={onClose}
       />
+      </ManagedProducerAssignment>
     </div>
   );
 });
