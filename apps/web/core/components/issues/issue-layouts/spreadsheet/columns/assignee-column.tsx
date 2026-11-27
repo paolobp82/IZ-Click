@@ -5,6 +5,8 @@
  */
 
 import React from "react";
+import { useParams } from "react-router";
+import { ManagedProducerAssignment } from "@/components/issues/coordinator-producer-select";
 import { observer } from "mobx-react";
 // types
 import type { TIssue } from "@plane/types";
@@ -20,9 +22,11 @@ type Props = {
 
 export const SpreadsheetAssigneeColumn = observer(function SpreadsheetAssigneeColumn(props: Props) {
   const { issue, onChange, disabled, onClose } = props;
+  const { workspaceSlug } = useParams();
 
   return (
     <div className="h-11 border-b-[0.5px] border-subtle">
+      <ManagedProducerAssignment slug={String(workspaceSlug ?? "")} issueId={issue.id}>
       <MemberDropdown
         value={issue?.assignee_ids ?? []}
         onChange={(data) => {
@@ -38,7 +42,7 @@ export const SpreadsheetAssigneeColumn = observer(function SpreadsheetAssigneeCo
         projectId={issue?.project_id ?? undefined}
         disabled={disabled}
         multiple
-        placeholder="Assignees"
+        placeholder="Asignados"
         buttonVariant={
           issue?.assignee_ids && issue.assignee_ids.length > 1 ? "transparent-without-text" : "transparent-with-text"
         }
@@ -47,6 +51,7 @@ export const SpreadsheetAssigneeColumn = observer(function SpreadsheetAssigneeCo
         optionsClassName="z-[9]"
         onClose={onClose}
       />
+      </ManagedProducerAssignment>
     </div>
   );
 });
