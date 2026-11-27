@@ -10,6 +10,7 @@ type Props = {
   startDate?: string | null;
   dueDate?: string | null;
   coordinators: string[];
+  attachments?: string[];
   sending: boolean;
   error?: string;
   onBack: () => void;
@@ -45,6 +46,12 @@ export function CommercialIntakeReview(props: Props) {
         <div>
           <dt className="text-secondary">Recibe coordinación</dt>
           <dd>{props.coordinators.join(" y ") || "Coordinadoras del equipo"}</dd>
+        </div>
+        <div>
+          <dt className="text-secondary">Archivos adjuntos</dt>
+          <dd>{props.attachments?.length
+            ? <ul>{props.attachments.map((name, index) => <li key={index}>{name}</li>)}</ul>
+            : "Sin adjuntos"}</dd>
         </div>
       </dl>
       <p className="text-sm">

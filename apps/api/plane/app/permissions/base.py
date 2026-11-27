@@ -39,6 +39,21 @@ def allow_permission(allowed_roles, level="PROJECT", creator=False, model=None):
             if role == "producer" and level == "PROJECT" and project_id and can_write(request.user, slug, project_id):
                 if ROLE.MEMBER in allowed_roles or 15 in allowed_roles:
                     return view_func(instance, request, *args, **kwargs)
+            # Commercials may stage their own files for an issue they are allowed to create.
+            # This does not grant permission to edit existing managed issues or others' uploads.
+            if role == "commercial" and level == "PROJECT" and member_operation and project_id:
+                prefix = f"/api/assets/v2/workspaces/{slug}/projects/{project_id}/"
+                if request.path.startswith(prefix):
+                    from plane.db.models import FileAsset, Project
+                    staging = (request.method == "POST" and request.path == prefix
+                        and request.data.get("entity_type") == "ISSUE_ATTACHMENT"
+                        and not request.data.get("entity_identifier"))
+                    own_pending = (request.method in ("PATCH", "DELETE") and FileAsset.objects.filter(
+                        pk=kwargs.get("pk"), workspace__slug=slug, project_id=project_id,
+                        created_by=request.user, entity_type="ISSUE_ATTACHMENT", issue_id__isnull=True,
+                    ).exists())
+                    if (staging or own_pending) and Project.objects.filter(pk=project_id, workspace__slug=slug).exists():
+                        return view_func(instance, request, *args, **kwargs)
             # Check for creator if required
             if creator and model:
                 # check if the user is part of the workspace or not

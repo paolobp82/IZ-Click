@@ -46,4 +46,4 @@ jobs:
       - run: npm install --prefix "$RUNNER_TEMP/direct-checks" --no-save vitest@3.2.4 react@18.3.1 react-dom@18.3.1 jsdom@26.1.0 react-router@7.18.1 mobx-react@9.1.1 mobx@6.12.0 swr@2.2.5
       - run: ln -s "$RUNNER_TEMP/direct-checks/node_modules" node_modules
       - working-directory: apps/web
-        run: "$RUNNER_TEMP/direct-checks/node_modules/.bin/vitest run --config vitest.coordination.config.ts tests/direct-assignment-coordination.test.tsx tests/spreadsheet-assignment-coordination.test.tsx"
+        run: "$RUNNER_TEMP/direct-checks/node_modules/.bin/vitest run --config vitest.coordination.config.ts tests/direct-assignment-coordination.test.tsx tests/spreadsheet-assignment-coordination.test.tsx tests/creation-attachments-coordination.test.tsx"

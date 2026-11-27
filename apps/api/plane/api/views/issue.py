@@ -1,3 +1,4 @@
+from plane.utils.izclick_creation_attachments import attach_creation_uploads
 # Copyright (c) 2023-present Plane Software, Inc. and contributors
 # SPDX-License-Identifier: AGPL-3.0-only
 # See the LICENSE file for details.
@@ -498,6 +499,7 @@ class IssueListCreateAPIEndpoint(BaseAPIView):
                 )
 
             serializer.save()
+            attach_creation_uploads(serializer.instance, request.user, request.data.get("attachment_asset_ids", []))
             intake = issue_created(serializer.instance, request.user, request.data.get("assignee_ids", []))
             # Refetch the issue
             issue = Issue.objects.filter(workspace__slug=slug, project_id=project_id, pk=serializer.data["id"]).first()

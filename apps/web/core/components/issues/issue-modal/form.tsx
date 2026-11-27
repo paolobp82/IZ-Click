@@ -1,3 +1,4 @@
+import { CreationAttachments, useCreationAttachments } from "./creation-attachments";
 import { CoordinatorProducerSelect } from "@/components/issues/coordinator-producer-select";
 // oxlint-disable promise/always-return
 // oxlint-disable no-shadow
@@ -165,6 +166,8 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
   } = methods;
 
   const projectId = watch("project_id");
+  const attachments = useCreationAttachments(String(workspaceSlug ?? ""), String(projectId ?? ""));
+  const canAttachOnCreate = !data?.id && !isDraft;
   const activeAdditionalPropertiesLength = getActiveAdditionalPropertiesLength({
     projectId: projectId,
     workspaceSlug: workspaceSlug?.toString(),
@@ -228,6 +231,11 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
   }, [workItemTemplateId]);
 
   const handleFormSubmit = async (formData: Partial<TIssue>, is_draft_issue = false, confirmed = false) => {
+    if (canAttachOnCreate && attachments.blocked) {
+      setToast({ type: TOAST_TYPE.ERROR, title: "Archivos pendientes",
+        message: "Espera a que terminen las subidas. Reintenta o quita los archivos con error." });
+      return;
+    }
     // Check if the editor is ready to discard
     if (!editorRef.current?.isEditorReadyToDiscard()) {
       setToast({
@@ -269,8 +277,12 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
     // this condition helps to move the issues from draft to project issues
     if (formData.hasOwnProperty("is_draft")) submitData.is_draft = formData.is_draft;
 
-    await onSubmit(submitData, is_draft_issue)
+    const payload = canAttachOnCreate && !is_draft_issue
+      ? { ...submitData, attachment_asset_ids: attachments.assetIds }
+      : submitData;
+    await onSubmit(payload, is_draft_issue)
       .then(() => {
+        attachments.clear();
         setIntakeReview(null);
         setGptAssistantModal(false);
         if (isCreateMoreToggleEnabled && workItemTemplateId) {
@@ -401,6 +413,7 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
               coordinators={(intakeMembers ?? [])
                 .filter((member) => member.role === "coordinator")
                 .map((member) => member.name)}
+              attachments={attachments.entries.map(entry => entry.file.name)}
               sending={sendingIntake}
               error={intakeError}
               onBack={() => setIntakeReview(null)}
@@ -474,6 +487,7 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
                   onClose={onClose}
                 />
               </div>
+              {canAttachOnCreate && <CreationAttachments attachments={attachments} disabled={isDisabled} />}
             </div>
             <div
               className={cn(
@@ -549,7 +563,7 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
                         type="submit"
                         ref={submitBtnRef}
                         loading={isSubmitting}
-                        disabled={isDisabled}
+                        disabled={isDisabled || (canAttachOnCreate && attachments.blocked)}
                       >
                         {isSubmitting
                           ? primaryButtonText.loading

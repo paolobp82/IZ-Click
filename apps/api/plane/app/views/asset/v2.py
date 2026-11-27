@@ -602,8 +602,16 @@ class ProjectAssetEndpoint(BaseAPIView):
             "image/jpg",
             "image/gif",
         ]
-        if entity_type == FileAsset.EntityTypeContext.COMMENT_DESCRIPTION:
+        if entity_type in [
+            FileAsset.EntityTypeContext.COMMENT_DESCRIPTION,
+            FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+        ]:
             allowed_types = settings.ATTACHMENT_MIME_TYPES
+        if entity_type == FileAsset.EntityTypeContext.ISSUE_ATTACHMENT:
+            if entity_identifier is not None:
+                return Response({"error": "Usa el formulario de adjuntos de la tarea existente."}, status=400)
+            if size <= 0 or size > settings.FILE_SIZE_LIMIT:
+                return Response({"error": "El archivo está vacío o supera el tamaño permitido."}, status=400)
         if type not in allowed_types:
             return Response(
                 {
@@ -624,7 +632,8 @@ class ProjectAssetEndpoint(BaseAPIView):
 
         # Create a File Asset
         asset = FileAsset.objects.create(
-            attributes={"name": name, "type": type, "size": size_limit},
+            attributes={"name": name, "type": type, "size": size_limit,
+                        **({"creation_staged": True} if entity_type == FileAsset.EntityTypeContext.ISSUE_ATTACHMENT else {})},
             asset=asset_key,
             size=size_limit,
             workspace=workspace,
@@ -652,6 +661,8 @@ class ProjectAssetEndpoint(BaseAPIView):
     def patch(self, request, slug, project_id, pk):
         # get the asset id
         asset = FileAsset.objects.get(id=pk, workspace__slug=slug, project_id=project_id)
+        if asset.entity_type == FileAsset.EntityTypeContext.ISSUE_ATTACHMENT and asset.created_by_id != request.user.pk:
+            return Response({"error": "No tienes autorización para modificar esta subida."}, status=403)
         # get the storage metadata
         asset.is_uploaded = True
         # get the storage metadata
@@ -668,6 +679,8 @@ class ProjectAssetEndpoint(BaseAPIView):
     def delete(self, request, slug, project_id, pk):
         # Get the asset
         asset = FileAsset.objects.get(id=pk, workspace__slug=slug, project_id=project_id)
+        if asset.entity_type == FileAsset.EntityTypeContext.ISSUE_ATTACHMENT and asset.created_by_id != request.user.pk:
+            return Response({"error": "No tienes autorización para modificar esta subida."}, status=403)
         # Check deleted assets
         asset.is_deleted = True
         asset.deleted_at = timezone.now()
