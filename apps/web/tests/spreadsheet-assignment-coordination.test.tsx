@@ -6,15 +6,17 @@ import type { TIssue } from "@plane/types";
 import { SpreadsheetAssigneeColumn } from "../core/components/issues/issue-layouts/spreadsheet/columns/assignee-column";
 
 const state = vi.hoisted(() => ({ role: "coordinator", managed: true, failed: false,
-  assign: vi.fn(), mutate: vi.fn(), native: vi.fn(),
+  legacy: vi.fn(), assign: vi.fn(), mutate: vi.fn(), native: vi.fn(),
   task: { id: "task", version: 4, producer_id: "old", closed: false },
 }));
 vi.mock("react-router", () => ({ useParams: () => ({ workspaceSlug: "izango" }) }));
 vi.mock("mobx-react", () => ({ observer: (component: unknown) => component }));
 vi.mock("@/hooks/use-izclick-access", () => ({ useIzclickAccess: () => ({ enabled: true, role: state.role }) }));
 vi.mock("@/services/izclick-coordination.service", () => ({ coordinationService: { assignTask: state.assign } }));
-vi.mock("@/components/dropdowns/member/dropdown", () => ({ MemberDropdown: ({ onChange }: { onChange: (ids: string[]) => void }) =>
-  <button onClick={() => onChange(["producer"])}>Selector anterior</button> }));
+vi.mock("@/components/dropdowns/member/dropdown", () => ({ MemberDropdown: (props: { onChange: (ids: string[]) => void; disabled: boolean }) => {
+    state.legacy(props);
+    return <button disabled={props.disabled} onClick={() => props.onChange(["producer"])}>Selector anterior</button>;
+  } }));
 vi.mock("swr", () => ({ default: (key: string[]) => ({
   data: key[0] === "izclick-task-board" ? { tasks: state.managed ? [state.task] : [] } : [
     { user_id: "producer", name: "Productor disponible", role: "producer" },
@@ -27,13 +29,13 @@ beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   state.role = "coordinator"; state.managed = true; state.failed = false;
   state.task.closed = false; state.assign.mockReset().mockResolvedValue({});
-  state.native.mockReset(); state.mutate.mockReset().mockResolvedValue(undefined);
+  state.legacy.mockReset(); state.native.mockReset(); state.mutate.mockReset().mockResolvedValue(undefined);
   node = document.createElement("div"); document.body.appendChild(node); root = createRoot(node);
 });
 afterEach(async () => { await act(async () => root.unmount()); node.remove(); });
-async function render() {
+async function render(disabled = false) {
   await act(async () => root.render(<SpreadsheetAssigneeColumn issue={{ id: "task", project_id: "project" } as TIssue}
-    onChange={state.native} onClose={vi.fn()} disabled={false} />));
+    onChange={state.native} onClose={vi.fn()} disabled={disabled} />));
 }
 async function assign() {
   await act(async () => {
@@ -57,6 +59,17 @@ describe("Spreadsheet managed assignment", () => {
     state.managed = false; await render();
     await act(async () => node.querySelector("button")!.click());
     expect(state.native).toHaveBeenCalled(); expect(state.assign).not.toHaveBeenCalled();
+  });
+  it("gives historical assignments the same text-and-arrow presentation", async () => {
+    state.managed = false; await render();
+    expect(state.legacy.mock.lastCall?.[0]).toMatchObject({ dropdownArrow: true, hideIcon: true,
+      showUserDetails: true, buttonVariant: "transparent-with-text", placeholder: "Seleccionar productor" });
+  });
+  it.each([true, false])("preserves the row's disabled state for managed=%s", async managed => {
+    state.managed = managed; await render(true);
+    const control = node.querySelector<HTMLSelectElement | HTMLButtonElement>(managed ? "select" : "button")!;
+    expect(control.disabled).toBe(true);
+    expect(state.assign).not.toHaveBeenCalled(); expect(state.native).not.toHaveBeenCalled();
   });
   it("refreshes and shows an error on an assignment conflict without native retry", async () => {
     state.assign.mockRejectedValue(new Error("conflict")); await render(); await assign();

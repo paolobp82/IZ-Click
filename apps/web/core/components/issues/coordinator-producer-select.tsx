@@ -1,3 +1,4 @@
+import { ASSIGNMENT_CONTROL_CLASS, AssignmentChevron } from "./assignment-control";
 import { useState, type ReactNode } from "react";
 import useSWR from "swr";
 import { useIzclickAccess } from "@/hooks/use-izclick-access";
@@ -9,21 +10,24 @@ export function CoordinatorProducerSelect({ slug, value, onChange, disabled = fa
 }) {
   const members = useSWR(["izclick-producers", slug], () => coordinationService.roles(slug));
   return <div>
+    <div className="relative">
     <select aria-label="Productor asignado" value={value} disabled={disabled || !members.data}
-      className="w-full rounded border border-subtle bg-surface-1 p-2 text-xs"
+      className={`${ASSIGNMENT_CONTROL_CLASS} appearance-none pr-7 disabled:cursor-not-allowed disabled:opacity-60`}
       onChange={(event) => onChange(event.target.value)}>
       <option value="">Seleccionar productor</option>
       {members.data?.filter(member => member.role === "producer").map(member =>
         <option key={member.user_id} value={member.user_id}>{member.name}</option>)}
     </select>
+    <AssignmentChevron />
+    </div>
     {members.error && <p role="alert">No se pudieron cargar los productores. <button type="button" onClick={() => void members.mutate()}>Reintentar</button></p>}
     {members.data && !members.data.some(member => member.role === "producer") && <p role="status">No hay productores activos configurados en este espacio.</p>}
   </div>;
 }
 
 /** All native updates for managed loads go through the audited assignment API. */
-export function ManagedProducerAssignment({ slug, issueId, children }: {
-  slug: string; issueId: string; children: ReactNode;
+export function ManagedProducerAssignment({ slug, issueId, children, disabled = false }: {
+  slug: string; issueId: string; children: ReactNode; disabled?: boolean;
 }) {
   const access = useIzclickAccess(slug);
   const board = useSWR(access.enabled ? ["izclick-task-board", slug] : null, () => coordinationService.tasks(slug));
@@ -43,6 +47,6 @@ export function ManagedProducerAssignment({ slug, issueId, children }: {
     finally { await board.mutate(); setSaving(false); }
   }
   return <div><CoordinatorProducerSelect slug={slug} value={task.producer_id ?? ""}
-    disabled={saving || task.closed} onChange={id => void assign(id)} />
+    disabled={disabled || saving || task.closed} onChange={id => void assign(id)} />
     {error && <p role="alert">{error}</p>}</div>;
 }
