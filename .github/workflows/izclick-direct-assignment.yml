@@ -34,7 +34,7 @@ jobs:
           python-version: '3.12'
       - run: pip install -r apps/api/requirements/production.txt
       - working-directory: apps/api
-        run: python manage.py test plane.tests.test_izclick_issue_intake --noinput --settings=plane.settings.test
+        run: python manage.py test plane.tests.test_izclick_issue_intake plane.tests.test_izclick_producer_roster --noinput --settings=plane.settings.test
   web:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
